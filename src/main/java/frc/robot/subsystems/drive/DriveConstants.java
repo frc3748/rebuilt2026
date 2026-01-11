@@ -28,10 +28,10 @@ public class DriveConstants {
       };
 
 
-    public static final Rotation2d frontLeftZeroRotation = new Rotation2d(0.0); // TODO update with the new one tested on 1/10
-    public static final Rotation2d frontRightZeroRotation = new Rotation2d(0.0);
-    public static final Rotation2d backLeftZeroRotation = new Rotation2d(0.0);
-    public static final Rotation2d backRightZeroRotation = new Rotation2d(0.0);
+    public static final Rotation2d frontLeftZeroRotation = new Rotation2d(0.158936); // TODO update with the new one tested on 1/10
+    public static final Rotation2d frontRightZeroRotation = new Rotation2d(-0.464111);
+    public static final Rotation2d backLeftZeroRotation = new Rotation2d(0.466553);
+    public static final Rotation2d backRightZeroRotation = new Rotation2d(-0.429443);
 
     public static final int pigeonCanId = 50;
 
