@@ -5,8 +5,6 @@ import com.ctre.phoenix6.configs.CANcoderConfiguration;
 import com.pathplanner.lib.config.ModuleConfig;
 import com.pathplanner.lib.config.RobotConfig;
 
-// import com.pathplanner.lib.config.ModuleConfig;
-// import com.pathplanner.lib.config.RobotConfig;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.system.plant.DCMotor;
@@ -55,12 +53,11 @@ public class DriveConstants {
     public static final int driveMotorCurrentLimit = 55;
     public static final double wheelRadiusMeters = 0.0508;
     public static final double driveMotorReduction = 6.48;// Swerve X2i x3 with 10 pinion teeth
-      //(45.0 * 22.0) / (14.0 * 15.0); // MAXSwerve with 14 pinion teeth
     public static DCMotor driveGearbox = DCMotor.getNEO(1);
 
 
     public static final CANcoderConfiguration canCoderConfiguration = new CANcoderConfiguration();
-      // Drive encoder configuration
+    // Drive encoder configuration
     public static final double driveEncoderPositionFactor = (.0508) * 2 * Math.PI / 6.48; // Wheel Radians
     public static final double driveEncoderVelocityFactor = ((.0508) * 2 * Math.PI / 6.48) / 60; // Wheel Rad/Sec
 
@@ -97,7 +94,7 @@ public class DriveConstants {
     public static final double turnPIDMaxInput = 2 * Math.PI; // Radians
 
     // PathPlanner configuration
-    public static final double robotMassKg = 74.088;
+    public static final double robotMassKg = 50;
     public static final double robotMOI = 6.883;
     public static final double wheelCOF = 1.2;
 
