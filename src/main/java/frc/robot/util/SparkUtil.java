@@ -9,6 +9,8 @@ package frc.robot.util;
 
 import com.revrobotics.REVLibError;
 import com.revrobotics.spark.SparkBase;
+import com.revrobotics.spark.SparkMax;
+
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 import java.util.function.DoubleSupplier;
@@ -44,6 +46,17 @@ public class SparkUtil {
 
   /** Attempts to run the command until no error is produced. */
   public static void tryUntilOk(SparkBase spark, int maxAttempts, Supplier<REVLibError> command) {
+    for (int i = 0; i < maxAttempts; i++) {
+      var error = command.get();
+      if (error == REVLibError.kOk) {
+        break;
+      } else {
+        sparkStickyFault = true;
+      }
+    }
+  }
+
+  public static void tryUntilOk(SparkMax spark, int maxAttempts, Supplier<REVLibError> command) {
     for (int i = 0; i < maxAttempts; i++) {
       var error = command.get();
       if (error == REVLibError.kOk) {
