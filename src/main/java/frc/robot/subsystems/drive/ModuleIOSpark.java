@@ -123,7 +123,7 @@ public ModuleIOSpark(int module) {
     driveConfig
         .encoder
         .positionConversionFactor(driveEncoderPositionFactor)
-        .velocityConversionFactor(driveEncoderVelocityFactor / 60)
+        .velocityConversionFactor(driveEncoderVelocityFactor)
         .uvwMeasurementPeriod(10)
         .uvwAverageDepth(2);
     driveConfig
