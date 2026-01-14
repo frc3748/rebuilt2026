@@ -8,7 +8,6 @@
 package frc.robot.subsystems.drive;
 
 import static edu.wpi.first.units.Units.Radians;
-import static edu.wpi.first.units.Units.RadiansPerSecond;
 import static frc.robot.subsystems.drive.DriveConstants.*;
 import static frc.robot.util.SparkUtil.*;
 
@@ -31,9 +30,7 @@ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.util.Units;
 
-import java.io.Console;
 import java.util.Queue;
 import java.util.function.DoubleSupplier;
 
@@ -68,7 +65,6 @@ public class ModuleIOSpark implements ModuleIO {
   private final Debouncer turnConnectedDebounce =
       new Debouncer(0.5, Debouncer.DebounceType.kFalling);
 
-  @SuppressWarnings("removal")
 public ModuleIOSpark(int module) {
     zeroRotation =
         switch (module) {
@@ -129,8 +125,9 @@ public ModuleIOSpark(int module) {
     driveConfig
         .closedLoop
         .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
-        .pidf(driveKp, driveKi, driveKd, driveKf)
-        .iMaxAccum(driveIntegrationCap);
+        .pid(driveKp, driveKi, driveKd)
+        .iMaxAccum(driveIntegrationCap)
+        .feedForward.kA(driveKf);
     driveConfig
         .signals
         .primaryEncoderPositionAlwaysOn(true)
@@ -161,7 +158,8 @@ public ModuleIOSpark(int module) {
         .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
         .positionWrappingEnabled(true)
         .positionWrappingInputRange(turnPIDMinInput, turnPIDMaxInput)
-        .pidf(turnKp, turnKi, turnKd, turnKf);
+        .pid(turnKp, turnKi, turnKd)
+        .feedForward.kA(turnKf);
     turnConfig
         .signals
         .primaryEncoderPositionAlwaysOn(true)
@@ -186,10 +184,7 @@ public ModuleIOSpark(int module) {
     turnPositionQueue =
         SparkOdometryThread.getInstance().registerSignal(
             turnSpark,
-            () -> canTurnEncoder
-                    .getAbsolutePosition()
-                    .getValue()
-                    .in(Radians)
+            relTurnEncoder::getPosition
     );
   }
 
@@ -210,10 +205,10 @@ public ModuleIOSpark(int module) {
     sparkStickyFault = false;
     ifOk(
         turnSpark,
-        () -> canTurnEncoder.getAbsolutePosition().getValue().in(Radians),
+        relTurnEncoder::getPosition,
         (value) -> inputs.turnPosition = new Rotation2d(value).minus(zeroRotation));
 
-    ifOk(turnSpark, () -> canTurnEncoder.getVelocity().getValue().in(RadiansPerSecond), (value) -> inputs.turnVelocityRadPerSec = value);
+    ifOk(turnSpark, relTurnEncoder::getVelocity, (value) -> inputs.turnVelocityRadPerSec = value);
     ifOk(
         turnSpark,
         new DoubleSupplier[] {turnSpark::getAppliedOutput, turnSpark::getBusVoltage},
