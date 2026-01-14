@@ -9,6 +9,7 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.Unit;
 
 
 public class DriveConstants {
@@ -27,11 +28,10 @@ public class DriveConstants {
         new Translation2d(-trackWidth / 2.0, -wheelBase / 2.0)
       };
 
-
-    public static final Rotation2d frontLeftZeroRotation = new Rotation2d(0.158936); // TODO update 
-    public static final Rotation2d frontRightZeroRotation = new Rotation2d(-0.464111);
-    public static final Rotation2d backLeftZeroRotation = new Rotation2d(0.466553);
-    public static final Rotation2d backRightZeroRotation = new Rotation2d(-0.429443);
+    public static final Rotation2d frontLeftZeroRotation = new Rotation2d(-0.000244 ); // BROKEN CAN REDO THIS!!! 
+    public static final Rotation2d frontRightZeroRotation = new Rotation2d(-0.000244);
+    public static final Rotation2d backLeftZeroRotation = new Rotation2d(0);
+    public static final Rotation2d backRightZeroRotation = new Rotation2d(-0.000244);
 
     public static final int pigeonCanId = 50;
 
@@ -58,8 +58,8 @@ public class DriveConstants {
 
     public static final CANcoderConfiguration canCoderConfiguration = new CANcoderConfiguration();
     // Drive encoder configuration
-    public static final double driveEncoderPositionFactor = (.0508) * 2 * Math.PI / 6.48; // Wheel Radians
-    public static final double driveEncoderVelocityFactor = ((.0508) * 2 * Math.PI / 6.48) / 60; // Wheel Rad/Sec
+    public static final double driveEncoderPositionFactor = 2 * Math.PI / 6.48; // Wheel Radians
+    public static final double driveEncoderVelocityFactor = ( 2 * Math.PI / 6.48) / 60; // Wheel Rad/Sec
 
     // Drive PID configuration
     public static final double driveKp = 0.008;
@@ -81,8 +81,8 @@ public class DriveConstants {
 
     // Turn encoder configuration
     public static final boolean turnEncoderInverted = true;
-    public static final double turnEncoderPositionFactor = (1 / 12.1 * 2 * Math.PI) ; // Rotations -> Radians
-    public static final double turnEncoderVelocityFactor = (1 / 12.1 * 2 * Math.PI) / 60.0 ; // RPM -> Rad/Sec
+    public static final double turnEncoderPositionFactor = (2 * Math.PI / turnMotorReduction) ; // Rotations -> Radians
+    public static final double turnEncoderVelocityFactor = (2 * Math.PI / turnMotorReduction) / 60.0 ; // RPM -> Rad/Sec
 
     // Turn PID configuration
     public static final double turnKp = 0.007;
