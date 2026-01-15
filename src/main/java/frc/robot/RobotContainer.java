@@ -18,6 +18,7 @@ import frc.robot.commands.DriveCommands;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.GyroIOPigeon2;
 import frc.robot.subsystems.drive.ModuleIOSpark;
+import frc.robot.subsystems.intake.*;
 
 public class RobotContainer {
 
@@ -28,6 +29,8 @@ public class RobotContainer {
     new ModuleIOSpark(2),
     new ModuleIOSpark(3)
   );
+
+  private final Intake intake = new Intake(new IntakeIOSpark(1, 2));
 
   private final CommandXboxController controller = new CommandXboxController(0);
 
@@ -88,7 +91,14 @@ public class RobotContainer {
                             new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
                     drive)
                 .ignoringDisable(true));
-  }
+
+    // Intake
+    controller.
+        rightTrigger()
+        .whileTrue(
+            Commands.run(() -> intake.run(1.0), intake)
+                .finallyDo(interrupted -> intake.stop()));
+}
 
   public Command getAutonomousCommand() {
     return Commands.print("No autonomous command configured");
