@@ -7,13 +7,11 @@
 
 package frc.robot.subsystems.drive;
 
-import static edu.wpi.first.units.Units.RadiansPerSecond;
-import static edu.wpi.first.units.Units.Rotations;
+import static edu.wpi.first.units.Units.Radians;
 import static frc.robot.subsystems.drive.DriveConstants.*;
 import static frc.robot.util.SparkUtil.*;
 
 import com.ctre.phoenix6.hardware.CANcoder;
-import com.revrobotics.AbsoluteEncoder;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.ResetMode;
 import com.revrobotics.PersistMode;
@@ -33,7 +31,6 @@ import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.math.geometry.Rotation2d;
 
-import java.io.Console;
 import java.util.Queue;
 import java.util.function.DoubleSupplier;
 
@@ -68,7 +65,6 @@ public class ModuleIOSpark implements ModuleIO {
   private final Debouncer turnConnectedDebounce =
       new Debouncer(0.5, Debouncer.DebounceType.kFalling);
 
-  @SuppressWarnings("removal")
 public ModuleIOSpark(int module) {
     zeroRotation =
         switch (module) {
@@ -110,7 +106,7 @@ public ModuleIOSpark(int module) {
     relTurnEncoder = turnSpark.getEncoder();
 
     canTurnEncoder = new CANcoder(canCoderSpark);
-        canTurnEncoder.getConfigurator().apply(canCoderConfiguration);
+    canTurnEncoder.getConfigurator().apply(canCoderConfiguration);
     driveController = driveSpark.getClosedLoopController();
     turnController = turnSpark.getClosedLoopController();
 
@@ -129,8 +125,9 @@ public ModuleIOSpark(int module) {
     driveConfig
         .closedLoop
         .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
-        .pidf(driveKp, driveKi, driveKd, driveKf)
-        .iMaxAccum(driveIntegrationCap);
+        .pid(driveKp, driveKi, driveKd)
+        .iMaxAccum(driveIntegrationCap)
+        .feedForward.kA(driveKf);
     driveConfig
         .signals
         .primaryEncoderPositionAlwaysOn(true)
@@ -161,7 +158,8 @@ public ModuleIOSpark(int module) {
         .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
         .positionWrappingEnabled(true)
         .positionWrappingInputRange(turnPIDMinInput, turnPIDMaxInput)
-        .pidf(turnKp, turnKi, turnKd, turnKf);
+        .pid(turnKp, turnKi, turnKd)
+        .feedForward.kA(turnKf);
     turnConfig
         .signals
         .primaryEncoderPositionAlwaysOn(true)
@@ -176,20 +174,17 @@ public ModuleIOSpark(int module) {
     turnSpark.configure(turnConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     turnSpark.clearFaults();
 
-    tryUntilOk(turnSpark, 5, () -> relTurnEncoder.setPosition(canTurnEncoder.getAbsolutePosition().refresh().getValueAsDouble()));
+    tryUntilOk(turnSpark, 5, () -> relTurnEncoder.setPosition(canTurnEncoder.getAbsolutePosition().getValue().in(Radians)));
 
     // Create odometry queues
+
     timestampQueue = SparkOdometryThread.getInstance().makeTimestampQueue();
     drivePositionQueue =
         SparkOdometryThread.getInstance().registerSignal(driveSpark, driveEncoder::getPosition);
     turnPositionQueue =
         SparkOdometryThread.getInstance().registerSignal(
             turnSpark,
-            () -> canTurnEncoder
-                    .getAbsolutePosition()
-                    .refresh()
-                    .getValue()
-                    .in(Rotations)
+            relTurnEncoder::getPosition
     );
   }
 
@@ -210,10 +205,10 @@ public ModuleIOSpark(int module) {
     sparkStickyFault = false;
     ifOk(
         turnSpark,
-        () -> canTurnEncoder.getAbsolutePosition().refresh().getValue().in(Rotations),
+        relTurnEncoder::getPosition,
         (value) -> inputs.turnPosition = new Rotation2d(value).minus(zeroRotation));
 
-    ifOk(turnSpark, () -> canTurnEncoder.getVelocity().refresh().getValue().in(RadiansPerSecond), (value) -> inputs.turnVelocityRadPerSec = value);
+    ifOk(turnSpark, relTurnEncoder::getVelocity, (value) -> inputs.turnVelocityRadPerSec = value);
     ifOk(
         turnSpark,
         new DoubleSupplier[] {turnSpark::getAppliedOutput, turnSpark::getBusVoltage},
@@ -260,7 +255,7 @@ public ModuleIOSpark(int module) {
   public void setTurnPosition(Rotation2d rotation) {
     double setpoint =
         MathUtil.inputModulus(
-            rotation.plus(zeroRotation).getRadians(), turnPIDMinInput, turnPIDMaxInput);
+            rotation.minus(zeroRotation).getRadians(), turnPIDMinInput, turnPIDMaxInput);
     turnController.setSetpoint(setpoint, ControlType.kPosition);
   }
 }
