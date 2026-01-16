@@ -144,13 +144,20 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
   private void registerStateCommands() {
     registerStateCommand(State.IDLE, new InstantCommand(() -> stop()));
 
-    registerStateCommand(State.TRAVERSING, DriveCommands.joystickDrive(
+    // fix soon
+    // registerStateCommand(State.TRAVERSING, DriveCommands.joystickDrive(
+    //     this,
+    //     () -> -robotState.getController().getLeftY(),
+    //     () -> -robotState.getController().getLeftX(),
+    //     () -> -robotState.getController().getRightX()));
+
+    setDefaultCommand(DriveCommands.joystickDrive(
         this,
         () -> -robotState.getController().getLeftY(),
         () -> -robotState.getController().getLeftX(),
         () -> -robotState.getController().getRightX()));
 
-    registerStateCommand(State.TRAVERSING, DriveCommands.joystickDriveAtAngle(
+    registerStateCommand(State.TRAVERSING_AT_ANGLE, DriveCommands.joystickDriveAtAngle(
         this,
         () -> -robotState.getController().getLeftY(),
         () -> -robotState.getController().getLeftX(),
@@ -199,19 +206,19 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
 
       // TODO make sure driveInputs.modStates / optimized match w our stuff
 
-      var measuredRobotRelativeChassisSpeeds = kinematics.toChassisSpeeds(driveInputs.optimizedModStates);
-      var measuredFieldRelativeChassisSpeeds = ChassisSpeeds
-          .fromRobotRelativeSpeeds(measuredRobotRelativeChassisSpeeds, getPose().getRotation());
-      var desiredFieldRelativeChassisSpeeds = ChassisSpeeds
-          .fromRobotRelativeSpeeds(kinematics.toChassisSpeeds(driveInputs.modStates), getPose().getRotation());
-      var fusedFieldRelativeChassisSpeeds = new ChassisSpeeds(measuredFieldRelativeChassisSpeeds.vxMetersPerSecond,
-          measuredFieldRelativeChassisSpeeds.vyMetersPerSecond,
-          yawRadsPerS);
+      // var measuredRobotRelativeChassisSpeeds = kinematics.toChassisSpeeds(driveInputs.optimizedModStates);
+      // var measuredFieldRelativeChassisSpeeds = ChassisSpeeds
+      //     .fromRobotRelativeSpeeds(measuredRobotRelativeChassisSpeeds, getPose().getRotation());
+      // var desiredFieldRelativeChassisSpeeds = ChassisSpeeds
+      //     .fromRobotRelativeSpeeds(kinematics.toChassisSpeeds(driveInputs.modStates), getPose().getRotation());
+      // var fusedFieldRelativeChassisSpeeds = new ChassisSpeeds(measuredFieldRelativeChassisSpeeds.vxMetersPerSecond,
+      //     measuredFieldRelativeChassisSpeeds.vyMetersPerSecond,
+      //     yawRadsPerS);
 
-      robotState.addDriveMotionMeasurements(timestamp, rollRadsPerS, pitchRadsPerS, yawRadsPerS,
-          pitchRads, rollRads, accelX, accelY, desiredFieldRelativeChassisSpeeds,
-          measuredRobotRelativeChassisSpeeds, measuredFieldRelativeChassisSpeeds,
-          fusedFieldRelativeChassisSpeeds);
+      // robotState.addDriveMotionMeasurements(timestamp, rollRadsPerS, pitchRadsPerS, yawRadsPerS,
+      //     pitchRads, rollRads, accelX, accelY, desiredFieldRelativeChassisSpeeds,
+      //     measuredRobotRelativeChassisSpeeds, measuredFieldRelativeChassisSpeeds,
+      //     fusedFieldRelativeChassisSpeeds);
     }
 
     Logger.processInputs("Drive/Gyro", gyroInputs);
@@ -422,17 +429,17 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
 
   /** Returns the maximum linear speed in meters per sec. */
   public double getMaxLinearSpeedMetersPerSec() {
-    if (getState() == State.SLOW) {
-      return slowSpeedMetersPerSec;
-    }
+    // if (getState() == State.SLOW) {
+    //   return slowSpeedMetersPerSec;
+    // }
     return maxSpeedMetersPerSec;
   }
 
   /** Returns the maximum angular speed in radians per sec. */
   public double getMaxAngularSpeedRadPerSec() {
-    if (getState() == State.SLOW) {
-      return slowSpeedMetersPerSec / driveBaseRadius;
-    }
+    // if (getState() == State.SLOW) {
+    //   return slowSpeedMetersPerSec / driveBaseRadius;
+    // }
     return maxSpeedMetersPerSec / driveBaseRadius;
   }
 

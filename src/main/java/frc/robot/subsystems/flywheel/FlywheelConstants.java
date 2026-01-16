@@ -1,5 +1,5 @@
 package frc.robot.subsystems.flywheel;
 
-public class Flywheel {
+public class FlywheelConstants {
     
 }

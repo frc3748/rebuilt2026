@@ -11,7 +11,7 @@ import edu.wpi.first.math.util.Units;
 
 public class DriveConstants {
 
-  public static final double maxSpeedMetersPerSec = 4.8;
+  public static final double maxSpeedMetersPerSec = 4.8*4; // check why this is broken
   public static final double slowSpeedMetersPerSec = 2;
 
   public static final double odometryFrequency = 100.0; // Hz
@@ -26,10 +26,10 @@ public class DriveConstants {
       new Translation2d(-trackWidth / 2.0, -wheelBase / 2.0)
   };
 
-  public static final Rotation2d frontLeftZeroRotation = new Rotation2d(-0.000244); // BROKEN CAN REDO THIS!!!
-  public static final Rotation2d frontRightZeroRotation = new Rotation2d(-0.000244);
+  public static final Rotation2d frontLeftZeroRotation = new Rotation2d(0); // BROKEN CAN REDO THIS!!!
+  public static final Rotation2d frontRightZeroRotation = new Rotation2d(0);
   public static final Rotation2d backLeftZeroRotation = new Rotation2d(0);
-  public static final Rotation2d backRightZeroRotation = new Rotation2d(-0.000244);
+  public static final Rotation2d backRightZeroRotation = new Rotation2d(0);
 
   public static final int pigeonCanId = 50;
 
@@ -82,7 +82,7 @@ public class DriveConstants {
   public static final double turnEncoderVelocityFactor = (2 * Math.PI / turnMotorReduction) / 60.0; // RPM -> Rad/Sec
 
   // Turn PID configuration
-  public static final double turnKp = 0.007;
+  public static final double turnKp = 0.7;
   public static final double turnKi = 0.0;
   public static final double turnKd = 0.0;
   public static final double turnKf = 0.0;

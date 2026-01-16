@@ -1,5 +1,5 @@
 package frc.robot.subsystems.hopper;
 
-public class Hopper {
+public class HopperConstants {
     
 }

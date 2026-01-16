@@ -44,7 +44,7 @@ public class RobotState extends StateMachine<RobotState.State> {
     public final static double LOOKBACK_TIME = 1.0;
 
     private Drive drive;
-    private VisionSubsystem vision;
+    // private VisionSubsystem vision;
 
     private CommandXboxController controller = new CommandXboxController(0);
 
@@ -122,7 +122,7 @@ public class RobotState extends StateMachine<RobotState.State> {
 
         // vision initialization
         {
-            vision = new VisionSubsystem(new VisionIOHardwareLimelight(this), this);
+            // vision = new VisionSubsystem(new VisionIOHardwareLimelight(this), this);
         }
 
         // auto setup
@@ -138,7 +138,7 @@ public class RobotState extends StateMachine<RobotState.State> {
         registerStateCommands();
         
         addChildSubsystem(drive);
-        addChildSubsystem(vision);
+        // addChildSubsystem(vision);
         enable();
     }
 
@@ -182,18 +182,18 @@ public class RobotState extends StateMachine<RobotState.State> {
     }
 
     private void registerStateCommands() {
-        registerStateCommand(State.SOFT_STOP, new ParallelCommandGroup(
-            drive.transitionCommand(Drive.State.IDLE)
-        ));
+        // registerStateCommand(State.SOFT_STOP, new ParallelCommandGroup(
+        //     drive.transitionCommand(Drive.State.IDLE)
+        // ));
 
-        registerStateCommand(State.TRAVERSING, new ParallelCommandGroup(
-            drive.transitionCommand(Drive.State.TRAVERSING)
-        ));
+        // registerStateCommand(State.TRAVERSING, new ParallelCommandGroup(
+        //     drive.transitionCommand(Drive.State.TRAVERSING)
+        // ));
 
-        // change this to an auto state in the future?
-        registerStateCommand(State.AUTO, new ParallelCommandGroup(
-                drive.transitionCommand(Drive.State.TRAVERSING)
-        ));
+        // // change this to an auto state in the future?
+        // registerStateCommand(State.AUTO, new ParallelCommandGroup(
+        //         drive.transitionCommand(Drive.State.TRAVERSING)
+        // ));
     }
 
     private void setupControllerBindings() {
@@ -218,18 +218,18 @@ public class RobotState extends StateMachine<RobotState.State> {
         // controller.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
 
         // Reset gyro to 0° when B button is pressed
-        controller.a().onTrue(drive.transitionCommand(Drive.State.TRAVERSING_AT_ANGLE)).onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
-        controller.x().onTrue(drive.transitionCommand(Drive.State.CROSSED)).onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
-        controller.b().onTrue(drive.transitionCommand(Drive.State.SLOW)).onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
+        // controller.a().onTrue(drive.transitionCommand(Drive.State.TRAVERSING_AT_ANGLE)).onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
+        // controller.x().onTrue(drive.transitionCommand(Drive.State.CROSSED)).onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
+        // controller.b().onTrue(drive.transitionCommand(Drive.State.SLOW)).onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
 
-        controller
-                .b()
-                .onTrue(
-                        Commands.runOnce(
-                                () -> drive.setPose(
-                                        new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
-                                drive)
-                                .ignoringDisable(true));
+        // controller
+        //         .b()
+        //         .onTrue(
+        //                 Commands.runOnce(
+        //                         () -> drive.setPose(
+        //                                 new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
+        //                         drive)
+        //                         .ignoringDisable(true));
     }
 
     public Command getAutonomousCommand() {
@@ -241,7 +241,8 @@ public class RobotState extends StateMachine<RobotState.State> {
     }
 
     public VisionSubsystem getVision() {
-        return vision;
+        return null;
+        // return vision;
     }
 
     public CommandXboxController getController() {
