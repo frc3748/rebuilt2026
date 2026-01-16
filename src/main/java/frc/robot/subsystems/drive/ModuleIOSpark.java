@@ -126,8 +126,8 @@ public ModuleIOSpark(int module) {
         .closedLoop
         .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
         .pid(driveKp, driveKi, driveKd)
-        .iMaxAccum(driveIntegrationCap)
-        .feedForward.kA(driveKf);
+        .iMaxAccum(driveIntegrationCap);
+        // .feedForward.kA(driveKf);
     driveConfig
         .signals
         .primaryEncoderPositionAlwaysOn(true)
@@ -158,8 +158,8 @@ public ModuleIOSpark(int module) {
         .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
         .positionWrappingEnabled(true)
         .positionWrappingInputRange(turnPIDMinInput, turnPIDMaxInput)
-        .pid(turnKp, turnKi, turnKd)
-        .feedForward.kA(turnKf);
+        .pid(turnKp, turnKi, turnKd);
+        // .feedForward.kA(turnKf);
     turnConfig
         .signals
         .primaryEncoderPositionAlwaysOn(true)
