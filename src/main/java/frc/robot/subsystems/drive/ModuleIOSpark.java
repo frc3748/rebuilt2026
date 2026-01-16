@@ -11,7 +11,9 @@ import static edu.wpi.first.units.Units.Radians;
 import static frc.robot.subsystems.drive.DriveConstants.*;
 import static frc.robot.util.SparkUtil.*;
 
+import com.ctre.phoenix6.configs.CANcoderConfiguration;
 import com.ctre.phoenix6.hardware.CANcoder;
+import com.ctre.phoenix6.signals.SensorDirectionValue;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.ResetMode;
 import com.revrobotics.PersistMode;
@@ -39,7 +41,7 @@ import java.util.function.DoubleSupplier;
  * and duty cycle absolute encoder.
  */
 public class ModuleIOSpark implements ModuleIO {
-  private final Rotation2d zeroRotation;
+  private  Rotation2d zeroRotation;
 
   // Hardware objects
   private final SparkFlex driveSpark;
@@ -105,6 +107,13 @@ public ModuleIOSpark(int module) {
     driveEncoder = driveSpark.getEncoder();
     relTurnEncoder = turnSpark.getEncoder();
 
+    CANcoderConfiguration canCoderConfiguration = new CANcoderConfiguration();
+        canCoderConfiguration.MagnetSensor.SensorDirection = SensorDirectionValue.CounterClockwise_Positive;
+        canCoderConfiguration.MagnetSensor.withMagnetOffset(zeroRotation.getRotations());
+
+    // replacing this because of adding zero offset
+    zeroRotation = new Rotation2d();
+    
     canTurnEncoder = new CANcoder(canCoderSpark);
     canTurnEncoder.getConfigurator().apply(canCoderConfiguration);
     driveController = driveSpark.getClosedLoopController();

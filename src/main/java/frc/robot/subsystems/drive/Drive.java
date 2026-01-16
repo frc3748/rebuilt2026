@@ -144,7 +144,7 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
   private void registerStateCommands() {
     registerStateCommand(State.IDLE, new InstantCommand(() -> stop()));
 
-    // fix soon
+    // TODO fix soon
     // registerStateCommand(State.TRAVERSING, DriveCommands.joystickDrive(
     //     this,
     //     () -> -robotState.getController().getLeftY(),

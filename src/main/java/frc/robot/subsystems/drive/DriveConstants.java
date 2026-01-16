@@ -53,7 +53,6 @@ public class DriveConstants {
   public static final double driveMotorReduction = 6.48;// Swerve X2i x3 with 10 pinion teeth
   public static DCMotor driveGearbox = DCMotor.getNEO(1);
 
-  public static final CANcoderConfiguration canCoderConfiguration = new CANcoderConfiguration();
   // Drive encoder configuration
   public static final double driveEncoderPositionFactor = 2 * Math.PI / 6.48; // Wheel Radians
   public static final double driveEncoderVelocityFactor = (2 * Math.PI / 6.48) / 60; // Wheel Rad/Sec
@@ -71,7 +70,7 @@ public class DriveConstants {
   public static double turnIntegrationCap = .5;
 
   // Turn motor configuration
-  public static final boolean turnInverted = true;
+  public static final boolean turnInverted = true; // try to check this out
   public static final int turnMotorCurrentLimit = 55;
   public static final double turnMotorReduction = 12.1; // 9424.0 / 203.0;
   public static final DCMotor turnGearbox = DCMotor.getNeo550(1);

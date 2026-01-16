@@ -21,7 +21,6 @@ import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.PrintCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
@@ -32,7 +31,6 @@ import frc.robot.subsystems.drive.GyroIOPigeon2;
 import frc.robot.subsystems.drive.ModuleIOSpark;
 import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.subsystems.vision.VisionFieldPoseEstimate;
-import frc.robot.subsystems.vision.VisionIOHardwareLimelight;
 import frc.robot.subsystems.vision.VisionSubsystem;
 import frc.robot.util.ConcurrentTimeInterpolatableBuffer;
 import frc.robot.util.MathHelpers;
@@ -120,7 +118,7 @@ public class RobotState extends StateMachine<RobotState.State> {
             };
         }
 
-        // vision initialization
+        // vision initialization TODO
         {
             // vision = new VisionSubsystem(new VisionIOHardwareLimelight(this), this);
         }
@@ -182,6 +180,7 @@ public class RobotState extends StateMachine<RobotState.State> {
     }
 
     private void registerStateCommands() {
+        // TODO fix commands and controller bindings
         // registerStateCommand(State.SOFT_STOP, new ParallelCommandGroup(
         //     drive.transitionCommand(Drive.State.IDLE)
         // ));
