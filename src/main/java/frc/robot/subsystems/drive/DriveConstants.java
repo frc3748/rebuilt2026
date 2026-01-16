@@ -26,29 +26,29 @@ public class DriveConstants {
       new Translation2d(-trackWidth / 2.0, -wheelBase / 2.0)
   };
 
-  public static final Rotation2d frontLeftZeroRotation = new Rotation2d(0); // BROKEN CAN REDO THIS!!!
-  public static final Rotation2d frontRightZeroRotation = new Rotation2d(0);
-  public static final Rotation2d backLeftZeroRotation = new Rotation2d(0);
-  public static final Rotation2d backRightZeroRotation = new Rotation2d(0);
+  public static final Rotation2d frontLeftZeroRotation = new Rotation2d(0); // can 1
+  public static final Rotation2d frontRightZeroRotation = new Rotation2d(0); // can 2
+  public static final Rotation2d backLeftZeroRotation = new Rotation2d(0); // can 3
+  public static final Rotation2d backRightZeroRotation = new Rotation2d(0); // can 4
 
   public static final int pigeonCanId = 50;
 
-  public static final int frontLeftDriveCanId = 8;
+  public static final int frontLeftDriveCanId = 2;
   public static final int backLeftDriveCanId = 6;
-  public static final int frontRightDriveCanId = 2;
-  public static final int backRightDriveCanId = 4;
+  public static final int frontRightDriveCanId = 4;
+  public static final int backRightDriveCanId = 8;
 
   public static final int frontLeftTurnCanId = 9;
   public static final int backLeftTurnCanId = 7;
   public static final int frontRightTurnCanId = 3;
   public static final int backRightTurnCanId = 5;
 
-  public static final int frontLeftCanCoderId = 4;
+  public static final int frontLeftCanCoderId = 1;
   public static final int backLeftCanCoderId = 3;
-  public static final int frontRightCanCoderId = 1;
-  public static final int backRightCanCoderId = 2;
+  public static final int frontRightCanCoderId = 2;
+  public static final int backRightCanCoderId = 4;
 
-  public static final int driveMotorCurrentLimit = 55;
+  public static final int driveMotorCurrentLimit = 55; 
   public static final double wheelRadiusMeters = 0.0508;
   public static final double driveMotorReduction = 6.48;// Swerve X2i x3 with 10 pinion teeth
   public static DCMotor driveGearbox = DCMotor.getNEO(1);
