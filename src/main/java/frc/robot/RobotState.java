@@ -38,6 +38,7 @@ import frc.robot.util.ConcurrentTimeInterpolatableBuffer;
 import frc.robot.util.MathHelpers;
 import frc.robot.util.RobotTime;
 import frc.robot.util.state.StateMachine;
+import frc.robot.subsystems.intake.*;
 
 public class RobotState extends StateMachine<RobotState.State> {
 
@@ -45,6 +46,7 @@ public class RobotState extends StateMachine<RobotState.State> {
 
     private Drive drive;
     private VisionSubsystem vision;
+    private final Intake intake = new Intake(new IntakeIO(1, 2));
 
     private CommandXboxController controller = new CommandXboxController(0);
 
@@ -230,6 +232,16 @@ public class RobotState extends StateMachine<RobotState.State> {
                                         new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
                                 drive)
                                 .ignoringDisable(true));
+
+        // Intake
+        controller.
+                rightTrigger()
+                .whileTrue(
+                        Commands.run(
+                            () -> intake.run(
+                                    1.0), 
+                            intake)
+                            .finallyDo(interrupted -> intake.stop()));
     }
 
     public Command getAutonomousCommand() {

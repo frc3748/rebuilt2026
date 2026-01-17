@@ -13,9 +13,17 @@ public interface IntakeIO {
     public boolean proxTripped = false;
   }
 
-  public default void updateInputs(IntakeIOInputs inputs) {}
+  public default void updateInputs(IntakeIOInputs inputs) {
+    inputs.velocity = topMotor.getEncoder().getVelocity();
+    inputs.voltage = topMotor.getAppliedOutput() * topMotor.getBusVoltage();
+  }
 
-  public default void setVoltage(double volts) {}
+  public default void setVoltage(double volts) {
+    topMotor.setVoltage(volts);
+  }
 
-  public default void stop() {}
+  public default void stop() {
+    topMotor.stopMotor();
+    bottomMotor.stopMotor();
+  }
 }
