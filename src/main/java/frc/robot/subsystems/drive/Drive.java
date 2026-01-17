@@ -90,6 +90,8 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
     this.robotState = robotState;
 
     modules[0] = new Module(flModuleIO, 0);
+
+    modules[0] = new Module(flModuleIO, 0);
     modules[1] = new Module(frModuleIO, 1);
     modules[2] = new Module(blModuleIO, 2);
     modules[3] = new Module(brModuleIO, 3);

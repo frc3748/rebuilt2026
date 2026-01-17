@@ -491,7 +491,7 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
   }
 
   @Override
-  public final void periodic() {
+  public void periodic() {
     E chooserRequest = stateChooser.get();
 
     if (enabled) {

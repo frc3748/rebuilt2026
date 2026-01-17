@@ -46,7 +46,7 @@ public class RobotState extends StateMachine<RobotState.State> {
 
     private Drive drive;
     private VisionSubsystem vision;
-    private final Intake intake = new Intake(new IntakeIO(1, 2));
+    private final Intake intake = new Intake(new IntakeIOSpark(1, 2));
 
     private CommandXboxController controller = new CommandXboxController(0);
 
@@ -223,7 +223,6 @@ public class RobotState extends StateMachine<RobotState.State> {
         controller.a().onTrue(drive.transitionCommand(Drive.State.TRAVERSING_AT_ANGLE)).onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
         controller.x().onTrue(drive.transitionCommand(Drive.State.CROSSED)).onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
         controller.b().onTrue(drive.transitionCommand(Drive.State.SLOW)).onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
-
         controller
                 .b()
                 .onTrue(
@@ -234,14 +233,13 @@ public class RobotState extends StateMachine<RobotState.State> {
                                 .ignoringDisable(true));
 
         // Intake
-        controller.
-                rightTrigger()
-                .whileTrue(
-                        Commands.run(
-                            () -> intake.run(
-                                    1.0), 
-                            intake)
-                            .finallyDo(interrupted -> intake.stop()));
+        controller.rightTrigger()
+            .onTrue(intake.transitionCommand(Intake.State.INTAKE))
+            .onFalse(intake.transitionCommand(Intake.State.IDLE));
+
+        controller.leftTrigger()
+            .onTrue(intake.transitionCommand(Intake.State.EXPEL))
+            .onFalse(intake.transitionCommand(Intake.State.IDLE));
     }
 
     public Command getAutonomousCommand() {
