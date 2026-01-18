@@ -44,6 +44,7 @@ import java.util.function.DoubleSupplier;
  */
 public class ModuleIOSpark implements ModuleIO {
   private  Rotation2d zeroRotation;
+  private boolean driveInverted;
 
   // Hardware objects
   private final SparkFlex driveSpark;
@@ -70,6 +71,15 @@ public class ModuleIOSpark implements ModuleIO {
       new Debouncer(0.5, Debouncer.DebounceType.kFalling);
 
 public ModuleIOSpark(int module) {
+    driveInverted =
+        switch(module) {
+            case 0 -> frontLeftDriveInverted;
+            case 1 -> frontRightDriveInverted;
+            case 2 -> backLeftDriveInverted;
+            case 3 -> backRightDriveInverted;
+            default -> false;
+        };
+
     zeroRotation =
         switch (module) {
           case 0 -> frontLeftZeroRotation;
@@ -111,10 +121,10 @@ public ModuleIOSpark(int module) {
 
     CANcoderConfiguration canCoderConfiguration = new CANcoderConfiguration();
         canCoderConfiguration.MagnetSensor.SensorDirection = SensorDirectionValue.CounterClockwise_Positive;
-        // canCoderConfiguration.MagnetSensor.withMagnetOffset(zeroRotation.getRotations());
+        canCoderConfiguration.MagnetSensor.withMagnetOffset(zeroRotation.getRotations());
 
     // replacing this because of adding zero offset
-    // zeroRotation = new Rotation2d();
+    zeroRotation = new Rotation2d();
     
     canTurnEncoder = new CANcoder(canCoderSpark);
     canTurnEncoder.getConfigurator().apply(canCoderConfiguration);
@@ -124,6 +134,7 @@ public ModuleIOSpark(int module) {
     // Configure drive motor
     SparkFlexConfig driveConfig = new SparkFlexConfig();
     driveConfig
+        .inverted(driveInverted)
         .idleMode(IdleMode.kBrake)
         .smartCurrentLimit(driveMotorCurrentLimit)
         .voltageCompensation(12.0);

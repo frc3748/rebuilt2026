@@ -11,8 +11,8 @@ import edu.wpi.first.math.util.Units;
 
 public class DriveConstants {
 
-  public static final double maxSpeedMetersPerSec = 4.8*4; // check why this is broken
-  public static final double slowSpeedMetersPerSec = 2;
+  public static final double maxSpeedMetersPerSec = 5.565648; // check why this is broken
+  // public static final double slowSpeedMetersPerSec = 2;
 
   public static final double odometryFrequency = 100.0; // Hz
   public static final double trackWidth = Units.inchesToMeters(28); // TODO CHANGE
@@ -26,10 +26,15 @@ public class DriveConstants {
       new Translation2d(-trackWidth / 2.0, -wheelBase / 2.0)
   };
 
-  public static final Rotation2d frontLeftZeroRotation = new Rotation2d(0); // can 1
-  public static final Rotation2d frontRightZeroRotation = new Rotation2d(0); // can 2
-  public static final Rotation2d backLeftZeroRotation = new Rotation2d(0); // can 3
-  public static final Rotation2d backRightZeroRotation = new Rotation2d(0); // can 4
+  public static final Rotation2d frontLeftZeroRotation = new Rotation2d(Units.rotationsToRadians(0.462890625)); // can 1
+  public static final Rotation2d frontRightZeroRotation = new Rotation2d(Units.rotationsToRadians(0.332763671875)); // can 2
+  public static final Rotation2d backLeftZeroRotation = new Rotation2d(Units.rotationsToRadians(-0.068115234375)); // can 3
+  public static final Rotation2d backRightZeroRotation = new Rotation2d(Units.rotationsToRadians(-0.468017578125)); // can 4
+
+  public static final boolean frontLeftDriveInverted = false;
+  public static final boolean frontRightDriveInverted = true; //t
+  public static final boolean backLeftDriveInverted = true; // t
+  public static final boolean backRightDriveInverted = false;
 
   public static final int pigeonCanId = 50;
 
@@ -56,6 +61,7 @@ public class DriveConstants {
   // Drive encoder configuration
   public static final double driveEncoderPositionFactor = 2 * Math.PI / 6.48; // Wheel Radians
   public static final double driveEncoderVelocityFactor = (2 * Math.PI / 6.48) / 60; // Wheel Rad/Sec
+
 
   // Drive PID configuration
   public static final double driveKp = 0.008;
