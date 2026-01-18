@@ -31,58 +31,58 @@ public class LimelightHelpers {
     public static class LimelightTarget_Retro {
 
         @JsonProperty("t6c_ts")
-        private double[] cameraPose_TargetSpace;
+        private double[] cameraPose_TargetSpace; 
 
         @JsonProperty("t6r_fs")
-        private double[] robotPose_FieldSpace;
+        private double[] robotPose_FieldSpace; 
 
         @JsonProperty("t6r_ts")
-        private  double[] robotPose_TargetSpace;
+        private  double[] robotPose_TargetSpace; 
 
         @JsonProperty("t6t_cs")
-        private double[] targetPose_CameraSpace;
+        private double[] targetPose_CameraSpace; 
 
         @JsonProperty("t6t_rs")
-        private double[] targetPose_RobotSpace;
+        private double[] targetPose_RobotSpace; 
 
-        public Pose3d getCameraPose_TargetSpace()
+        public Pose3d getCameraPose_TargetSpace() //Camera's pose relative to target; [X, Y, Z, roll, pitch, yaw]
         {
             return toPose3D(cameraPose_TargetSpace);
         }
-        public Pose3d getRobotPose_FieldSpace()
+        public Pose3d getRobotPose_FieldSpace() //Robot's pose on field; [X, Y, Z, roll, pitch, yaw]
         {
             return toPose3D(robotPose_FieldSpace);
         }
-        public Pose3d getRobotPose_TargetSpace()
+        public Pose3d getRobotPose_TargetSpace() //Robot's pose relative to target; [X, Y, Z, roll, pitch, yaw]
         {
             return toPose3D(robotPose_TargetSpace);
         }
-        public Pose3d getTargetPose_CameraSpace()
+        public Pose3d getTargetPose_CameraSpace() //Tag's pose realtive to camera; [X, Y, Z, roll, pitch, yaw]
         {
             return toPose3D(targetPose_CameraSpace);
         }
-        public Pose3d getTargetPose_RobotSpace()
+        public Pose3d getTargetPose_RobotSpace() //Tag's pose realtive to robot; [X, Y, Z, roll, pitch, yaw]
         {
             return toPose3D(targetPose_RobotSpace);
         }
 
-        public Pose2d getCameraPose_TargetSpace2D()
+        public Pose2d getCameraPose_TargetSpace2D() //Camera's pose relative to target; [X, Y, yaw]
         {
             return toPose2D(cameraPose_TargetSpace);
         }
-        public Pose2d getRobotPose_FieldSpace2D()
+        public Pose2d getRobotPose_FieldSpace2D() //Robot's pose on field; [X, Y, yaw]
         {
             return toPose2D(robotPose_FieldSpace);
         }
-        public Pose2d getRobotPose_TargetSpace2D()
+        public Pose2d getRobotPose_TargetSpace2D() //Robot's pose relative to target; [X, Y, yaw]
         {
             return toPose2D(robotPose_TargetSpace);
         }
-        public Pose2d getTargetPose_CameraSpace2D()
+        public Pose2d getTargetPose_CameraSpace2D() //Tag's pose realtive to camera; [X, Y, yaw]
         {
             return toPose2D(targetPose_CameraSpace);
         }
-        public Pose2d getTargetPose_RobotSpace2D()
+        public Pose2d getTargetPose_RobotSpace2D() //Tag's pose realtive to robot; [X, Y, yaw]
         {
             return toPose2D(targetPose_RobotSpace);
         }
@@ -105,7 +105,8 @@ public class LimelightHelpers {
         @JsonProperty("ts")
         public double ts;
 
-        public LimelightTarget_Retro() {
+        public LimelightTarget_Retro() // Run faster :sparkles:
+        {
             cameraPose_TargetSpace = new double[6];
             robotPose_FieldSpace = new double[6];
             robotPose_TargetSpace = new double[6];
@@ -859,7 +860,7 @@ public class LimelightHelpers {
      * @param limelightName
      * @return
      */
-    public static PoseEstimate getBotPoseEstimate_wpiBlue_MegaTag2(String limelightName) {
+    public static PoseEstimate getBotPoseEstimate_wpiBlue_MegaTag2(String limelightName) { //
         return getBotPoseEstimate(limelightName, "botpose_orb_wpiblue");
     }
 
