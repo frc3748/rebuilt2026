@@ -427,11 +427,13 @@ public class RobotState extends StateMachine<RobotState.State> {
 
     @Override
     protected void onTeleopStart() {
+        Elastic.selectTab("Teleop");
         requestTransition(State.TRAVERSING);
     }
 
     @Override
     protected void onAutonomousStart() {
+        Elastic.selectTab("Auto");
         registerStateCommand(State.AUTO, autoChooser.get().andThen(new PrintCommand("Auto is Done!")));
         requestTransition(State.AUTO);
     }

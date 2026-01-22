@@ -46,7 +46,7 @@ public class VisionConstants {
     public static final Rotation2d kCameraYawOffset = new Rotation2d(0);
 
     // April Tag Layout
-    public static final AprilTagFieldLayout kAprilTagLayout = AprilTagFieldLayout.loadField(AprilTagFields.k2025ReefscapeAndyMark);
+    public static final AprilTagFieldLayout kAprilTagLayout = AprilTagFieldLayout.loadField(AprilTagFields.k2026RebuiltAndymark);
 
     public static final double kFieldWidthMeters = kAprilTagLayout.getFieldWidth(); // distance between field walls,
                                                                                     // 8.211m
