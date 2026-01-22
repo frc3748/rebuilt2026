@@ -44,7 +44,6 @@ import java.util.function.DoubleSupplier;
  */
 public class ModuleIOSpark implements ModuleIO {
   private  Rotation2d zeroRotation;
-  private boolean driveInverted;
 
   // Hardware objects
   private final SparkFlex driveSpark;
@@ -71,14 +70,6 @@ public class ModuleIOSpark implements ModuleIO {
       new Debouncer(0.5, Debouncer.DebounceType.kFalling);
 
 public ModuleIOSpark(int module) {
-    driveInverted =
-        switch(module) {
-            case 0 -> frontLeftDriveInverted;
-            case 1 -> frontRightDriveInverted;
-            case 2 -> backLeftDriveInverted;
-            case 3 -> backRightDriveInverted;
-            default -> false;
-        };
 
     zeroRotation =
         switch (module) {
@@ -134,7 +125,6 @@ public ModuleIOSpark(int module) {
     // Configure drive motor
     SparkFlexConfig driveConfig = new SparkFlexConfig();
     driveConfig
-        .inverted(driveInverted)
         .idleMode(IdleMode.kBrake)
         .smartCurrentLimit(driveMotorCurrentLimit)
         .voltageCompensation(12.0);
@@ -149,7 +139,12 @@ public ModuleIOSpark(int module) {
         .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
         .pid(driveKp, driveKi, driveKd)
         .iMaxAccum(driveIntegrationCap);
-        // .feedForward.kA(driveKf);
+
+    driveConfig
+        .closedLoop
+        .feedForward
+        .kV(driveKf);
+        
     driveConfig
         .signals
         .primaryEncoderPositionAlwaysOn(true)
@@ -183,7 +178,12 @@ public ModuleIOSpark(int module) {
         .positionWrappingEnabled(true)
         .positionWrappingInputRange(turnPIDMinInput, turnPIDMaxInput)
         .pid(turnKp, turnKi, turnKd);
-        // .feedForward.kA(turnKf);
+
+    turnConfig
+        .closedLoop
+        .feedForward
+        .kV(turnKf);
+
     turnConfig
         .signals
         .primaryEncoderPositionAlwaysOn(true)
