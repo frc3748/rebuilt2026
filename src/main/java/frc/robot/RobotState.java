@@ -18,9 +18,11 @@ import edu.wpi.first.math.geometry.Twist2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.PrintCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
@@ -33,13 +35,16 @@ import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.subsystems.vision.VisionFieldPoseEstimate;
 import frc.robot.subsystems.vision.VisionSubsystem;
 import frc.robot.util.ConcurrentTimeInterpolatableBuffer;
+import frc.robot.util.Elastic;
 import frc.robot.util.MathHelpers;
 import frc.robot.util.RobotTime;
+import frc.robot.util.Elastic.Notification;
 import frc.robot.util.state.StateMachine;
 
 public class RobotState extends StateMachine<RobotState.State> {
 
     public final static double LOOKBACK_TIME = 1.0;
+    public final static AtomicBoolean hubActivated = new AtomicBoolean();
 
     private Drive drive;
     // private VisionSubsystem vision;
@@ -50,7 +55,6 @@ public class RobotState extends StateMachine<RobotState.State> {
 
     private final Consumer<VisionFieldPoseEstimate> visionEstimateConsumer;
 
-    
     // kinematic frame
     private final ConcurrentTimeInterpolatableBuffer<Pose2d> fieldToRobot = ConcurrentTimeInterpolatableBuffer
             .createBuffer(LOOKBACK_TIME);
@@ -99,7 +103,6 @@ public class RobotState extends StateMachine<RobotState.State> {
 
     public RobotState() {
         super("RobotState", State.UNDETERMINED, State.class);
-
         // drive intialization
         {
             drive = new Drive(
@@ -134,7 +137,7 @@ public class RobotState extends StateMachine<RobotState.State> {
 
         registerStateTransitions();
         registerStateCommands();
-        
+
         addChildSubsystem(drive);
         // addChildSubsystem(vision);
         enable();
@@ -176,59 +179,24 @@ public class RobotState extends StateMachine<RobotState.State> {
     }
 
     private void registerStateTransitions() {
-        addOmniTransitions(State.SOFT_STOP, State.TRAVERSING, State.AUTO, State.SHOOTING, State.SHOOTING_INTAKING, State.CLIMBING, State.INTAKING);
+        addOmniTransitions(State.SOFT_STOP, State.TRAVERSING, State.AUTO, State.SHOOTING, State.SHOOTING_INTAKING,
+                State.CLIMBING, State.INTAKING, State.PASSING, State.PASSING_INTAKING);
     }
 
     private void registerStateCommands() {
-        // TODO fix commands and controller bindings
-        // registerStateCommand(State.SOFT_STOP, new ParallelCommandGroup(
-        //     drive.transitionCommand(Drive.State.IDLE)
-        // ));
+        registerStateCommand(State.SOFT_STOP, new ParallelCommandGroup(
+                drive.transitionCommand(Drive.State.IDLE)));
 
-        // registerStateCommand(State.TRAVERSING, new ParallelCommandGroup(
-        //     drive.transitionCommand(Drive.State.TRAVERSING)
-        // ));
+        registerStateCommand(State.TRAVERSING, new ParallelCommandGroup(
+                drive.transitionCommand(Drive.State.TRAVERSING)));
 
         // // change this to an auto state in the future?
-        // registerStateCommand(State.AUTO, new ParallelCommandGroup(
-        //         drive.transitionCommand(Drive.State.TRAVERSING)
-        // ));
+        registerStateCommand(State.AUTO, new ParallelCommandGroup(
+                drive.transitionCommand(Drive.State.TRAVERSING)));
     }
 
     private void setupControllerBindings() {
-        // drive.setDefaultCommand(
-        //         DriveCommands.joystickDrive(
-        //                 drive,
-        //                 () -> -controller.getLeftY(),
-        //                 () -> -controller.getLeftX(),
-        //                 () -> -controller.getRightX()));
 
-        // Lock to 0° when A button is held
-        // controller
-        //         .a()
-        //         .whileTrue(
-        //                 DriveCommands.joystickDriveAtAngle(
-        //                         drive,
-        //                         () -> -controller.getLeftY(),
-        //                         () -> -controller.getLeftX(),
-        //                         () -> Rotation2d.kZero));
-
-        // Switch to X pattern when X button is pressed
-        // controller.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
-
-        // Reset gyro to 0° when B button is pressed
-        // controller.a().onTrue(drive.transitionCommand(Drive.State.TRAVERSING_AT_ANGLE)).onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
-        // controller.x().onTrue(drive.transitionCommand(Drive.State.CROSSED)).onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
-        // controller.b().onTrue(drive.transitionCommand(Drive.State.SLOW)).onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
-
-        // controller
-        //         .b()
-        //         .onTrue(
-        //                 Commands.runOnce(
-        //                         () -> drive.setPose(
-        //                                 new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
-        //                         drive)
-        //                         .ignoringDisable(true));
     }
 
     public Command getAutonomousCommand() {
@@ -268,7 +236,6 @@ public class RobotState extends StateMachine<RobotState.State> {
         return enablePathCancel.get();
     }
 
-    ////////
     public void addOdometryMeasurement(double timestamp, Pose2d pose) {
         fieldToRobot.addSample(timestamp, pose);
     }
@@ -297,7 +264,6 @@ public class RobotState extends StateMachine<RobotState.State> {
         this.measuredFieldRelativeChassisSpeeds.set(measuredFieldRelativeSpeeds);
         this.fusedFieldRelativeChassisSpeeds.set(fusedFieldRelativeSpeeds);
     }
-    //////////
 
     public Map.Entry<Double, Pose2d> getLatestFieldToRobot() {
         return fieldToRobot.getLatest();
@@ -377,7 +343,7 @@ public class RobotState extends StateMachine<RobotState.State> {
         return turretAngularVelocity.getSample(timestamp);
     }
 
-     private Optional<Double> getMaxAbsValueInRange(ConcurrentTimeInterpolatableBuffer<Double> buffer, double minTime,
+    private Optional<Double> getMaxAbsValueInRange(ConcurrentTimeInterpolatableBuffer<Double> buffer, double minTime,
             double maxTime) {
         var submap = buffer.getInternalBuffer().subMap(minTime, maxTime).values();
         var max = submap.stream().max(Double::compare);
@@ -475,6 +441,77 @@ public class RobotState extends StateMachine<RobotState.State> {
         setState(State.SOFT_STOP);
     }
 
+    @Override
+    public void update() {
+        String gameState = "No Game State";
+        double secondsUntilAllianceShift = 25;
+        try {
+            String message = DriverStation.getGameSpecificMessage();
+            Optional<Alliance> teamAlliance = DriverStation.getAlliance();
+
+            char autoWinner = (message.length() > 0) ? message.charAt(0) : ' ';
+            double matchTime = DriverStation.getMatchTime();
+
+            boolean inTransitionShift = (matchTime >= 130);
+            boolean inEndGame = (matchTime <= 30);
+            // ONLY refer to this if both booleans are false
+            int currentStage = (4 - (int) ((matchTime - 30) / 25));
+
+            if (DriverStation.isAutonomous()) {
+                gameState = "Autonomous";
+                secondsUntilAllianceShift = 0;
+            } else if (inTransitionShift) {
+                gameState = "Transition Shift";
+                secondsUntilAllianceShift = matchTime - 130;
+            } else if (inEndGame) {
+                gameState = "End Game";
+                secondsUntilAllianceShift = matchTime;
+            } else {
+                secondsUntilAllianceShift = (matchTime - 30) % 25;
+                switch (currentStage) {
+                    case 1:
+                        gameState = "Alliance Shift 1";
+                        break;
+                    case 2:
+                        gameState = "Alliance Shift 2";
+                        break;
+                    case 3:
+                        gameState = "Alliance Shift 3";
+                        break;
+                    case 4:
+                        gameState = "Alliance Shift 4";
+                        break;
+                    default:
+                        gameState = "Teleop";
+                        break;
+                }
+            }
+
+            if (teamAlliance.isPresent() && message.length() > 0 && !inTransitionShift && !inEndGame
+                    && DriverStation.isTeleop()) {
+                char myColor = (teamAlliance.get() == Alliance.Red) ? 'R' : 'B';
+                boolean isStageEven = (currentStage % 2 == 0);
+
+                if (autoWinner == 'B') {
+                    hubActivated.set(isStageEven ? (myColor == 'B') : (myColor == 'R'));
+                } else if (autoWinner == 'R') {
+                    hubActivated.set(isStageEven ? (myColor == 'R') : (myColor == 'B'));
+                } else {
+                    hubActivated.set(true);
+                }
+            } else {
+                // UNKNOWN so have it activated to allow shooting
+                hubActivated.set(true);
+            }
+
+            SmartDashboard.putBoolean("Game/HubActivated", hubActivated.get());
+            SmartDashboard.putString("Game/GameState", gameState);
+            SmartDashboard.putNumber("Game/ShiftCountdown", secondsUntilAllianceShift);
+        } finally {
+            Elastic.sendNotification(new Notification().withTitle("Error").withDescription("Failed to setup hub display logic"));
+        }
+    }
+
     public enum State {
         UNDETERMINED,
         SOFT_STOP,
@@ -485,5 +522,7 @@ public class RobotState extends StateMachine<RobotState.State> {
         SHOOTING,
         SHOOTING_INTAKING,
         INTAKING,
+        PASSING,
+        PASSING_INTAKING
     }
 }
