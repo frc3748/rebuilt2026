@@ -1,8 +1,6 @@
 package frc.robot.subsystems.intake;
 
-import static frc.robot.util.SparkUtil.tryUntilOk;
 
-import com.ctre.phoenix6.hardware.CANcoder;
 import com.revrobotics.PersistMode;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.ResetMode;
@@ -16,7 +14,6 @@ import com.revrobotics.spark.config.SparkFlexConfig;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 
-import frc.robot.subsystems.drive.ModuleIO;
 
 public class IntakeIOSpark implements IntakeIO{
  

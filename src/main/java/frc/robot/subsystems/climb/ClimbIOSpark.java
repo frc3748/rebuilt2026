@@ -9,19 +9,16 @@ import com.revrobotics.ResetMode;
 import com.revrobotics.spark.FeedbackSensor;
 import com.revrobotics.spark.SparkBase.ControlType;
 import com.revrobotics.spark.SparkClosedLoopController;
-import com.revrobotics.spark.SparkFlex;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
-import com.revrobotics.spark.config.SparkFlexConfig;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 
-import frc.robot.subsystems.drive.ModuleIO;
 
 public class ClimbIOSpark implements ClimbIO{
  
     // Hardware objects
-    private final SparkFlex climb;
+    private final SparkMax climb;
 
     private final RelativeEncoder climbEncoder;
 
@@ -30,7 +27,7 @@ public class ClimbIOSpark implements ClimbIO{
 
     public ClimbIOSpark(){
 
-    climb = new SparkFlex(0, MotorType.kBrushless);
+    climb = new SparkMax(0, MotorType.kBrushless);
 
     climbEncoder = climb.getEncoder();
 
@@ -65,7 +62,6 @@ public class ClimbIOSpark implements ClimbIO{
         .busVoltagePeriodMs(20)
         .outputCurrentPeriodMs(20);
 
-    // turnSpark.configure(turnConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     climb.configure(climbConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     climb.clearFaults();
 
