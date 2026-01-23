@@ -12,8 +12,8 @@ import frc.robot.RobotState;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.DriveConstants;
 import frc.robot.util.MathHelpers;
-
 import org.littletonrobotics.junction.Logger;
+import dev.doglog.DogLog;
 
 public class AutoAlignToPoseCommand extends Command {
     private ProfiledPIDController driveController;
@@ -30,8 +30,15 @@ public class AutoAlignToPoseCommand extends Command {
     private RobotState robotState;
     private double driveErrorAbs;
     private double thetaErrorAbs;
-    private double ffMinRadius = 0.0, ffMaxRadius = 0.1;
+    private double ffMinRadius = 0.0, ffMaxRadius = 0.1; // change this maybe?
     private Pose2d targetLocation;
+
+    private double metersTolerance = DriveConstants.metersTolerance;
+    private double radiansTolerance = DriveConstants.radiansTolerance;
+    private double metersAccelTolerance = DriveConstants.metersAccelTolerance;
+    private double radAccelTolerance = DriveConstants.radAccelTolerance;
+
+
 
     public AutoAlignToPoseCommand(
             Drive driveSubsystem,
@@ -47,12 +54,41 @@ public class AutoAlignToPoseCommand extends Command {
                         0.0,
                         0.0,
                         new TrapezoidProfile.Constraints(
-                                DriveConstants.kMaxLinearSpeed * constraintFactor,
+                                DriveConstants.maxSpeedMetersPerSec * constraintFactor,
                                 DriveConstants.kMaxLinearAcceleration
                                         * constraintFactor),
                         0.02);
         addRequirements(driveSubsystem);
         thetaController.enableContinuousInput(-Math.PI, Math.PI);
+
+
+        DogLog.tunable("AutoAlign Drive kP", DriveConstants.kDriveToPointP, newkP -> {
+                this.driveController.setP(newkP);
+        });
+
+        DogLog.tunable("AutoAlign Turn kP", DriveConstants.kDriveToPointHeadingP, newkP -> {
+                thetaController.setP(newkP);
+        });
+
+        DogLog.tunable("Auto Align Meters Tolerance", metersTolerance, newMetersTolerance -> {
+                metersTolerance = newMetersTolerance;
+                setTolerance();
+        });
+
+        DogLog.tunable("Auto Align Radians Tolerance", radiansTolerance, newRadiansTolerance -> {
+                radiansTolerance = newRadiansTolerance;
+                setTolerance();
+        });
+
+        DogLog.tunable("Auto Align Meters Accel Tolerance", metersAccelTolerance, newMetersAccelTolerance -> {
+                metersAccelTolerance = newMetersAccelTolerance;
+                setTolerance();
+        });
+
+        DogLog.tunable("Auto Align Radians Accel Tolerance", radAccelTolerance, newRadAccelTolerance -> {
+                radAccelTolerance = newRadAccelTolerance;
+                setTolerance();
+        });
     }
 
     @Override
@@ -149,5 +185,10 @@ public class AutoAlignToPoseCommand extends Command {
     public boolean isFinished() {
         return targetLocation.equals(null)
                 || (driveController.atGoal() && thetaController.atGoal());
+    }
+
+    private void setTolerance() {
+        driveController.setTolerance(metersTolerance, metersAccelTolerance);
+        thetaController.setTolerance(radiansTolerance, radAccelTolerance);
     }
 }

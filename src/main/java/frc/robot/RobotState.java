@@ -177,9 +177,7 @@ public class RobotState extends StateMachine<RobotState.State> {
         autoChooser.addOption(
                 "Drive SysId (Dynamic Reverse)", drive.sysIdDynamic(SysIdRoutine.Direction.kReverse));
 
-        InstantCommand templateCommand = new InstantCommand();
-        templateCommand.setName("Game <- this is a template");
-        autoChooser.addOption("Valid Auto Template", templateCommand);
+        autoChooser.addOption("Valid Auto Template", new InstantCommand().withName("Game <- this is a template"));
     }
 
     private void setupNotis() {

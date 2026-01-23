@@ -85,7 +85,7 @@ public class DriveConstants {
   public static final double turnKp = 0.7;
   public static final double turnKi = 0.0;
   public static final double turnKd = 0.0;
-  public static final double turnKf = 0.0;
+  public static final double turnKv = 0.0;
 
   public static final double turnPIDMinInput = 0; // Radians
   public static final double turnPIDMaxInput = 2 * Math.PI; // Radians
@@ -110,26 +110,23 @@ public class DriveConstants {
   // auto align
 
   public static double kDriveToPointP = 4.0; // everything else is 3
-  public static double kDriveToPointI = 0.0;
-  public static double kDriveToPointD = 0.005;
+  public static double kDriveToPointI = 0.0; // dont use
+  public static double kDriveToPointD = 0; // dont use
 
-  public static double kMaxLinearSpeed = 5;
   public static double kMaxLinearAcceleration = 3.5;
 
   public static double kDriveToPointHeadingP = 3;
   public static double kDriveToPointHeadingI = 0.0;
   public static double kDriveToPointHeadingD = 0.00;
 
-  public static final double kTrackWidthX = Units.inchesToMeters(36);
-  public static final double kTrackWidthY = Units.inchesToMeters(36);
-  public static final double kDriveBaseRadius = Math.hypot(kTrackWidthX / 2.0, kTrackWidthY / 2.0);
+  public static final double kDriveBaseRadius = Math.hypot(trackWidth / 2.0, wheelBase / 2.0);
 
-  public static final double kMaxAngularSpeed = kMaxLinearSpeed / kDriveBaseRadius;
+  public static final double kMaxAngularSpeed = maxSpeedMetersPerSec / kDriveBaseRadius;
   public static final double kMaxAngularAcceleration = kMaxLinearAcceleration / kDriveBaseRadius;
 
   public static final double metersTolerance = Units.inchesToMeters(1);
   public static final double radiansTolerance = Units.degreesToRadians(1);
 
   public static final double metersAccelTolerance = 0.075;
-  public static final double rotAccelTolerance = Math.PI / 16;
+  public static final double radAccelTolerance = Math.PI / 16;
 }

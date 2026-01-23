@@ -34,6 +34,7 @@ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.math.geometry.Rotation2d;
+import frc.robot.util.SparkUtil;
 
 import java.util.Queue;
 import java.util.function.DoubleSupplier;
@@ -182,7 +183,7 @@ public ModuleIOSpark(int module) {
     turnConfig
         .closedLoop
         .feedForward
-        .kV(turnKf);
+        .kV(turnKv);
 
     turnConfig
         .signals
@@ -198,6 +199,22 @@ public ModuleIOSpark(int module) {
     turnSpark.configure(turnConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     turnSpark.clearFaults();
 
+    SparkUtil.tunePID(
+        "Drive PID " + module, 
+        driveSpark, 
+        driveConfig, 
+        new double[] {driveKp, driveKi, driveKd, driveKs, driveKv, 0, 0}, 
+        ResetMode.kResetSafeParameters, 
+        PersistMode.kPersistParameters);
+
+    SparkUtil.tunePID(
+        "Turn PID " + module,
+        turnSpark,
+        turnConfig,
+        new double [] {turnKp, turnKi, turnKd, 0, turnKv, 0, 0},
+        ResetMode.kResetSafeParameters, 
+        PersistMode.kPersistParameters
+    );
     // Create odometry queues
 
     timestampQueue = SparkOdometryThread.getInstance().makeTimestampQueue();

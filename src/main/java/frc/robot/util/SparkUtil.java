@@ -7,9 +7,15 @@
 
 package frc.robot.util;
 
+import com.revrobotics.PersistMode;
 import com.revrobotics.REVLibError;
+import com.revrobotics.ResetMode;
 import com.revrobotics.spark.SparkBase;
 import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.config.ClosedLoopConfig;
+import com.revrobotics.spark.config.SparkBaseConfig;
+
+import dev.doglog.DogLog;
 
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
@@ -65,5 +71,47 @@ public class SparkUtil {
         sparkStickyFault = true;
       }
     }
+  }
+
+  public static double getSafe(double[] arr, int index) {
+    return (index < arr.length) ? arr[index] : 0.0;
+  }
+
+  public static void tunePID(String key, SparkBase motor, SparkBaseConfig defaultConfig, double[] defaults, ResetMode resetMode, PersistMode persistMode) {
+    double defaultkP = getSafe(defaults, 0);
+    double defaultkI = getSafe(defaults, 1);
+    double defaultkD = getSafe(defaults, 2);
+    double defaultkS = getSafe(defaults, 3);
+    double defaultkV = getSafe(defaults, 4);
+    double defaultkA = getSafe(defaults, 5);
+    double defaultkG = getSafe(defaults, 6);
+
+    DogLog.tunable(key + "/kP", defaultkP, newP -> {
+      motor.configure(defaultConfig.apply(defaultConfig.closedLoop.p(newP)), resetMode, persistMode);
+    });
+
+    DogLog.tunable(key + "/kI", defaultkI, newI -> {
+      motor.configure(defaultConfig.apply(defaultConfig.closedLoop.i(newI)), resetMode, persistMode);
+    });
+
+    DogLog.tunable(key + "/kD", defaultkD, newD -> {
+      motor.configure(defaultConfig.apply(defaultConfig.closedLoop.d(newD)), resetMode, persistMode);
+    });
+
+    DogLog.tunable(key + "/kS", defaultkS, newS -> {
+      motor.configure(defaultConfig.apply(defaultConfig.closedLoop.apply(defaultConfig.closedLoop.feedForward.kS(newS))), resetMode, persistMode);
+    });
+
+    DogLog.tunable(key + "/kV", defaultkV, newV -> {
+      motor.configure(defaultConfig.apply(defaultConfig.closedLoop.apply(defaultConfig.closedLoop.feedForward.kV(newV))), resetMode, persistMode);
+    });
+
+    DogLog.tunable(key + "/kA", defaultkA, newA -> {
+      motor.configure(defaultConfig.apply(defaultConfig.closedLoop.apply(defaultConfig.closedLoop.feedForward.kA(newA))), resetMode, persistMode);
+    });
+
+    DogLog.tunable(key + "/kG", defaultkG, newG -> {
+      motor.configure(defaultConfig.apply(defaultConfig.closedLoop.apply(defaultConfig.closedLoop.feedForward.kG(newG))), resetMode, persistMode);
+    });
   }
 }
