@@ -5,6 +5,7 @@ import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
 
 public class VisionConstants {
@@ -13,7 +14,6 @@ public class VisionConstants {
     public static final String kLimelightBTableName = "limelight-one";
 
      // Limelight constants
-
     // TURRET LIMELIGHT
     // Pitch angle: How many radians the camera is pitched up around Y axis. 0 is
     // looking straight ahead, +is nodding up.
@@ -52,4 +52,8 @@ public class VisionConstants {
                                                                                     // 8.211m
     public static final double kFieldLengthMeters = kAprilTagLayout.getFieldLength(); // distance between driver station
 
+    public static final Translation3d kBluePassArea = new Translation3d();
+
+    public static final Translation3d kBlueHubPose = new Translation3d();
+    public static final Translation3d kRedHubPose = new Translation3d();
 }

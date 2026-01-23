@@ -1,6 +1,5 @@
 // package frc.robot.util;
 
-
 // import edu.wpi.first.math.geometry.Pose2d;
 // import edu.wpi.first.math.geometry.Rotation2d;
 // import edu.wpi.first.math.geometry.Translation2d;
@@ -12,7 +11,7 @@
 // import java.util.function.Supplier;
 
 // public class ShooterSetpoint {
-
+//     // TODO ADD Constants
 //     public static Optional<Double> overrideRPS = Optional.empty();
 
 //     private double shooterRPS;
@@ -65,7 +64,7 @@
 //                 .rotateBy(MathHelpers.kRotation2dPi).rotateBy(Constants.ShooterConstants.kTurretToShotCorrection);
 
 //         // hood
-//         Rotation2d hoodZeroedAngle = Rotation2d.fromDegrees(Constants.HoodConstants.kHoodZeroedAngleDegrees);
+//         var hoodZeroedAngle = Rotation2d.fromDegrees(Constants.HoodConstants.kHoodZeroedAngleDegrees);
 //         double hoodAngle = hoodZeroedAngle.getRadians() - pitchAngleRads;
 
 //         // Feedfowards
@@ -103,6 +102,90 @@
 //                 hoodFF, validSetpont);
 //     }
 
+//     public static Supplier<ShooterSetpoint> passSetpointSupplier(RobotState robotState) {
+//         return passSetpointSupplier(() -> PassTargetFactory.generate(robotState), robotState);
+//     }
+
+//     public static Supplier<ShooterSetpoint> passSetpointSupplier(Supplier<Translation3d> targetPoint,
+//             RobotState robotState) {
+//         return () -> fromPassPose(targetPoint.get(), robotState);
+//     }
+
+//     private static ShooterSetpoint fromPassPose(Translation3d target, RobotState robotState) {
+//         double maxPassHeight = target.getZ();
+//         target = new Translation3d(target.getX(), target.getY(), 0.0);
+//         var fieldToRobot = robotState.getLatestFieldToRobot();
+//         var vRobot = robotState.getLatestMeasuredFieldRelativeChassisSpeeds();
+//         Translation3d d = target.minus(
+//                 new Translation3d(fieldToRobot.getValue().getX(), fieldToRobot.getValue().getY(),
+//                         Constants.kNoteReleaseHeight));
+//         var hoodZeroedAngle = Rotation2d.fromDegrees(Constants.HoodConstants.kHoodZeroedAngleDegrees);
+
+//         double apexHeight = maxPassHeight;
+//         double pitchAngleRads = 0.0;
+//         double launchSpeedMetersPerSec = 0.0;
+//         Rotation2d robotToTargetRotation = MathHelpers.kRotation2dZero;
+
+//         final int max_num_iterations = 10;
+//         double minApexHeight = 0.0;
+//         double maxApexHeight = apexHeight;
+//         for (int i = 0; i < max_num_iterations; ++i) {
+//             // Try to aim at our nominal apex height, then reduce it if we need to.
+//             final double kG = -9.81;
+//             double vz = Math.sqrt(-2.0 * kG * (apexHeight - Constants.kNoteReleaseHeight));
+//             double t_apex = vz / -kG;
+//             double t_fall = Math.sqrt(2.0 * apexHeight / -kG);
+//             double t_total = t_apex + t_fall;
+//             double vx = (d.getX() - vRobot.vxMetersPerSecond * t_total) / t_total;
+//             double vy = (d.getY() - vRobot.vyMetersPerSecond * t_total) / t_total;
+
+//             double shotXY = Math.sqrt(vx * vx + vy * vy);
+//             pitchAngleRads = Math.atan2(vz, shotXY);
+
+//             double hoodAngle = hoodZeroedAngle.getRadians() - pitchAngleRads;
+
+//             // Hood needs to go too far vertical, so we need to reduce apex height.
+//             // Solving exactly for the extremal hood position yields a quartic function, so
+//             // just binary search over
+//             // apex heights to find something close.
+//             if (hoodAngle < Constants.HoodConstants.kHoodMinPositionRadians) {
+//                 // We have to aim lower. Don't remember the launch parameters because this angle
+//                 // is infeasible.
+//                 maxApexHeight = Math.min(apexHeight, maxApexHeight);
+//                 apexHeight = (maxApexHeight - minApexHeight) / 2.0 + minApexHeight;
+//             } else if (apexHeight < Constants.ShooterConstants.kPassMaxApexHeight) {
+//                 // We can aim higher. Remember the parameters in case this is the best we find.
+//                 launchSpeedMetersPerSec = Math.sqrt(vz * vz + shotXY * shotXY);
+//                 robotToTargetRotation = new Rotation2d(vx, vy);
+//                 minApexHeight = Math.max(apexHeight, minApexHeight);
+//                 apexHeight = (maxApexHeight - minApexHeight) / 2.0 + minApexHeight;
+//             } else {
+//                 // Found an exact solution that achieves our nominal apex height.
+//                 launchSpeedMetersPerSec = Math.sqrt(vz * vz + shotXY * shotXY);
+//                 robotToTargetRotation = new Rotation2d(vx, vy);
+//                 break;
+//             }
+//         }
+//         return makeSetpoint(robotState, robotToTargetRotation, d, pitchAngleRads, launchSpeedMetersPerSec);
+//     }
+
+//     public static Supplier<ShooterSetpoint> autoSetpointSupplier(RobotState robotState) {
+//         return autoSetpointSupplier(() -> BallTargetFactory.generate(robotState), robotState);
+//     }
+
+//     public static Supplier<ShooterSetpoint> autoSetpointSupplier(Supplier<Translation3d> speakerTargetPoint,
+//             RobotState robotState) {
+//         return () -> fromAutoTarget(speakerTargetPoint.get(), robotState);
+//     }
+
+//     public static Supplier<ShooterSetpoint> speakerSetpointSupplier(RobotState robotState) {
+//         return speakerSetpointSupplier(() -> BallTargetFactory.generate(robotState), robotState);
+//     }
+
+//     public static Supplier<ShooterSetpoint> speakerSetpointSupplier(Supplier<Translation3d> targetPoint,
+//             RobotState robotState) {
+//         return () -> fromSpeakerTarget(targetPoint.get(), robotState);
+//     }
 
 //     private static ShooterSetpoint fromAutoTarget(Translation3d speakerTarget, RobotState robotState) {
 //         var setpoint = fromSpeakerTarget(speakerTarget, robotState);
