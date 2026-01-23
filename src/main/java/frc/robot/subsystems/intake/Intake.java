@@ -1,5 +1,8 @@
 package frc.robot.subsystems.intake;
 
-public class Intake {
+import frc.robot.util.state.StateMachine;
+
+public class Intake extends StateMachine<Intake.State> implements IntakeIO{
+    
     
 }
