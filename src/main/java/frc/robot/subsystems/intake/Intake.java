@@ -25,27 +25,27 @@ public class Intake extends StateMachine<Intake.State> implements IntakeIO{
     }
 
     public void stow() {
-        intakeIO.setExtentionPosition(0);
+        intakeIO.setExtensionPosition(0);
         intakeIO.setRollerSpeed(0);
     }
 
     public void intakeidle() {
-        intakeIO.setExtentionPosition(0);
+        intakeIO.setExtensionPosition(0);
         intakeIO.stopRollers();
     }
     
     public void intake() {
-        intakeIO.setExtentionPosition(0);
+        intakeIO.setExtensionPosition(0);
         intakeIO.setRollerSpeed(0);
     }
 
     public void outake(){
-        intakeIO.setExtentionPosition(0);
+        intakeIO.setExtensionPosition(0);
         intakeIO.setRollerSpeed(0);
     }
 
     public void stop() {
-        intakeIO.stopExtention();
+        intakeIO.stopExtension();
         intakeIO.stopRollers();
     }
 
@@ -54,11 +54,11 @@ public class Intake extends StateMachine<Intake.State> implements IntakeIO{
     }
 
     private void registerStateCommands() {
-        registerStateCommand(State.STOP, Commands.run(() -> stop(), this));
-        registerStateCommand(State.STOW, Commands.run(() -> stow(), this));
-        registerStateCommand(State.IDLE, Commands.run(() -> intakeidle(), this));
-        registerStateCommand(State.INTAKE, Commands.run(() -> intake(), this));
-        registerStateCommand(State.OUTAKE, Commands.run(() -> outake(), this));
+        registerStateCommand(State.STOP, Commands.run(() -> stop()));
+        registerStateCommand(State.STOW, Commands.run(() -> stow()));
+        registerStateCommand(State.IDLE, Commands.run(() -> intakeidle()));
+        registerStateCommand(State.INTAKE, Commands.run(() -> intake()));
+        registerStateCommand(State.OUTAKE, Commands.run(() -> outake()));
     }
 
      @Override

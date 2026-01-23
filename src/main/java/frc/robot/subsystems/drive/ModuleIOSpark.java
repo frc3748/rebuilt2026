@@ -204,7 +204,10 @@ public ModuleIOSpark(int module) {
         driveConfig, 
         new double[] {driveKp, driveKi, driveKd, driveKs, driveKv, 0, 0}, 
         ResetMode.kResetSafeParameters, 
-        PersistMode.kPersistParameters);
+        PersistMode.kPersistParameters,
+        true,
+        false
+        );
 
     SparkUtil.tunePID(
         "Turn PID " + module,
@@ -212,7 +215,9 @@ public ModuleIOSpark(int module) {
         turnConfig,
         new double [] {turnKp, turnKi, turnKd, 0, turnKv, 0, 0},
         ResetMode.kResetSafeParameters, 
-        PersistMode.kPersistParameters
+        PersistMode.kPersistParameters,
+        true,
+        false
     );
     // Create odometry queues
 
