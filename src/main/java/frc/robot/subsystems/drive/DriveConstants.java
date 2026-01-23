@@ -54,8 +54,8 @@ public class DriveConstants {
   public static DCMotor driveGearbox = DCMotor.getNEO(1);
 
   // Drive encoder configuration
-  public static final double driveEncoderPositionFactor = wheelRadiusMeters * 2 * Math.PI / 6.48; // Wheel Radians
-  public static final double driveEncoderVelocityFactor = wheelRadiusMeters * (2 * Math.PI / 6.48) / 60; // Wheel Rad/Sec
+  public static final double driveEncoderPositionFactor =  2 * Math.PI / 6.48; // Wheel Radians
+  public static final double driveEncoderVelocityFactor =  (2 * Math.PI / 6.48) / 60; // Wheel Rad/Sec
 
 
   // Drive PID configuration

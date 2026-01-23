@@ -11,6 +11,7 @@ import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 
+import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
@@ -125,10 +126,11 @@ public class RobotState extends StateMachine<RobotState.State> {
 
             vision = new VisionSubsystem(new VisionIOHardwareLimelight(this), this);
 
-            Elastic.sendNotification(new Notification().withTitle("Vision Subsystem").withDescription("Vision Started"));
+            Elastic.sendNotification(
+                    new Notification().withTitle("Vision Subsystem").withDescription("Vision Started"));
         }
 
-         // drive intialization
+        // drive intialization
         {
             drive = new Drive(
                     new GyroIOPigeon2(),
@@ -145,6 +147,8 @@ public class RobotState extends StateMachine<RobotState.State> {
             autoChooser = new LoggedDashboardChooser<>("Auto Choices", AutoBuilder.buildAutoChooser());
             setupDriveDiagnosisAutos();
         }
+
+        CameraServer.startAutomaticCapture();
 
         setupControllerBindings();
         setupNotis();
@@ -173,7 +177,6 @@ public class RobotState extends StateMachine<RobotState.State> {
         autoChooser.addOption(
                 "Drive SysId (Dynamic Reverse)", drive.sysIdDynamic(SysIdRoutine.Direction.kReverse));
 
-        
         InstantCommand templateCommand = new InstantCommand();
         templateCommand.setName("Game <- this is a template");
         autoChooser.addOption("Valid Auto Template", templateCommand);
@@ -459,13 +462,11 @@ public class RobotState extends StateMachine<RobotState.State> {
 
     @Override
     protected void onTeleopStart() {
-        Elastic.selectTab("Teleop");
         requestTransition(State.TRAVERSING);
     }
 
     @Override
     protected void onAutonomousStart() {
-        Elastic.selectTab("Auto");
         registerStateCommand(State.AUTO, autoChooser.get().andThen(new PrintCommand("Auto is Done!")));
         requestTransition(State.AUTO);
     }
@@ -479,71 +480,68 @@ public class RobotState extends StateMachine<RobotState.State> {
     public void update() {
         String gameState = "No Game State";
         double secondsUntilAllianceShift = 25;
-        try {
-            String message = DriverStation.getGameSpecificMessage();
-            Optional<Alliance> teamAlliance = DriverStation.getAlliance();
+        String message = DriverStation.getGameSpecificMessage();
+        Optional<Alliance> teamAlliance = DriverStation.getAlliance();
 
-            char autoWinner = (message.length() > 0) ? message.charAt(0) : ' ';
-            double matchTime = DriverStation.getMatchTime();
+        char autoWinner = (message.length() > 0) ? message.charAt(0) : ' ';
+        double matchTime = DriverStation.getMatchTime();
+        
+        boolean inTransitionShift = (matchTime >= 130);
+        boolean inEndGame = (matchTime <= 30);
+        // ONLY refer to this if both booleans are false
+        int currentStage = (4 - (int) ((matchTime - 30) / 25));
 
-            boolean inTransitionShift = (matchTime >= 130);
-            boolean inEndGame = (matchTime <= 30);
-            // ONLY refer to this if both booleans are false
-            int currentStage = (4 - (int) ((matchTime - 30) / 25));
-
-            if (DriverStation.isAutonomous()) {
-                gameState = "Autonomous";
-                secondsUntilAllianceShift = 0;
-            } else if (inTransitionShift) {
-                gameState = "Transition Shift";
-                secondsUntilAllianceShift = matchTime - 130;
-            } else if (inEndGame) {
-                gameState = "End Game";
-                secondsUntilAllianceShift = matchTime;
-            } else {
-                secondsUntilAllianceShift = (matchTime - 30) % 25;
-                switch (currentStage) {
-                    case 1:
-                        gameState = "Alliance Shift 1";
-                        break;
-                    case 2:
-                        gameState = "Alliance Shift 2";
-                        break;
-                    case 3:
-                        gameState = "Alliance Shift 3";
-                        break;
-                    case 4:
-                        gameState = "Alliance Shift 4";
-                        break;
-                    default:
-                        gameState = "Teleop";
-                        break;
-                }
+        if (DriverStation.isAutonomous()) {
+            gameState = "Autonomous";
+            secondsUntilAllianceShift = 0;
+        } else if (inTransitionShift) {
+            gameState = "Transition";
+            secondsUntilAllianceShift = matchTime - 130;
+        } else if (inEndGame) {
+            gameState = "End Game";
+            secondsUntilAllianceShift = matchTime;
+        } else {
+            secondsUntilAllianceShift = (matchTime - 30) % 25;
+            switch (currentStage) {
+                case 1:
+                    gameState = "Shift 1";
+                    break;
+                case 2:
+                    gameState = "Shift 2";
+                    break;
+                case 3:
+                    gameState = "Shift 3";
+                    break;
+                case 4:
+                    gameState = "Shift 4";
+                    break;
+                default:
+                    gameState = "Teleop";
+                    break;
             }
+        }
 
-            if (teamAlliance.isPresent() && message.length() > 0 && !inTransitionShift && !inEndGame
-                    && DriverStation.isTeleop()) {
-                char myColor = (teamAlliance.get() == Alliance.Red) ? 'R' : 'B';
-                boolean isStageEven = (currentStage % 2 == 0);
+        if (teamAlliance.isPresent() && message.length() > 0 && !inTransitionShift && !inEndGame
+                && DriverStation.isTeleop()) {
+            char myColor = (teamAlliance.get() == Alliance.Red) ? 'R' : 'B';
+            boolean isStageEven = (currentStage % 2 == 0);
 
-                if (autoWinner == 'B') {
-                    hubActivated.set(isStageEven ? (myColor == 'B') : (myColor == 'R'));
-                } else if (autoWinner == 'R') {
-                    hubActivated.set(isStageEven ? (myColor == 'R') : (myColor == 'B'));
-                } else {
-                    hubActivated.set(true);
-                }
+            if (autoWinner == 'B') {
+                hubActivated.set(isStageEven ? (myColor == 'B') : (myColor == 'R'));
+            } else if (autoWinner == 'R') {
+                hubActivated.set(isStageEven ? (myColor == 'R') : (myColor == 'B'));
             } else {
-                // UNKNOWN so have it activated to allow shooting
                 hubActivated.set(true);
             }
-
-            SmartDashboard.putBoolean("Game/HubActivated", hubActivated.get());
-            SmartDashboard.putString("Game/GameState", gameState);
-            SmartDashboard.putNumber("Game/ShiftCountdown", secondsUntilAllianceShift);
-        } finally {
-            Elastic.sendNotification(new Notification().withTitle("Error").withDescription("Failed to setup hub display logic"));
+        } else {
+            // UNKNOWN so have it activated to allow shooting
+            hubActivated.set(true);
         }
+
+        SmartDashboard.putBoolean("Game/HubActivated", hubActivated.get());
+        SmartDashboard.putString("Game/GameState", gameState);
+        SmartDashboard.putString("Game/ShiftCountdown", String.format("%.2f", secondsUntilAllianceShift));
+        
         // TODO identifier for a real game auto
         SmartDashboard.putBoolean("Robot/AutoChoosed", autoChooser.get().getName().toLowerCase().contains("game"));
     }

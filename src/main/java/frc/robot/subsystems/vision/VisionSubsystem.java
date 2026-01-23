@@ -63,7 +63,9 @@ public class VisionSubsystem extends StateMachine<VisionSubsystem.State> {
         if (inputs.turretCameraSeesTarget) {
             updateVision(inputs.turretCameraSeesTarget, inputs.turretCameraFiducialObservations,
                     inputs.turretCameraMegatagPoseEstimate, inputs.turretCameraMegatag2PoseEstimate, true);
-        } else if (inputs.elevatorCameraSeesTarget) {
+        }
+        // TODO change to else if, if any problem persists.
+        if (inputs.elevatorCameraSeesTarget) {
             updateVision(inputs.elevatorCameraSeesTarget, inputs.elevatorCameraFiducialObservations,
                     inputs.elevatorCameraMegatagPoseEstimate, inputs.elevatorCameraMegatag2PoseEstimate, false);
         }
