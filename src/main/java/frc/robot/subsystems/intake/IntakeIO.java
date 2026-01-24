@@ -8,23 +8,18 @@ public interface IntakeIO {
     
   }
 
-  public static class IntakeIOOutputs {
-   
-  }
 
   default void updateInputs(IntakeIOInputs inputs) {}
-
-  default void applyOutputs(IntakeIOOutputs outputs) {}
 
   public default void setRollerVoltage(double volts) {}
 
   public default void setRollerSpeed(double speed) {}
 
-  public default void setExtentionPosition(double position) {}
+  public default void setExtensionPosition(double position) {}
 
   public default void stopRollers() {}
 
-  public default void stopExtention() {}
+  public default void stopExtension() {}
 
 
 }

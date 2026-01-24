@@ -1,4 +1,4 @@
-package frc.robot.subsystems.shooter.flywheel;
+package frc.robot.subsystems.kicker;
 
 import static frc.robot.util.SparkUtil.tryUntilOk;
 
@@ -9,45 +9,42 @@ import com.revrobotics.ResetMode;
 import com.revrobotics.spark.FeedbackSensor;
 import com.revrobotics.spark.SparkBase.ControlType;
 import com.revrobotics.spark.SparkClosedLoopController;
-import com.revrobotics.spark.SparkFlex;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
-import com.revrobotics.spark.config.SparkFlexConfig;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 
 
-public class FlywheelIOSpark implements FlywheelIO{
+public class KickerIOSpark implements KickerIO{
  
     // Hardware objects
-    private final SparkMax flywheel;
+    private final SparkMax kicker;
 
-    private final RelativeEncoder flywheelEncoder;
+    private final RelativeEncoder kickerEncoder;
 
     // Closed loop controllers
-    private final SparkClosedLoopController flywheelController;
+    private final SparkClosedLoopController kickerController;
 
-    public FlywheelIOSpark(){
+    public ClimbIOSpark(){
 
-    flywheel = new SparkMax(0, MotorType.kBrushless);
+    kicker = new SparkMax(0, MotorType.kBrushless);
 
-    flywheelEncoder = flywheel.getEncoder();
+    kickerEncoder = kicker.getEncoder();
 
-    flywheelController = flywheel.getClosedLoopController();
+    climbController = kicker.getClosedLoopController();
 
-    // Configure flywheel motor
-    // NEED TO CONFIGURE
-    SparkMaxConfig flywheelConfig = new SparkMaxConfig();
-    flywheelConfig
+    // Configure extention motor
+    SparkMaxConfig kickerConfig = new SparkMaxConfig();
+    kickerConfig
         .inverted(false)
         .idleMode(IdleMode.kBrake)
         .smartCurrentLimit(10)
         .voltageCompensation(12.0);
-    flywheelConfig
+    kickerConfig
         .encoder
         .positionConversionFactor(0)
         .velocityConversionFactor(0);
-    flywheelConfig
+    kickerConfig
         .closedLoop
         .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
         .positionWrappingEnabled(true)
@@ -56,7 +53,7 @@ public class FlywheelIOSpark implements FlywheelIO{
         .maxAcceleration(0)
         .cruiseVelocity(0)
         .allowedProfileError(0);
-    flywheelConfig
+    kickerConfig
         .signals
         .primaryEncoderPositionAlwaysOn(true)
         .primaryEncoderVelocityAlwaysOn(true)
@@ -65,33 +62,31 @@ public class FlywheelIOSpark implements FlywheelIO{
         .busVoltagePeriodMs(20)
         .outputCurrentPeriodMs(20);
 
-    // turnSpark.configure(turnConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
-    flywheel.configure(flywheelConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
-    flywheel.clearFaults();
-
+    kicker.configure(kickerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+    kicker.clearFaults();
 
     }
 
     @Override
-    public void updateInputs(FlywheelIOInputs inputs) {
+    public void updateInputs(KickerIOInputs inputs) {
         
     }
 
     @Override
-    public void setFlywheelVoltage(double volts) {
-        flywheel.setVoltage(volts);
+    public void setKickerVoltage(double volts) {
+        climb.setVoltage(volts);
     }
 
     @Override
-    public void setFlywheelSpeed(double speed) {
-        flywheelController.setSetpoint(speed, ControlType.kVelocity);
+    public void setKickerSpeed(double position) {
+        climbController.setSetpoint(position, ControlType.kVelocity);
     }
 
     @Override
-    public void stopFlywheel() {
-        flywheel.stopMotor();
+    public void stopKicker() {
+        climb.stopMotor();
     }
+  }
 
 
-    
-}
+

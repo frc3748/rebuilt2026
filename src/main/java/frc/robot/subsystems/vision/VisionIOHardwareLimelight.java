@@ -22,13 +22,13 @@ public class VisionIOHardwareLimelight implements VisionIO {
     }
 
     private void setLLSettings() {
-        double[] camerapose = { 0.0, 0.0, VisionConstants.kCameraHeightOffGroundMeters, 0.0, VisionConstants.kCameraPitchDegrees,
-                0.0 };
-        table.getEntry("camerapose_robotspace_set").setDoubleArray(camerapose);
+        // double[] camerapose = { 0.0, 0.0, VisionConstants.kCameraHeightOffGroundMeters, 0.0, VisionConstants.kCameraPitchDegrees,
+        //         0.0 };
+        // table.getEntry("camerapose_robotspace_set").setDoubleArray(camerapose);
 
-        double[] cameraBpose = { 0.0, 0.0, VisionConstants.kCameraBHeightOffGroundMeters, VisionConstants.kCameraBRollDegrees,
-                VisionConstants.kCameraBPitchDegrees, 0.0 };
-        tableB.getEntry("camerapose_robotspace_set").setDoubleArray(cameraBpose);
+        // double[] cameraBpose = { 0.0, VisionConstants.kCameraBRightMeters, VisionConstants.kCameraBHeightOffGroundMeters, VisionConstants.kCameraBRollDegrees,
+        //         VisionConstants.kCameraBPitchDegrees, 0.0 };
+        // tableB.getEntry("camerapose_robotspace_set").setDoubleArray(cameraBpose);
 
         var fieldToTurretRotation = robotState.getLatestFieldToRobot().getValue().getRotation()
                 .rotateBy(robotState.getLatestRobotToTurret().getValue());
@@ -69,7 +69,7 @@ public class VisionIOHardwareLimelight implements VisionIO {
         latestInputs.set(inputs);
 
         // Set the persistent settings into NT
-        setLLSettings();
+       setLLSettings();
     }
 
     @Override

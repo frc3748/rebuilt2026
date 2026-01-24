@@ -10,104 +10,120 @@ import com.revrobotics.spark.SparkClosedLoopController;
 import com.revrobotics.spark.SparkFlex;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+
+import frc.robot.util.SparkUtil;
+
 import com.revrobotics.spark.config.SparkFlexConfig;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 
+@SuppressWarnings("unused")
+public class IntakeIOSpark implements IntakeIO {
 
-public class IntakeIOSpark implements IntakeIO{
- 
     // Hardware objects
     private final SparkFlex rollers;
-    private final SparkMax extention;
+    private final SparkMax extension;
 
     private final RelativeEncoder rollerEncoder;
-    private final RelativeEncoder extentionEncoder;
+    private final RelativeEncoder extensionEncoder;
 
     // Closed loop controllers
     private final SparkClosedLoopController rollerController;
-    private final SparkClosedLoopController extentionController;
+    private final SparkClosedLoopController extensionController;
 
-    public IntakeIOSpark(){
+    public IntakeIOSpark() {
 
-    rollers = new SparkFlex(0, MotorType.kBrushless);
-    extention = new SparkMax(0, MotorType.kBrushless);
+        rollers = new SparkFlex(IntakeConstants.kRollersCanID, MotorType.kBrushless);
+        extension = new SparkMax(IntakeConstants.kExtensionCanID, MotorType.kBrushless);
 
-    rollerEncoder = rollers.getEncoder();
-    extentionEncoder = extention.getEncoder();
+        rollerEncoder = rollers.getEncoder();
+        extensionEncoder = extension.getEncoder();
 
-    rollerController = rollers.getClosedLoopController();
-    extentionController = extention.getClosedLoopController();
+        rollerController = rollers.getClosedLoopController();
+        extensionController = extension.getClosedLoopController();
 
-    // Configure roller motor
-    SparkFlexConfig rollerConfig = new SparkFlexConfig();
-    rollerConfig
-        .inverted(false)
-        .idleMode(IdleMode.kBrake)
-        .smartCurrentLimit(10)
-        .voltageCompensation(12.0);
-    rollerConfig
-        .encoder
-        .positionConversionFactor(0)
-        .velocityConversionFactor(0)
-        .uvwMeasurementPeriod(10)
-        .uvwAverageDepth(2);
-    rollerConfig
-        .closedLoop
-        .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
-        .pid(0,0,0)
-        .iMaxAccum(0);
-    rollerConfig
-        .signals
-        .primaryEncoderPositionAlwaysOn(true)
-        .primaryEncoderVelocityAlwaysOn(true)
-        .primaryEncoderVelocityPeriodMs(20)
-        .appliedOutputPeriodMs(20)
-        .busVoltagePeriodMs(20)
-        .outputCurrentPeriodMs(20);
+        // Configure roller motor
+        SparkFlexConfig rollerConfig = new SparkFlexConfig();
+        rollerConfig
+                .inverted(false)
+                .idleMode(IdleMode.kBrake)
+                .smartCurrentLimit(10)
+                .voltageCompensation(12.0);
+        rollerConfig.encoder
+                .positionConversionFactor(IntakeConstants.kRollerPositionConversionFactor)
+                .velocityConversionFactor(IntakeConstants.kRollerVelocityConversionFactor)
+                .uvwMeasurementPeriod(10)
+                .uvwAverageDepth(2);
+        rollerConfig.closedLoop
+                .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
+                .pid(IntakeConstants.kRollerP, IntakeConstants.kRollerI, IntakeConstants.kRollerD)
+                .iMaxAccum(0.01); // change if needed
+        rollerConfig.signals
+                .primaryEncoderPositionAlwaysOn(true)
+                .primaryEncoderVelocityAlwaysOn(true)
+                .primaryEncoderVelocityPeriodMs(20)
+                .appliedOutputPeriodMs(20)
+                .busVoltagePeriodMs(20)
+                .outputCurrentPeriodMs(20);
 
-    rollers.configure(rollerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
-    rollers.clearFaults();
+        rollers.configure(rollerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+        rollers.clearFaults();
+        // Configure extension motor
+        SparkMaxConfig extensionConfig = new SparkMaxConfig();
+        extensionConfig
+                .inverted(false)
+                .idleMode(IdleMode.kBrake)
+                .smartCurrentLimit(10)
+                .voltageCompensation(12.0);
+        extensionConfig.encoder
+                .positionConversionFactor(IntakeConstants.kExtensionPositionConversionFactor)
+                .velocityConversionFactor(IntakeConstants.kExtensionVelocityConversionFactor);
+        extensionConfig.closedLoop
+                .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
+                .positionWrappingEnabled(true)
+                .pid(IntakeConstants.kExtensionP, IntakeConstants.kExtensionI, IntakeConstants.kExtensionD)
+                .maxMotion
+                .maxAcceleration(IntakeConstants.kExtensionMaxAccel)
+                .cruiseVelocity(IntakeConstants.kExtensionCruiseVel)
+                .allowedProfileError(IntakeConstants.kExtensionDeviationErr);
+        extensionConfig.signals
+                .primaryEncoderPositionAlwaysOn(true)
+                .primaryEncoderVelocityAlwaysOn(true)
+                .primaryEncoderVelocityPeriodMs(20)
+                .appliedOutputPeriodMs(20)
+                .busVoltagePeriodMs(20)
+                .outputCurrentPeriodMs(20);
 
+        // turnSpark.configure(turnConfig, ResetMode.kResetSafeParameters,
+        // PersistMode.kPersistParameters);
+        extension.configure(extensionConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+        extension.clearFaults();
 
-    // Configure extention motor
-    SparkMaxConfig extentionConfig = new SparkMaxConfig();
-    extentionConfig
-        .inverted(false)
-        .idleMode(IdleMode.kBrake)
-        .smartCurrentLimit(10)
-        .voltageCompensation(12.0);
-    extentionConfig
-        .encoder
-        .positionConversionFactor(0)
-        .velocityConversionFactor(0);
-    extentionConfig
-        .closedLoop
-        .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
-        .positionWrappingEnabled(true)
-        .pid(0, 0, 0)
-        .maxMotion
-        .maxAcceleration(0)
-        .cruiseVelocity(0)
-        .allowedProfileError(0);
-    extentionConfig
-        .signals
-        .primaryEncoderPositionAlwaysOn(true)
-        .primaryEncoderVelocityAlwaysOn(true)
-        .primaryEncoderVelocityPeriodMs(20)
-        .appliedOutputPeriodMs(20)
-        .busVoltagePeriodMs(20)
-        .outputCurrentPeriodMs(20);
+        SparkUtil.tunePID(
+                "Intake Roller",
+                rollers,
+                rollerConfig,
+                new double[] { IntakeConstants.kRollerP, IntakeConstants.kRollerI, IntakeConstants.kRollerD },
+                ResetMode.kResetSafeParameters,
+                PersistMode.kPersistParameters,
+                false,
+                false);
 
-    // turnSpark.configure(turnConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
-    extention.configure(extentionConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
-    extention.clearFaults();
-
+        SparkUtil.tunePID(
+            "Intake Extension",
+            extension,
+            extensionConfig,
+            new double[] {IntakeConstants.kExtensionP, IntakeConstants.kExtensionI, IntakeConstants.kExtensionD, 0,0,0,0, IntakeConstants.kExtensionMaxAccel, IntakeConstants.kExtensionCruiseVel, IntakeConstants.kExtensionDeviationErr},
+            ResetMode.kResetSafeParameters,
+                PersistMode.kPersistParameters,
+                false,
+                true
+        );
     }
 
     @Override
     public void updateInputs(IntakeIOInputs inputs) {
-        
+
     }
 
     @Override
@@ -126,15 +142,12 @@ public class IntakeIOSpark implements IntakeIO{
     }
 
     @Override
-    public void setExtentionPosition(double position) {
-        extentionController.setSetpoint(position, ControlType.kMAXMotionPositionControl);
+    public void setExtensionPosition(double position) {
+        extensionController.setSetpoint(position, ControlType.kMAXMotionPositionControl);
     }
 
     @Override
-    public void stopExtention() {
+    public void stopExtension() {
         rollers.stopMotor();
     }
-  }
-
-
-
+}

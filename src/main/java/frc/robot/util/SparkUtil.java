@@ -77,14 +77,20 @@ public class SparkUtil {
     return (index < arr.length) ? arr[index] : 0.0;
   }
 
-  public static void tunePID(String key, SparkBase motor, SparkBaseConfig defaultConfig, double[] defaults, ResetMode resetMode, PersistMode persistMode) {
+  public static void tunePID(String key, SparkBase motor, SparkBaseConfig defaultConfig, double[] defaults,
+      ResetMode resetMode, PersistMode persistMode, boolean feedForward, boolean maxMotion) {
     double defaultkP = getSafe(defaults, 0);
     double defaultkI = getSafe(defaults, 1);
     double defaultkD = getSafe(defaults, 2);
+    
     double defaultkS = getSafe(defaults, 3);
     double defaultkV = getSafe(defaults, 4);
     double defaultkA = getSafe(defaults, 5);
     double defaultkG = getSafe(defaults, 6);
+
+    double defaultMaxAccel = getSafe(defaults, 7);
+    double defaultCruiseVel = getSafe(defaults, 8);
+    double defaultDeviationErr = getSafe(defaults, 8);
 
     DogLog.tunable(key + "/kP", defaultkP, newP -> {
       motor.configure(defaultConfig.apply(defaultConfig.closedLoop.p(newP)), resetMode, persistMode);
@@ -98,20 +104,44 @@ public class SparkUtil {
       motor.configure(defaultConfig.apply(defaultConfig.closedLoop.d(newD)), resetMode, persistMode);
     });
 
-    DogLog.tunable(key + "/kS", defaultkS, newS -> {
-      motor.configure(defaultConfig.apply(defaultConfig.closedLoop.apply(defaultConfig.closedLoop.feedForward.kS(newS))), resetMode, persistMode);
-    });
+    if (feedForward) {
+      DogLog.tunable(key + "/kS", defaultkS, newS -> {
+        motor.configure(
+            defaultConfig.apply(defaultConfig.closedLoop.apply(defaultConfig.closedLoop.feedForward.kS(newS))),
+            resetMode, persistMode);
+      });
 
-    DogLog.tunable(key + "/kV", defaultkV, newV -> {
-      motor.configure(defaultConfig.apply(defaultConfig.closedLoop.apply(defaultConfig.closedLoop.feedForward.kV(newV))), resetMode, persistMode);
-    });
+      DogLog.tunable(key + "/kV", defaultkV, newV -> {
+        motor.configure(
+            defaultConfig.apply(defaultConfig.closedLoop.apply(defaultConfig.closedLoop.feedForward.kV(newV))),
+            resetMode, persistMode);
+      });
 
-    DogLog.tunable(key + "/kA", defaultkA, newA -> {
-      motor.configure(defaultConfig.apply(defaultConfig.closedLoop.apply(defaultConfig.closedLoop.feedForward.kA(newA))), resetMode, persistMode);
-    });
+      DogLog.tunable(key + "/kA", defaultkA, newA -> {
+        motor.configure(
+            defaultConfig.apply(defaultConfig.closedLoop.apply(defaultConfig.closedLoop.feedForward.kA(newA))),
+            resetMode, persistMode);
+      });
 
-    DogLog.tunable(key + "/kG", defaultkG, newG -> {
-      motor.configure(defaultConfig.apply(defaultConfig.closedLoop.apply(defaultConfig.closedLoop.feedForward.kG(newG))), resetMode, persistMode);
-    });
+      DogLog.tunable(key + "/kG", defaultkG, newG -> {
+        motor.configure(
+            defaultConfig.apply(defaultConfig.closedLoop.apply(defaultConfig.closedLoop.feedForward.kG(newG))),
+            resetMode, persistMode);
+      });
+    }
+
+    if (maxMotion) {
+      DogLog.tunable(key + "/kMaxAccel", defaultMaxAccel, newMaxAccel -> {
+        defaultConfig.apply(defaultConfig.closedLoop.apply(defaultConfig.closedLoop.maxMotion.maxAcceleration(newMaxAccel)));
+      });
+
+      DogLog.tunable(key + "/kCruiseVel", defaultCruiseVel, newCruiseVel -> {
+        defaultConfig.apply(defaultConfig.closedLoop.apply(defaultConfig.closedLoop.maxMotion.cruiseVelocity(newCruiseVel)));
+      });
+
+      DogLog.tunable(key + "/kDeviationErr", defaultDeviationErr, newDeviationErr -> {
+        defaultConfig.apply(defaultConfig.closedLoop.apply(defaultConfig.closedLoop.maxMotion.allowedProfileError(newDeviationErr)));
+      });
+    }
   }
 }

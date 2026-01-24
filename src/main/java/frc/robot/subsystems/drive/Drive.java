@@ -13,8 +13,10 @@ import static frc.robot.subsystems.drive.DriveConstants.*;
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
 import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.commands.PathPlannerAuto;
 import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
+import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.util.PathPlannerLogging;
 import edu.wpi.first.hal.FRCNetComm.tInstances;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
@@ -30,6 +32,7 @@ import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
+import edu.wpi.first.math.trajectory.Trajectory;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
@@ -46,12 +49,16 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.RobotState;
+import frc.robot.commands.AutoCommands;
 import frc.robot.commands.DriveCommands;
 import frc.robot.util.RobotTime;
 import frc.robot.util.state.StateMachine;
 
+import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
+
 import org.littletonrobotics.junction.AutoLogOutput;
 import org.littletonrobotics.junction.Logger;
 
@@ -143,24 +150,24 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
     enable();
 
     SmartDashboard.putData("Swerve Drive", new Sendable() {
-        @Override
-        public void initSendable(SendableBuilder builder) {
-          builder.setSmartDashboardType("SwerveDrive");
-          builder.addDoubleProperty("Front Left Angle", () -> modules[0].getAngle().getRadians(), null);
-          builder.addDoubleProperty("Front Left Velocity", () -> modules[0].getVelocityMetersPerSec(), null);
+      @Override
+      public void initSendable(SendableBuilder builder) {
+        builder.setSmartDashboardType("SwerveDrive");
+        builder.addDoubleProperty("Front Left Angle", () -> modules[0].getAngle().getRadians(), null);
+        builder.addDoubleProperty("Front Left Velocity", () -> modules[0].getVelocityMetersPerSec(), null);
 
-          builder.addDoubleProperty("Front Right Angle", () -> modules[1].getAngle().getRadians(), null);
-          builder.addDoubleProperty("Front Right Velocity", () -> modules[1].getVelocityMetersPerSec(), null);
+        builder.addDoubleProperty("Front Right Angle", () -> modules[1].getAngle().getRadians(), null);
+        builder.addDoubleProperty("Front Right Velocity", () -> modules[1].getVelocityMetersPerSec(), null);
 
-          builder.addDoubleProperty("Back Left Angle", () -> modules[2].getAngle().getRadians(), null);
-          builder.addDoubleProperty("Back Left Velocity", () -> modules[2].getVelocityMetersPerSec(), null);
+        builder.addDoubleProperty("Back Left Angle", () -> modules[2].getAngle().getRadians(), null);
+        builder.addDoubleProperty("Back Left Velocity", () -> modules[2].getVelocityMetersPerSec(), null);
 
-          builder.addDoubleProperty("Back Right Angle", () -> modules[3].getAngle().getRadians(), null);
-          builder.addDoubleProperty("Back Right Velocity", () -> modules[3].getVelocityMetersPerSec(), null);
+        builder.addDoubleProperty("Back Right Angle", () -> modules[3].getAngle().getRadians(), null);
+        builder.addDoubleProperty("Back Right Velocity", () -> modules[3].getVelocityMetersPerSec(), null);
 
-          builder.addDoubleProperty("Robot Angle", () -> getRotation().getRadians(), null);
-        }
-      });
+        builder.addDoubleProperty("Robot Angle", () -> getRotation().getRadians(), null);
+      }
+    });
   }
 
   private void registerStateTransitions() {
@@ -455,6 +462,10 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
     poseEstimator.resetPosition(rawGyroRotation, getModulePositions(), pose);
   }
 
+  public void zeroGyro() {
+    gyroIO.getPiegon().setYaw(0);
+  }
+
   public void setTargetPose(Pose2d pose) {
     driveInputs.goalPose = pose;
   }
@@ -501,6 +512,15 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
 
   public void determineSelf() {
     setState(State.TRAVERSING);
+  }
+
+  @Override
+  public void onTeleopStart() {
+    setFieldPoses();
+  }
+
+  public void setFieldPoses(Pose2d... poses) {
+    fieldPose.getObject("mainTrajectory").setPoses(poses);
   }
 
   public enum State {

@@ -9,6 +9,7 @@ import java.util.function.Consumer;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
+import com.ctre.phoenix.platform.can.AutocacheState;
 import com.pathplanner.lib.auto.AutoBuilder;
 
 import edu.wpi.first.cameraserver.CameraServer;
@@ -17,6 +18,7 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Twist2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -29,14 +31,15 @@ import edu.wpi.first.wpilibj2.command.PrintCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.robot.commands.AutoAlignToPoseCommand;
 import frc.robot.commands.DriveCommands;
+import frc.robot.commands.AutoCommands;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.GyroIOPigeon2;
 import frc.robot.subsystems.drive.ModuleIOSpark;
 import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.subsystems.vision.VisionFieldPoseEstimate;
 import frc.robot.subsystems.vision.VisionIOHardwareLimelight;
-import frc.robot.subsystems.vision.VisionIOInputsAutoLogged;
 import frc.robot.subsystems.vision.VisionSubsystem;
 import frc.robot.util.ConcurrentTimeInterpolatableBuffer;
 import frc.robot.util.Elastic;
@@ -178,6 +181,7 @@ public class RobotState extends StateMachine<RobotState.State> {
                 "Drive SysId (Dynamic Reverse)", drive.sysIdDynamic(SysIdRoutine.Direction.kReverse));
 
         autoChooser.addOption("Valid Auto Template", new InstantCommand().withName("Game <- this is a template"));
+        autoChooser.addOption("Testing Auto", AutoCommands.testingAuto().withName("Testing Auto (Game)"));
     }
 
     private void setupNotis() {
@@ -224,16 +228,25 @@ public class RobotState extends StateMachine<RobotState.State> {
                 .onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
         controller
                 .b()
+                // .onTrue(Commands.runOnce( () -> drive.zeroGyro()));
                 .onTrue(
                         Commands.runOnce(
                                 () -> drive.setPose(
                                         new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
                                 drive)
                                 .ignoringDisable(true));
+
+        Pose2d tagPos = VisionConstants.kAprilTagLayout.getTagPose(13).get().toPose2d().plus(new Transform2d(0,0, new Rotation2d(Units.degreesToRadians(90))));
+        //.plus(new Transform2d(Units.inchesToMeters(30), Units.inchesToMeters(0), new Rotation2d(Units.degreesToRadians(90))));       
+        controller
+            .y()
+            .onTrue(
+                new AutoAlignToPoseCommand(drive, this, tagPos, 1.0)
+            );
     }
 
     public Command getAutonomousCommand() {
-        return Commands.print("None");
+        return autoChooser.get();
     }
 
     public Drive getDrive() {
