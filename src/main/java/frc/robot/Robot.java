@@ -13,11 +13,13 @@ import com.revrobotics.util.StatusLogger;
 
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import frc.robot.util.HubStatus;
 
 public class Robot extends LoggedRobot {
   private Command m_autonomousCommand;
   
   private final RobotState robotState;
+  private final HubStatus hubStatus;
 
   public Robot() {
 
@@ -29,12 +31,15 @@ public class Robot extends LoggedRobot {
     Logger.start();
 
     robotState = new RobotState();
+    hubStatus = new HubStatus();
   }
 
   @Override
   public void robotPeriodic() {
     CommandScheduler.getInstance().run();
     robotState.updateLogger();
+
+    hubStatus.update();
   }
 
   @Override
