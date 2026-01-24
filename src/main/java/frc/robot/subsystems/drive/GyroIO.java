@@ -6,9 +6,11 @@
 // at the root directory of this project.
 
 package frc.robot.subsystems.drive;
-
 import edu.wpi.first.math.geometry.Rotation2d;
+
 import org.littletonrobotics.junction.AutoLog;
+
+import com.ctre.phoenix6.hardware.Pigeon2;
 
 public interface GyroIO {
   @AutoLog
@@ -21,4 +23,6 @@ public interface GyroIO {
   }
 
   public default void updateInputs(GyroIOInputs inputs) {}
+
+  public Pigeon2 getPiegon();
 }

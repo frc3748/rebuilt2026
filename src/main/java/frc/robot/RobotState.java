@@ -42,7 +42,7 @@ public class RobotState extends StateMachine<RobotState.State> {
     public final static double LOOKBACK_TIME = 1.0;
 
     private Drive drive;
-    private VisionSubsystem vision;
+    // private VisionSubsystem vision;
 
     private CommandXboxController controller = new CommandXboxController(0);
 
@@ -118,9 +118,9 @@ public class RobotState extends StateMachine<RobotState.State> {
             };
         }
 
-        // vision initialization
+        // vision initialization TODO
         {
-            vision = new VisionSubsystem(new VisionIOHardwareLimelight(this), this);
+            // vision = new VisionSubsystem(new VisionIOHardwareLimelight(this), this);
         }
 
         // auto setup
@@ -136,7 +136,7 @@ public class RobotState extends StateMachine<RobotState.State> {
         registerStateCommands();
         
         addChildSubsystem(drive);
-        addChildSubsystem(vision);
+        // addChildSubsystem(vision);
         enable();
     }
 
@@ -240,7 +240,8 @@ public class RobotState extends StateMachine<RobotState.State> {
     }
 
     public VisionSubsystem getVision() {
-        return vision;
+        return null;
+        // return vision;
     }
 
     public CommandXboxController getController() {

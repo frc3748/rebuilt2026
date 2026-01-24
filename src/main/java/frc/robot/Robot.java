@@ -11,14 +11,13 @@ import org.littletonrobotics.junction.wpilog.WPILOGWriter;
 
 import com.revrobotics.util.StatusLogger;
 
-import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
 public class Robot extends LoggedRobot {
   private Command m_autonomousCommand;
   
-  private final RobotContainer m_robotContainer;
+  private final RobotState robotState;
 
   public Robot() {
 
@@ -29,12 +28,13 @@ public class Robot extends LoggedRobot {
     StatusLogger.disableAutoLogging();
     Logger.start();
 
-    m_robotContainer = new RobotContainer();
+    robotState = new RobotState();
   }
 
   @Override
   public void robotPeriodic() {
     CommandScheduler.getInstance().run();
+    robotState.updateLogger();
   }
 
   @Override
@@ -48,7 +48,7 @@ public class Robot extends LoggedRobot {
 
   @Override
   public void autonomousInit() {
-    m_autonomousCommand = m_robotContainer.getAutonomousCommand();
+    m_autonomousCommand = robotState.getAutonomousCommand();
 
     if (m_autonomousCommand != null) {
       CommandScheduler.getInstance().schedule(m_autonomousCommand);

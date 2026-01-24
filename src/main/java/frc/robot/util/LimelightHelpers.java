@@ -549,6 +549,7 @@ public class LimelightHelpers {
         return new PoseEstimate(pose, timestamp,latency,tagCount,tagSpan,tagDist,tagArea,rawFiducials);
     }
 
+    @SuppressWarnings("unused")
     private static RawFiducial[] getRawFiducials(String limelightName) {
         var entry = LimelightHelpers.getLimelightNTTableEntry(limelightName, "rawfiducials");
         var rawFiducialArray = entry.getDoubleArray(new double[0]);
@@ -608,6 +609,7 @@ public class LimelightHelpers {
         return rawDetections;
     }
 
+    @SuppressWarnings("unused")
     private static void printPoseEstimate(PoseEstimate pose) {
         if (pose == null) {
             System.out.println("No PoseEstimate available.");
