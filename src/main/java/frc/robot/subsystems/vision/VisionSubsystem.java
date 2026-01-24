@@ -80,15 +80,15 @@ public class VisionSubsystem extends StateMachine<VisionSubsystem.State> {
     private void updateVision(boolean cameraSeesTarget, FiducialObservation[] cameraFiducialObservations,
             MegatagPoseEstimate cameraMegatagPoseEstimate, MegatagPoseEstimate cameraMegatag2PoseEstimate,
             boolean isTurretCamera) {
-        if (cameraMegatagPoseEstimate != null) {
 
-            String logPreface = "Vision/" + (isTurretCamera ? "Turret/" : "Elevator/");
+        String logPreface = "Vision/" + (isTurretCamera ? "Turret/" : "Elevator/");
+        if (cameraMegatagPoseEstimate != null) {
             var updateTimestamp = cameraMegatagPoseEstimate.timestampSeconds;
             boolean alreadyProcessedTimestamp = (isTurretCamera ? lastProcessedTurretTimestamp
                     : lastProcessedElevatorTimestamp) == updateTimestamp;
             if (!alreadyProcessedTimestamp && cameraSeesTarget) {
-                if (!isTurretCamera)
-                    return;
+                // if (!isTurretCamera)
+                //     return;
                 Optional<VisionFieldPoseEstimate> pinholeEstimate = Optional.empty();// processPinholeVisionEstimate(pinholeObservations,
                                                                                      // updateTimestamp,
                                                                                      // isTurretCamera);
@@ -412,7 +412,7 @@ public class VisionSubsystem extends StateMachine<VisionSubsystem.State> {
 
             Matrix<N3, N1> visionMeasurementStdDevs = VecBuilder.fill(xyStds, xyStds, Units.degreesToRadians(50.0));
             fieldToRobotEstimate = new Pose2d(fieldToRobotEstimate.getTranslation(),
-                    loggedFieldToRobot.get().getRotation());
+                    state.getDrive().getGyroIOInputs().yawPosition);
             return Optional.of(
                     new VisionFieldPoseEstimate(fieldToRobotEstimate, poseEstimate.timestampSeconds,
                             visionMeasurementStdDevs));

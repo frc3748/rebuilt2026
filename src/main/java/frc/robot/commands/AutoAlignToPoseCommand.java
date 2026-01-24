@@ -62,30 +62,30 @@ public class AutoAlignToPoseCommand extends Command {
         thetaController.enableContinuousInput(-Math.PI, Math.PI);
 
 
-        DogLog.tunable("AutoAlign Drive kP", DriveConstants.kDriveToPointP, newkP -> {
+        DogLog.tunable("Auto Align/Drive kP", DriveConstants.kDriveToPointP, newkP -> {
                 this.driveController.setP(newkP);
         });
 
-        DogLog.tunable("AutoAlign Turn kP", DriveConstants.kDriveToPointHeadingP, newkP -> {
+        DogLog.tunable("Auto Align/Turn kP", DriveConstants.kDriveToPointHeadingP, newkP -> {
                 thetaController.setP(newkP);
         });
 
-        DogLog.tunable("Auto Align Meters Tolerance", metersTolerance, newMetersTolerance -> {
+        DogLog.tunable("Auto Align/Meters Tolerance", metersTolerance, newMetersTolerance -> {
                 metersTolerance = newMetersTolerance;
                 setTolerance();
         });
 
-        DogLog.tunable("Auto Align Radians Tolerance", radiansTolerance, newRadiansTolerance -> {
+        DogLog.tunable("Auto Align/Radians Tolerance", radiansTolerance, newRadiansTolerance -> {
                 radiansTolerance = newRadiansTolerance;
                 setTolerance();
         });
 
-        DogLog.tunable("Auto Align Meters Accel Tolerance", metersAccelTolerance, newMetersAccelTolerance -> {
+        DogLog.tunable("Auto Align/Meters Accel Tolerance", metersAccelTolerance, newMetersAccelTolerance -> {
                 metersAccelTolerance = newMetersAccelTolerance;
                 setTolerance();
         });
 
-        DogLog.tunable("Auto Align Radians Accel Tolerance", radAccelTolerance, newRadAccelTolerance -> {
+        DogLog.tunable("Auto Align/Radians Accel Tolerance", radAccelTolerance, newRadAccelTolerance -> {
                 radAccelTolerance = newRadAccelTolerance;
                 setTolerance();
         });
@@ -102,7 +102,7 @@ public class AutoAlignToPoseCommand extends Command {
                 Math.min(
                         0.0,
                         -new Translation2d(
-                                        robotState.getLatestMeasuredFieldRelativeChassisSpeeds()
+                                        -robotState.getLatestMeasuredFieldRelativeChassisSpeeds()
                                                 .vxMetersPerSecond,
                                         robotState.getLatestMeasuredFieldRelativeChassisSpeeds()
                                                 .vyMetersPerSecond)
@@ -123,6 +123,8 @@ public class AutoAlignToPoseCommand extends Command {
         thetaController.setTolerance(Units.degreesToRadians(2.0));
 
         driveController.setTolerance(0.04);
+        driveSubsystem.setFieldPoses(robotState.getLatestFieldToRobotCenter(), targetLocation);
+        driveSubsystem.setTargetPose(targetLocation);
     }
 
     @Override
