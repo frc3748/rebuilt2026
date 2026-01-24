@@ -34,10 +34,14 @@ import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.LinearAcceleration;
+import edu.wpi.first.util.sendable.Sendable;
+import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
@@ -57,6 +61,8 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
   private final GyroIO gyroIO;
   private final GyroIOInputsAutoLogged gyroInputs = new GyroIOInputsAutoLogged();
   private final DriveIOInputsAutoLogged driveInputs = new DriveIOInputsAutoLogged();
+
+  public final Field2d fieldPose = new Field2d();
 
   private final Module[] modules = new Module[4]; // FL, FR, BL, BR
   private final SysIdRoutine sysId;
@@ -137,26 +143,67 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
     registerStateTransitions();
     registerStateCommands();
     enable();
+
+    SmartDashboard.putData("Swerve Drive", new Sendable() {
+        @Override
+        public void initSendable(SendableBuilder builder) {
+          builder.setSmartDashboardType("SwerveDrive");
+          builder.addDoubleProperty("Front Left Angle", () -> modules[0].getAngle().getRadians(), null);
+          builder.addDoubleProperty("Front Left Velocity", () -> modules[0].getVelocityMetersPerSec(), null);
+
+          builder.addDoubleProperty("Front Right Angle", () -> modules[1].getAngle().getRadians(), null);
+          builder.addDoubleProperty("Front Right Velocity", () -> modules[1].getVelocityMetersPerSec(), null);
+
+          builder.addDoubleProperty("Back Left Angle", () -> modules[2].getAngle().getRadians(), null);
+          builder.addDoubleProperty("Back Left Velocity", () -> modules[2].getVelocityMetersPerSec(), null);
+
+          builder.addDoubleProperty("Back Right Angle", () -> modules[3].getAngle().getRadians(), null);
+          builder.addDoubleProperty("Back Right Velocity", () -> modules[3].getVelocityMetersPerSec(), null);
+
+          builder.addDoubleProperty("Robot Angle", () -> getRotation().getRadians(), null);
+        }
+      });
   }
 
   private void registerStateTransitions() {
-    addOmniTransitions(State.IDLE, State.CROSSED, State.ALIGNING, State.PATHFINDING, State.SLOW, State.TRAVERSING, State.TRAVERSING_AT_ANGLE);
+    addOmniTransitions(State.IDLE, State.CROSSED, State.ALIGNING, State.PATHFINDING, State.SLOW, State.TRAVERSING,
+        State.TRAVERSING_AT_ANGLE);
   }
 
   private void registerStateCommands() {
     registerStateCommand(State.IDLE, new InstantCommand(() -> stop()));
 
-    registerStateCommand(State.TRAVERSING, DriveCommands.joystickDrive(
-        this,
-        () -> -robotState.getController().getLeftY(),
-        () -> -robotState.getController().getLeftX(),
-        () -> -robotState.getController().getRightX()));
+    // TODO fix soon
+    // registerStateCommand(State.TRAVERSING, DriveCommands.joystickDrive(
+    // this,
+    // () -> -robotState.getController().getLeftY(),
+    // () -> -robotState.getController().getLeftX(),
+    // () -> -robotState.getController().getRightX()));
 
-    registerStateCommand(State.TRAVERSING, DriveCommands.joystickDriveAtAngle(
+    setDefaultCommand(DriveCommands.joystickDrive(
         this,
-        () -> -robotState.getController().getLeftY(),
-        () -> -robotState.getController().getLeftX(),
-        () -> Rotation2d.kZero));
+        () -> {
+          if (getState() == State.CROSSED || getState() == State.IDLE) {
+            return 0.0;
+          } else {
+            return -robotState.getController().getLeftY();
+          }
+
+        },
+        () -> {
+          if (getState() == State.CROSSED || getState() == State.IDLE) {
+            return 0.0;
+          } else {
+            return -robotState.getController().getLeftX();
+          }
+        },
+        () -> {
+          if (getState() == State.TRAVERSING_AT_ANGLE || getState() == State.CROSSED || getState() == State.IDLE) {
+            return 0.0; // Return a double for rotation speed
+          } else {
+            return -robotState.getController().getRightX();
+          }
+        }));
 
     registerStateCommand(State.CROSSED, new InstantCommand(() -> stopWithX()));
     // Setup Commands for Pathfinding as needed
@@ -170,6 +217,8 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
     {
       driveInputs.modStates = getModuleStates();
       driveInputs.currentPose = getPose();
+
+      fieldPose.setRobotPose(driveInputs.currentPose);
     }
 
     // robotState updating (some logic has been redone twice)
@@ -201,23 +250,29 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
 
       // TODO make sure driveInputs.modStates / optimized match w our stuff
 
-      var measuredRobotRelativeChassisSpeeds = kinematics.toChassisSpeeds(driveInputs.optimizedModStates);
-      var measuredFieldRelativeChassisSpeeds = ChassisSpeeds
-          .fromRobotRelativeSpeeds(measuredRobotRelativeChassisSpeeds, getPose().getRotation());
-      var desiredFieldRelativeChassisSpeeds = ChassisSpeeds
-          .fromRobotRelativeSpeeds(kinematics.toChassisSpeeds(driveInputs.modStates), getPose().getRotation());
-      var fusedFieldRelativeChassisSpeeds = new ChassisSpeeds(measuredFieldRelativeChassisSpeeds.vxMetersPerSecond,
-          measuredFieldRelativeChassisSpeeds.vyMetersPerSecond,
-          yawRadsPerS);
+      if (driveInputs.optimizedModStates.length == 4) {
+        var measuredRobotRelativeChassisSpeeds = kinematics.toChassisSpeeds(driveInputs.optimizedModStates);
+        var measuredFieldRelativeChassisSpeeds = ChassisSpeeds
+            .fromRobotRelativeSpeeds(measuredRobotRelativeChassisSpeeds,
+                getPose().getRotation());
+        var desiredFieldRelativeChassisSpeeds = ChassisSpeeds
+            .fromRobotRelativeSpeeds(kinematics.toChassisSpeeds(driveInputs.modStates),
+                getPose().getRotation());
+        var fusedFieldRelativeChassisSpeeds = new ChassisSpeeds(measuredFieldRelativeChassisSpeeds.vxMetersPerSecond,
+            measuredFieldRelativeChassisSpeeds.vyMetersPerSecond,
+            yawRadsPerS);
 
-      robotState.addDriveMotionMeasurements(timestamp, rollRadsPerS, pitchRadsPerS, yawRadsPerS,
-          pitchRads, rollRads, accelX, accelY, desiredFieldRelativeChassisSpeeds,
-          measuredRobotRelativeChassisSpeeds, measuredFieldRelativeChassisSpeeds,
-          fusedFieldRelativeChassisSpeeds);
+        robotState.addDriveMotionMeasurements(timestamp, rollRadsPerS, pitchRadsPerS,
+            yawRadsPerS,
+            pitchRads, rollRads, accelX, accelY, desiredFieldRelativeChassisSpeeds,
+            measuredRobotRelativeChassisSpeeds, measuredFieldRelativeChassisSpeeds,
+            fusedFieldRelativeChassisSpeeds);
+      }
     }
 
     Logger.processInputs("Drive/Gyro", gyroInputs);
     Logger.processInputs("Drive/DriveBase", driveInputs);
+    SmartDashboard.putData(fieldPose);
 
     for (var module : modules) {
       module.periodic();

@@ -7,11 +7,14 @@
 
 package frc.robot.subsystems.drive;
 
+import static edu.wpi.first.units.Units.Degree;
 import static edu.wpi.first.units.Units.Radians;
 import static frc.robot.subsystems.drive.DriveConstants.*;
 import static frc.robot.util.SparkUtil.*;
 
+import com.ctre.phoenix6.configs.CANcoderConfiguration;
 import com.ctre.phoenix6.hardware.CANcoder;
+import com.ctre.phoenix6.signals.SensorDirectionValue;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.ResetMode;
 import com.revrobotics.PersistMode;
@@ -30,6 +33,7 @@ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.math.geometry.Rotation2d;
+import frc.robot.util.SparkUtil;
 
 import java.util.Queue;
 import java.util.function.DoubleSupplier;
@@ -39,7 +43,7 @@ import java.util.function.DoubleSupplier;
  * and duty cycle absolute encoder.
  */
 public class ModuleIOSpark implements ModuleIO {
-  private final Rotation2d zeroRotation;
+  private  Rotation2d zeroRotation;
 
   // Hardware objects
   private final SparkFlex driveSpark;
@@ -66,6 +70,7 @@ public class ModuleIOSpark implements ModuleIO {
       new Debouncer(0.5, Debouncer.DebounceType.kFalling);
 
 public ModuleIOSpark(int module) {
+
     zeroRotation =
         switch (module) {
           case 0 -> frontLeftZeroRotation;
@@ -105,6 +110,13 @@ public ModuleIOSpark(int module) {
     driveEncoder = driveSpark.getEncoder();
     relTurnEncoder = turnSpark.getEncoder();
 
+    CANcoderConfiguration canCoderConfiguration = new CANcoderConfiguration();
+        canCoderConfiguration.MagnetSensor.SensorDirection = SensorDirectionValue.CounterClockwise_Positive;
+        canCoderConfiguration.MagnetSensor.withMagnetOffset(zeroRotation.getRotations());
+
+    // replacing this because of adding zero offset
+    zeroRotation = new Rotation2d();
+    
     canTurnEncoder = new CANcoder(canCoderSpark);
     canTurnEncoder.getConfigurator().apply(canCoderConfiguration);
     driveController = driveSpark.getClosedLoopController();
@@ -126,8 +138,13 @@ public ModuleIOSpark(int module) {
         .closedLoop
         .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
         .pid(driveKp, driveKi, driveKd)
-        .iMaxAccum(driveIntegrationCap)
-        .feedForward.kA(driveKf);
+        .iMaxAccum(driveIntegrationCap);
+
+    driveConfig
+        .closedLoop
+        .feedForward
+        .kV(driveKf);
+        
     driveConfig
         .signals
         .primaryEncoderPositionAlwaysOn(true)
@@ -140,7 +157,9 @@ public ModuleIOSpark(int module) {
 
     driveSpark.configure(driveConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     driveSpark.clearFaults();
+
     tryUntilOk(driveSpark, 5, () -> driveEncoder.setPosition(0.0));
+    tryUntilOk(turnSpark, 5, () -> relTurnEncoder.setPosition(canTurnEncoder.getAbsolutePosition().getValue().in(Radians)));
 
     // Configure turn motor
     SparkMaxConfig turnConfig = new SparkMaxConfig();
@@ -158,8 +177,13 @@ public ModuleIOSpark(int module) {
         .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
         .positionWrappingEnabled(true)
         .positionWrappingInputRange(turnPIDMinInput, turnPIDMaxInput)
-        .pid(turnKp, turnKi, turnKd)
-        .feedForward.kA(turnKf);
+        .pid(turnKp, turnKi, turnKd);
+
+    turnConfig
+        .closedLoop
+        .feedForward
+        .kV(turnKv);
+
     turnConfig
         .signals
         .primaryEncoderPositionAlwaysOn(true)
@@ -174,8 +198,27 @@ public ModuleIOSpark(int module) {
     turnSpark.configure(turnConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     turnSpark.clearFaults();
 
-    tryUntilOk(turnSpark, 5, () -> relTurnEncoder.setPosition(canTurnEncoder.getAbsolutePosition().getValue().in(Radians)));
+    SparkUtil.tunePID(
+        "Drive PID " + module, 
+        driveSpark, 
+        driveConfig, 
+        new double[] {driveKp, driveKi, driveKd, driveKs, driveKv, 0, 0}, 
+        ResetMode.kResetSafeParameters, 
+        PersistMode.kPersistParameters,
+        true,
+        false
+        );
 
+    SparkUtil.tunePID(
+        "Turn PID " + module,
+        turnSpark,
+        turnConfig,
+        new double [] {turnKp, turnKi, turnKd, 0, turnKv, 0, 0},
+        ResetMode.kResetSafeParameters, 
+        PersistMode.kPersistParameters,
+        true,
+        false
+    );
     // Create odometry queues
 
     timestampQueue = SparkOdometryThread.getInstance().makeTimestampQueue();
@@ -201,6 +244,11 @@ public ModuleIOSpark(int module) {
     ifOk(driveSpark, driveSpark::getOutputCurrent, (value) -> inputs.driveCurrentAmps = value);
     inputs.driveConnected = driveConnectedDebounce.calculate(!sparkStickyFault);
 
+    if ((Math.abs((canTurnEncoder.getAbsolutePosition().getValue().in(Degree) - (relTurnEncoder.getPosition() - zeroRotation.getDegrees())))) > 5) {
+        // tryUntilOk(turnSpark, 1, () -> relTurnEncoder.setPosition(canTurnEncoder.getAbsolutePosition().getValue().in(Radians)));
+        // System.out.println("ROTATE!");
+    }
+
     // Update turn inputs
     sparkStickyFault = false;
     ifOk(
@@ -216,6 +264,7 @@ public ModuleIOSpark(int module) {
     ifOk(turnSpark, turnSpark::getOutputCurrent, (value) -> inputs.turnCurrentAmps = value);
     inputs.turnConnected = turnConnectedDebounce.calculate(!sparkStickyFault);
 
+    inputs.canPosition = new Rotation2d(canTurnEncoder.getAbsolutePosition().getValue().in(Radians));
     // Update odometry inputs
     inputs.odometryTimestamps =
         timestampQueue.stream().mapToDouble((Double value) -> value).toArray();
