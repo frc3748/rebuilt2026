@@ -11,6 +11,7 @@ import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 
+import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
@@ -18,9 +19,12 @@ import edu.wpi.first.math.geometry.Twist2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
+import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.PrintCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
@@ -31,18 +35,23 @@ import frc.robot.subsystems.drive.GyroIOPigeon2;
 import frc.robot.subsystems.drive.ModuleIOSpark;
 import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.subsystems.vision.VisionFieldPoseEstimate;
+import frc.robot.subsystems.vision.VisionIOHardwareLimelight;
+import frc.robot.subsystems.vision.VisionIOInputsAutoLogged;
 import frc.robot.subsystems.vision.VisionSubsystem;
 import frc.robot.util.ConcurrentTimeInterpolatableBuffer;
+import frc.robot.util.Elastic;
 import frc.robot.util.MathHelpers;
 import frc.robot.util.RobotTime;
+import frc.robot.util.Elastic.Notification;
 import frc.robot.util.state.StateMachine;
 
 public class RobotState extends StateMachine<RobotState.State> {
 
     public final static double LOOKBACK_TIME = 1.0;
+    public final static AtomicBoolean hubActivated = new AtomicBoolean();
 
     private Drive drive;
-    // private VisionSubsystem vision;
+    private VisionSubsystem vision;
 
     private CommandXboxController controller = new CommandXboxController(0);
 
@@ -50,7 +59,6 @@ public class RobotState extends StateMachine<RobotState.State> {
 
     private final Consumer<VisionFieldPoseEstimate> visionEstimateConsumer;
 
-    
     // kinematic frame
     private final ConcurrentTimeInterpolatableBuffer<Pose2d> fieldToRobot = ConcurrentTimeInterpolatableBuffer
             .createBuffer(LOOKBACK_TIME);
@@ -99,6 +107,28 @@ public class RobotState extends StateMachine<RobotState.State> {
 
     public RobotState() {
         super("RobotState", State.UNDETERMINED, State.class);
+        // drive intialization
+
+        // vision initialization TODO
+        {
+            fieldToRobot.addSample(0.0, MathHelpers.kPose2dZero);
+            robotToTurret.addSample(0.0, MathHelpers.kRotation2dZero);
+            turretAngularVelocity.addSample(0.0, 0.0);
+            driveYawAngularVelocity.addSample(0.0, 0.0);
+            turretPositionRadians.addSample(0.0, 0.0);
+
+            visionEstimateConsumer = new Consumer<VisionFieldPoseEstimate>() {
+                @Override
+                public void accept(VisionFieldPoseEstimate estimate) {
+                    drive.addVisionMeasurement(estimate.getVisionRobotPoseMeters(), estimate.getTimestampSeconds());
+                }
+            };
+
+            vision = new VisionSubsystem(new VisionIOHardwareLimelight(this), this);
+
+            Elastic.sendNotification(
+                    new Notification().withTitle("Vision Subsystem").withDescription("Vision Started"));
+        }
 
         // drive intialization
         {
@@ -109,18 +139,7 @@ public class RobotState extends StateMachine<RobotState.State> {
                     new ModuleIOSpark(2),
                     new ModuleIOSpark(3),
                     this);
-
-            visionEstimateConsumer = new Consumer<VisionFieldPoseEstimate>() {
-                @Override
-                public void accept(VisionFieldPoseEstimate estimate) {
-                    drive.addVisionMeasurement(estimate.getVisionRobotPoseMeters(), estimate.getTimestampSeconds());
-                }
-            };
-        }
-
-        // vision initialization TODO
-        {
-            // vision = new VisionSubsystem(new VisionIOHardwareLimelight(this), this);
+            Elastic.sendNotification(new Notification().withTitle("Drive Subsystem").withDescription("Drive Started"));
         }
 
         // auto setup
@@ -129,14 +148,16 @@ public class RobotState extends StateMachine<RobotState.State> {
             setupDriveDiagnosisAutos();
         }
 
+        CameraServer.startAutomaticCapture();
+
         setupControllerBindings();
         setupNotis();
 
         registerStateTransitions();
         registerStateCommands();
-        
+
+        addChildSubsystem(vision);
         addChildSubsystem(drive);
-        // addChildSubsystem(vision);
         enable();
     }
 
@@ -155,6 +176,8 @@ public class RobotState extends StateMachine<RobotState.State> {
                 "Drive SysId (Dynamic Forward)", drive.sysIdDynamic(SysIdRoutine.Direction.kForward));
         autoChooser.addOption(
                 "Drive SysId (Dynamic Reverse)", drive.sysIdDynamic(SysIdRoutine.Direction.kReverse));
+
+        autoChooser.addOption("Valid Auto Template", new InstantCommand().withName("Game <- this is a template"));
     }
 
     private void setupNotis() {
@@ -176,59 +199,37 @@ public class RobotState extends StateMachine<RobotState.State> {
     }
 
     private void registerStateTransitions() {
-        addOmniTransitions(State.SOFT_STOP, State.TRAVERSING, State.AUTO, State.SHOOTING, State.SHOOTING_INTAKING, State.CLIMBING, State.INTAKING);
+        addOmniTransitions(State.SOFT_STOP, State.TRAVERSING, State.AUTO, State.SHOOTING, State.SHOOTING_INTAKING,
+                State.CLIMBING, State.INTAKING, State.PASSING, State.PASSING_INTAKING);
     }
 
     private void registerStateCommands() {
-        // TODO fix commands and controller bindings
-        // registerStateCommand(State.SOFT_STOP, new ParallelCommandGroup(
-        //     drive.transitionCommand(Drive.State.IDLE)
-        // ));
+        registerStateCommand(State.SOFT_STOP, new ParallelCommandGroup(
+                drive.transitionCommand(Drive.State.IDLE)));
 
-        // registerStateCommand(State.TRAVERSING, new ParallelCommandGroup(
-        //     drive.transitionCommand(Drive.State.TRAVERSING)
-        // ));
+        registerStateCommand(State.TRAVERSING, new ParallelCommandGroup(
+                drive.transitionCommand(Drive.State.TRAVERSING)));
 
         // // change this to an auto state in the future?
-        // registerStateCommand(State.AUTO, new ParallelCommandGroup(
-        //         drive.transitionCommand(Drive.State.TRAVERSING)
-        // ));
+        registerStateCommand(State.AUTO, new ParallelCommandGroup(
+                drive.transitionCommand(Drive.State.TRAVERSING)));
     }
 
     private void setupControllerBindings() {
-        // drive.setDefaultCommand(
-        //         DriveCommands.joystickDrive(
-        //                 drive,
-        //                 () -> -controller.getLeftY(),
-        //                 () -> -controller.getLeftX(),
-        //                 () -> -controller.getRightX()));
-
-        // Lock to 0° when A button is held
-        // controller
-        //         .a()
-        //         .whileTrue(
-        //                 DriveCommands.joystickDriveAtAngle(
-        //                         drive,
-        //                         () -> -controller.getLeftY(),
-        //                         () -> -controller.getLeftX(),
-        //                         () -> Rotation2d.kZero));
-
-        // Switch to X pattern when X button is pressed
-        // controller.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
-
-        // Reset gyro to 0° when B button is pressed
-        // controller.a().onTrue(drive.transitionCommand(Drive.State.TRAVERSING_AT_ANGLE)).onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
-        // controller.x().onTrue(drive.transitionCommand(Drive.State.CROSSED)).onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
-        // controller.b().onTrue(drive.transitionCommand(Drive.State.SLOW)).onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
-
-        // controller
-        //         .b()
-        //         .onTrue(
-        //                 Commands.runOnce(
-        //                         () -> drive.setPose(
-        //                                 new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
-        //                         drive)
-        //                         .ignoringDisable(true));
+        controller.a().onTrue(drive.transitionCommand(Drive.State.TRAVERSING_AT_ANGLE))
+                .onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
+        controller.x().onTrue(drive.transitionCommand(Drive.State.CROSSED))
+                .onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
+        controller.b().onTrue(drive.transitionCommand(Drive.State.SLOW))
+                .onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
+        controller
+                .b()
+                .onTrue(
+                        Commands.runOnce(
+                                () -> drive.setPose(
+                                        new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
+                                drive)
+                                .ignoringDisable(true));
     }
 
     public Command getAutonomousCommand() {
@@ -268,7 +269,6 @@ public class RobotState extends StateMachine<RobotState.State> {
         return enablePathCancel.get();
     }
 
-    ////////
     public void addOdometryMeasurement(double timestamp, Pose2d pose) {
         fieldToRobot.addSample(timestamp, pose);
     }
@@ -297,7 +297,6 @@ public class RobotState extends StateMachine<RobotState.State> {
         this.measuredFieldRelativeChassisSpeeds.set(measuredFieldRelativeSpeeds);
         this.fusedFieldRelativeChassisSpeeds.set(fusedFieldRelativeSpeeds);
     }
-    //////////
 
     public Map.Entry<Double, Pose2d> getLatestFieldToRobot() {
         return fieldToRobot.getLatest();
@@ -377,7 +376,7 @@ public class RobotState extends StateMachine<RobotState.State> {
         return turretAngularVelocity.getSample(timestamp);
     }
 
-     private Optional<Double> getMaxAbsValueInRange(ConcurrentTimeInterpolatableBuffer<Double> buffer, double minTime,
+    private Optional<Double> getMaxAbsValueInRange(ConcurrentTimeInterpolatableBuffer<Double> buffer, double minTime,
             double maxTime) {
         var submap = buffer.getInternalBuffer().subMap(minTime, maxTime).values();
         var max = submap.stream().max(Double::compare);
@@ -475,6 +474,76 @@ public class RobotState extends StateMachine<RobotState.State> {
         setState(State.SOFT_STOP);
     }
 
+    @Override
+    public void update() {
+        String gameState = "No Game State";
+        double secondsUntilAllianceShift = 25;
+        String message = DriverStation.getGameSpecificMessage();
+        Optional<Alliance> teamAlliance = DriverStation.getAlliance();
+
+        char autoWinner = (message.length() > 0) ? message.charAt(0) : ' ';
+        double matchTime = DriverStation.getMatchTime();
+        
+        boolean inTransitionShift = (matchTime >= 130);
+        boolean inEndGame = (matchTime <= 30);
+        // ONLY refer to this if both booleans are false
+        int currentStage = (4 - (int) ((matchTime - 30) / 25));
+
+        if (DriverStation.isAutonomous()) {
+            gameState = "Autonomous";
+            secondsUntilAllianceShift = 0;
+        } else if (inTransitionShift) {
+            gameState = "Transition";
+            secondsUntilAllianceShift = matchTime - 130;
+        } else if (inEndGame) {
+            gameState = "End Game";
+            secondsUntilAllianceShift = matchTime;
+        } else {
+            secondsUntilAllianceShift = (matchTime - 30) % 25;
+            switch (currentStage) {
+                case 1:
+                    gameState = "Shift 1";
+                    break;
+                case 2:
+                    gameState = "Shift 2";
+                    break;
+                case 3:
+                    gameState = "Shift 3";
+                    break;
+                case 4:
+                    gameState = "Shift 4";
+                    break;
+                default:
+                    gameState = "Teleop";
+                    break;
+            }
+        }
+
+        if (teamAlliance.isPresent() && message.length() > 0 && !inTransitionShift && !inEndGame
+                && DriverStation.isTeleop()) {
+            char myColor = (teamAlliance.get() == Alliance.Red) ? 'R' : 'B';
+            boolean isStageEven = (currentStage % 2 == 0);
+
+            if (autoWinner == 'B') {
+                hubActivated.set(isStageEven ? (myColor == 'B') : (myColor == 'R'));
+            } else if (autoWinner == 'R') {
+                hubActivated.set(isStageEven ? (myColor == 'R') : (myColor == 'B'));
+            } else {
+                hubActivated.set(true);
+            }
+        } else {
+            // UNKNOWN so have it activated to allow shooting
+            hubActivated.set(true);
+        }
+
+        SmartDashboard.putBoolean("Game/HubActivated", hubActivated.get());
+        SmartDashboard.putString("Game/GameState", gameState);
+        SmartDashboard.putString("Game/ShiftCountdown", String.format("%.2f", secondsUntilAllianceShift));
+        
+        // TODO identifier for a real game auto
+        SmartDashboard.putBoolean("Robot/AutoChoosed", autoChooser.get().getName().toLowerCase().contains("game"));
+    }
+
     public enum State {
         UNDETERMINED,
         SOFT_STOP,
@@ -485,5 +554,7 @@ public class RobotState extends StateMachine<RobotState.State> {
         SHOOTING,
         SHOOTING_INTAKING,
         INTAKING,
+        PASSING,
+        PASSING_INTAKING
     }
 }
