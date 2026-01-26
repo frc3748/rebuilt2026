@@ -1,6 +1,5 @@
 package frc.robot.subsystems.drive;
 
-import com.ctre.phoenix6.configs.CANcoderConfiguration;
 import com.pathplanner.lib.config.ModuleConfig;
 import com.pathplanner.lib.config.RobotConfig;
 
@@ -64,6 +63,11 @@ public class DriveConstants {
   public static final double driveKd = 0.0;
   public static final double driveKf = 0.29;
 
+  public static final double driveSimP = 0.05;
+  public static final double driveSimD = 0.0;
+  public static final double driveSimKs = 0.0;
+  public static final double driveSimKv = 0.0789;
+
   public static final double driveKs = 0.0;
   public static final double driveKv = 0.29;
 
@@ -86,6 +90,9 @@ public class DriveConstants {
   public static final double turnKi = 0.0;
   public static final double turnKd = 0.0;
   public static final double turnKv = 0.0;
+
+  public static final double turnSimP = 8.0;
+  public static final double turnSimD = 0.0;
 
   public static final double turnPIDMinInput = 0; // Radians
   public static final double turnPIDMaxInput = 2 * Math.PI; // Radians

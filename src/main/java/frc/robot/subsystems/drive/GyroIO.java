@@ -26,5 +26,5 @@ public interface GyroIO {
 
   public default void updateInputs(GyroIOInputs inputs) {}
 
-  public Pigeon2 getPiegon();
+  public default Pigeon2 getPiegon() {return null;};;
 }

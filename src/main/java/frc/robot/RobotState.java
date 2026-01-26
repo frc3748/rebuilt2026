@@ -1,5 +1,7 @@
 package frc.robot;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -9,8 +11,9 @@ import java.util.function.Consumer;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
-import com.ctre.phoenix.platform.can.AutocacheState;
 import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.commands.PathPlannerAuto;
+import com.pathplanner.lib.path.PathPlannerPath;
 
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -21,37 +24,46 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
+import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.PrintCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.AutoAlignToPoseCommand;
-import frc.robot.commands.DriveCommands;
 import frc.robot.commands.AutoCommands;
+import frc.robot.commands.DriveCommands;
 import frc.robot.subsystems.drive.Drive;
+import frc.robot.subsystems.drive.GyroIO;
 import frc.robot.subsystems.drive.GyroIOPigeon2;
+import frc.robot.subsystems.drive.ModuleIO;
+import frc.robot.subsystems.drive.ModuleIOSim;
 import frc.robot.subsystems.drive.ModuleIOSpark;
 import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.subsystems.vision.VisionFieldPoseEstimate;
+import frc.robot.subsystems.vision.VisionIO;
 import frc.robot.subsystems.vision.VisionIOHardwareLimelight;
+import frc.robot.subsystems.vision.VisionIOSimPhoton;
 import frc.robot.subsystems.vision.VisionSubsystem;
 import frc.robot.util.ConcurrentTimeInterpolatableBuffer;
 import frc.robot.util.Elastic;
+import frc.robot.util.Elastic.Notification;
 import frc.robot.util.MathHelpers;
 import frc.robot.util.RobotTime;
-import frc.robot.util.Elastic.Notification;
+import frc.robot.util.SimulatedRobotState;
 import frc.robot.util.state.StateMachine;
 
 public class RobotState extends StateMachine<RobotState.State> {
+    public final static int robotState = 1; // real, sim, replay
 
     public final static double LOOKBACK_TIME = 1.0;
     public final static AtomicBoolean hubActivated = new AtomicBoolean();
+
+    private final SimulatedRobotState simulatedRobotState = Robot.isSimulation() ? new SimulatedRobotState(this) : null;
 
     private Drive drive;
     private VisionSubsystem vision;
@@ -127,7 +139,15 @@ public class RobotState extends StateMachine<RobotState.State> {
                 }
             };
 
-            vision = new VisionSubsystem(new VisionIOHardwareLimelight(this), this);
+
+            switch(robotState) {
+                case 1:
+                    vision = new VisionSubsystem(new VisionIOHardwareLimelight(this), this);
+                    break;
+                default:
+                    vision = new VisionSubsystem(new VisionIOSimPhoton(this, simulatedRobotState), this);
+                    break;
+            }
 
             Elastic.sendNotification(
                     new Notification().withTitle("Vision Subsystem").withDescription("Vision Started"));
@@ -135,13 +155,38 @@ public class RobotState extends StateMachine<RobotState.State> {
 
         // drive intialization
         {
-            drive = new Drive(
-                    new GyroIOPigeon2(),
-                    new ModuleIOSpark(0),
-                    new ModuleIOSpark(1),
-                    new ModuleIOSpark(2),
-                    new ModuleIOSpark(3),
-                    this);
+            switch (robotState) {
+                case 1:
+                    drive = new Drive(
+                            new GyroIOPigeon2(),
+                            new ModuleIOSpark(0),
+                            new ModuleIOSpark(1),
+                            new ModuleIOSpark(2),
+                            new ModuleIOSpark(3),
+                            this);
+                    break;
+                case 2:
+                    drive = new Drive(
+                            new GyroIO() {},
+                            new ModuleIOSim(),
+                            new ModuleIOSim(),
+                            new ModuleIOSim(),
+                            new ModuleIOSim(),
+                            this);
+                default:
+                    drive = new Drive(
+                            new GyroIO() {
+                            },
+                            new ModuleIO() {
+                            },
+                            new ModuleIO() {
+                            },
+                            new ModuleIO() {
+                            },
+                            new ModuleIO() {
+                            },
+                            this);
+            }
             Elastic.sendNotification(new Notification().withTitle("Drive Subsystem").withDescription("Drive Started"));
         }
 
@@ -236,18 +281,19 @@ public class RobotState extends StateMachine<RobotState.State> {
                                 drive)
                                 .ignoringDisable(true));
 
-        Pose2d tagPos = VisionConstants.kAprilTagLayout.getTagPose(13).get().toPose2d().plus(new Transform2d(0,0, new Rotation2d(Units.degreesToRadians(90))));
-        //.plus(new Transform2d(Units.inchesToMeters(30), Units.inchesToMeters(0), new Rotation2d(Units.degreesToRadians(90))));       
+        Pose2d tagPos = VisionConstants.kAprilTagLayout.getTagPose(13).get().toPose2d()
+                .plus(new Transform2d(0, 0, new Rotation2d(Units.degreesToRadians(90))));
+        // .plus(new Transform2d(Units.inchesToMeters(30), Units.inchesToMeters(0), new
+        // Rotation2d(Units.degreesToRadians(90))));
         controller
-            .y()
-            .onTrue(
-                new AutoAlignToPoseCommand(drive, this, tagPos, 1.0)
-            );
+                .y()
+                .onTrue(
+                        new AutoAlignToPoseCommand(drive, this, tagPos, 1.0));
     }
 
-    public Command getAutonomousCommand() {
-        return autoChooser.get();
-    }
+    // public Command getAutonomousCommand() {
+    // return autoChooser.get();
+    // }
 
     public Drive getDrive() {
         return drive;
@@ -480,6 +526,21 @@ public class RobotState extends StateMachine<RobotState.State> {
     protected void onAutonomousStart() {
         registerStateCommand(State.AUTO, autoChooser.get().andThen(new PrintCommand("Auto is Done!")));
         requestTransition(State.AUTO);
+
+        String autoName = autoChooser.get().getName();
+
+        try {
+            List<PathPlannerPath> pathGroup = PathPlannerAuto.getPathGroupFromAutoFile(autoName);
+
+            List<Pose2d> allPoses = new ArrayList<>();
+            for (PathPlannerPath path : pathGroup) {
+                allPoses.addAll(path.getPathPoses());
+            }
+            drive.setFieldPoses(allPoses.toArray(new Pose2d[0]));
+        } catch (Exception e) {
+            Elastic.sendNotification(
+                    new Notification().withTitle("Auto Mapping").withDescription("Unable to add Auto Trajectory"));
+        }
     }
 
     @Override
@@ -496,7 +557,7 @@ public class RobotState extends StateMachine<RobotState.State> {
 
         char autoWinner = (message.length() > 0) ? message.charAt(0) : ' ';
         double matchTime = DriverStation.getMatchTime();
-        
+
         boolean inTransitionShift = (matchTime >= 130);
         boolean inEndGame = (matchTime <= 30);
         // ONLY refer to this if both booleans are false
@@ -552,7 +613,7 @@ public class RobotState extends StateMachine<RobotState.State> {
         SmartDashboard.putBoolean("Game/HubActivated", hubActivated.get());
         SmartDashboard.putString("Game/GameState", gameState);
         SmartDashboard.putString("Game/ShiftCountdown", String.format("%.2f", secondsUntilAllianceShift));
-        
+
         // TODO identifier for a real game auto
         SmartDashboard.putBoolean("Robot/AutoChoosed", autoChooser.get().getName().toLowerCase().contains("game"));
     }

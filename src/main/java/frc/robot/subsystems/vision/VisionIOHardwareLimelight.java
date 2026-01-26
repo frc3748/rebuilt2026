@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.wpilibj.DriverStation;
 import frc.robot.RobotState;
 import frc.robot.util.LimelightHelpers;
 
@@ -42,6 +43,9 @@ public class VisionIOHardwareLimelight implements VisionIO {
                 .radiansToDegrees(robotState.getLatestRobotRelativeChassisSpeed().omegaRadiansPerSecond);
         LimelightHelpers.SetRobotOrientation(VisionConstants.kLimelightBTableName, gyroAngle.getDegrees(),
                 gyroAngularVelocity, 0, 0, 0, 0);
+
+        LimelightHelpers.SetIMUMode(VisionConstants.kLimelightTableName, DriverStation.isEnabled() ? 4 : 1);
+        LimelightHelpers.SetIMUMode(VisionConstants.kLimelightBTableName, DriverStation.isEnabled() ? 4 : 1);
     }
 
     @Override
