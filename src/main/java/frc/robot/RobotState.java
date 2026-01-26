@@ -45,7 +45,6 @@ import frc.robot.subsystems.drive.ModuleIOSim;
 import frc.robot.subsystems.drive.ModuleIOSpark;
 import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.subsystems.vision.VisionFieldPoseEstimate;
-import frc.robot.subsystems.vision.VisionIO;
 import frc.robot.subsystems.vision.VisionIOHardwareLimelight;
 import frc.robot.subsystems.vision.VisionIOSimPhoton;
 import frc.robot.subsystems.vision.VisionSubsystem;
@@ -53,7 +52,6 @@ import frc.robot.util.ConcurrentTimeInterpolatableBuffer;
 import frc.robot.util.Elastic;
 import frc.robot.util.Elastic.Notification;
 import frc.robot.util.MathHelpers;
-import frc.robot.util.RobotTime;
 import frc.robot.util.SimulatedRobotState;
 import frc.robot.util.state.StateMachine;
 
@@ -95,7 +93,6 @@ public class RobotState extends StateMachine<RobotState.State> {
             new ChassisSpeeds());
 
     private double lastUsedMegatagTimestamp = 0;
-    private double lastTriggeredIntakeSensorTimestamp = 0;
     private ConcurrentTimeInterpolatableBuffer<Double> turretAngularVelocity = ConcurrentTimeInterpolatableBuffer
             .createDoubleBuffer(LOOKBACK_TIME);
     private ConcurrentTimeInterpolatableBuffer<Double> turretPositionRadians = ConcurrentTimeInterpolatableBuffer
@@ -135,7 +132,7 @@ public class RobotState extends StateMachine<RobotState.State> {
             visionEstimateConsumer = new Consumer<VisionFieldPoseEstimate>() {
                 @Override
                 public void accept(VisionFieldPoseEstimate estimate) {
-                    drive.addVisionMeasurement(estimate.getVisionRobotPoseMeters(), estimate.getTimestampSeconds());
+                    drive.addVisionMeasurement(estimate.getVisionRobotPoseMeters(), estimate.getTimestampSeconds(), estimate.getVisionMeasurementStdDevs());
                 }
             };
 
@@ -472,21 +469,8 @@ public class RobotState extends StateMachine<RobotState.State> {
         visionEstimateConsumer.accept(megatagEstimate);
     }
 
-    public void updatePinholeEstimate(VisionFieldPoseEstimate pinholeEstimate) {
-        visionEstimateConsumer.accept(pinholeEstimate);
-    }
-
-    public void updateLastTriggeredIntakeSensorTimestamp(boolean triggered) {
-        if (triggered)
-            lastTriggeredIntakeSensorTimestamp = RobotTime.getTimestampSeconds();
-    }
-
     public double lastUsedMegatagTimestamp() {
         return lastUsedMegatagTimestamp;
-    }
-
-    public double lastTriggeredIntakeSensorTimestamp() {
-        return lastTriggeredIntakeSensorTimestamp;
     }
 
     public boolean isRedAlliance() {

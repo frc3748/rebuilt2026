@@ -1,566 +1,231 @@
 package frc.robot.subsystems.vision;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 import org.littletonrobotics.junction.Logger;
 
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform2d;
-import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.util.Units;
-import edu.wpi.first.wpilibj.DriverStation;
 import frc.robot.RobotState;
 import frc.robot.util.MathHelpers;
-import frc.robot.util.RobotTime;
 import frc.robot.util.state.StateMachine;
 
 public class VisionSubsystem extends StateMachine<VisionSubsystem.State> {
     private final VisionIO io;
-
     private final RobotState state;
 
-    private final VisionIOInputsAutoLogged inputs = new VisionIOInputsAutoLogged();
+    private final CameraInputsAutoLogged turretCamera = new CameraInputsAutoLogged();
+    private final CameraInputsAutoLogged chassisCamera = new CameraInputsAutoLogged();
 
-    private static class PinholeObservation {
-        public Translation2d cameraToTag;
-        public Pose3d tagPose;
+    private double lastTurretTimestamp = 0.0;
+    private double lastChassisTimestamp = 0.0;
+
+    public enum State {
+        UNDETERMINED,
+        VISION_SCANNING,
+        BROKEN
     }
-
-    private double lastProcessedTurretTimestamp = 0.0;
-    private double lastProcessedElevatorTimestamp = 0.0;
 
     public VisionSubsystem(VisionIO io, RobotState state) {
         super("Vision", State.UNDETERMINED, State.class);
         this.io = io;
         this.state = state;
-
         enable();
     }
 
     @Override
     public void update() {
-        double timestamp = RobotTime.getTimestampSeconds();
-        // Read inputs from IO
-        io.readInputs(inputs);
-        Logger.processInputs("Vision", inputs);
+        io.readInputs(turretCamera, chassisCamera);
 
-        // Optionally update RobotState
-        if (inputs.turretCameraSeesTarget) {
-            updateVision(inputs.turretCameraSeesTarget, inputs.turretCameraFiducialObservations,
-                    inputs.turretCameraMegatagPoseEstimate, inputs.turretCameraMegatag2PoseEstimate, true);
-        }
-        // TODO change to else if, if any problem persists.
-        if (inputs.elevatorCameraSeesTarget) {
-            updateVision(inputs.elevatorCameraSeesTarget, inputs.elevatorCameraFiducialObservations,
-                    inputs.elevatorCameraMegatagPoseEstimate, inputs.elevatorCameraMegatag2PoseEstimate, false);
-        }
+        if (getState() == State.BROKEN)
+            return;
 
-        Logger.recordOutput("Vision/latencyPeriodicSec", RobotTime.getTimestampSeconds() - timestamp);
+        // Process both cameras using the robust methods below
+        var turretEst = processCamera(turretCamera, "Turret", true);
+        var chassisEst = processCamera(chassisCamera, "Chassis", false);
+
+        // Weighted Fusion
+        Optional<VisionFieldPoseEstimate> fused = fuseEstimates(turretEst, chassisEst);
+
+        if (fused.isPresent()) {
+            if (getState() != State.VISION_SCANNING)
+                setState(State.VISION_SCANNING);
+            state.updateMegatagEstimate(fused.get());
+        } else if (getState() == State.VISION_SCANNING) {
+            setState(State.UNDETERMINED);
+        }
     }
 
+    private Optional<VisionFieldPoseEstimate> processCamera(
+            VisionIO.CameraInputs cam, String name, boolean isTurret) {
+
+        if (!cam.seesTarget)
+            return Optional.empty();
+
+        // 1. Pick the best estimate (Prefer Megatag 2)
+        boolean useMT2 = cam.megatag2PoseEstimate != null && cam.megatag2Count > 0;
+        var estimate = useMT2 ? cam.megatag2PoseEstimate : cam.megatagPoseEstimate;
+        if (estimate == null)
+            return Optional.empty();
+
+        double timestamp = estimate.timestampSeconds();
+        String logPath = "Vision/" + name + "/";
+
+        // 2. Timing Check
+        if (timestamp == (isTurret ? lastTurretTimestamp : lastChassisTimestamp))
+            return Optional.empty();
+
+        // 3. Motion Validation (Method fully implemented below)
+        if (!isMotionValid(timestamp, isTurret, logPath))
+            return Optional.empty();
+
+        // 4. Transform Logic (Method fully implemented below)
+        Optional<Transform2d> robotToCamera = getRobotToCamera(timestamp, isTurret);
+        if (robotToCamera.isEmpty())
+            return Optional.empty();
+
+        // If Limelight offsets are 0, 'fieldToRobot()' is effectively 'fieldToCamera'
+        Pose2d fieldToRobot = estimate.fieldToRobot().plus(robotToCamera.get().inverse());
+
+        // 5. Standard Deviation Calculation
+        Matrix<N3, N1> stdDevs = calculateStdDevs(cam, estimate, useMT2);
+
+        if (isTurret)
+            lastTurretTimestamp = timestamp;
+        else
+            lastChassisTimestamp = timestamp;
+
+        return Optional.of(new VisionFieldPoseEstimate(
+                fieldToRobot, timestamp, stdDevs, estimate.fiducialIds().length));
+    }
+
+    /**
+     * Calculates the dynamic transform from the Robot Center to the Camera Lens
+     * at a specific point in time using the RobotState history buffers.
+     */
+    private Optional<Transform2d> getRobotToCamera(double timestamp, boolean isTurret) {
+        if (isTurret) {
+            // Retrieve the historical rotation of the turret from the RobotState buffer
+            Optional<Rotation2d> turretRotation = state.getRobotToTurret(timestamp);
+
+            if (turretRotation.isPresent()) {
+                // Combine: Robot -> Turret (Historical) -> Camera (Static offset on turret)
+                Transform2d robotToTurret = MathHelpers.transform2dFromRotation(turretRotation.get());
+                return Optional.of(robotToTurret.plus(state.getTurretToCamera(true)));
+            }
+            return Optional.empty();
+        }
+        // Chassis camera uses a static offset defined in RobotState
+        return Optional.of(state.getTurretToCamera(false));
+    }
+
+    /**
+     * Validates if the robot was stable enough during the frame capture
+     * to trust the vision data.
+     */
+    private boolean isMotionValid(double timestamp, boolean isTurret, String logPath) {
+        final double kMaxAngularVel = Units.degreesToRadians(120.0);
+        final double kWindow = 0.1; // 100ms window
+
+        // Check Chassis movement
+        var chassisVel = state.getMaxAbsDriveYawAngularVelocityInRange(timestamp - kWindow, timestamp);
+        double totalAngularVel = Math.abs(chassisVel.orElse(0.0));
+
+        // If it's the turret camera, we must account for the turret's own velocity
+        if (isTurret) {
+            var turretVel = state.getMaxAbsTurretYawAngularVelocityInRange(timestamp - kWindow, timestamp);
+            totalAngularVel = Math.abs(chassisVel.orElse(0.0) + turretVel.orElse(0.0));
+        }
+
+        boolean isStable = totalAngularVel < kMaxAngularVel;
+        Logger.recordOutput(logPath + "TotalAngularVel", totalAngularVel);
+        Logger.recordOutput(logPath + "IsStable", isStable);
+
+        return isStable;
+    }
+
+    private Matrix<N3, N1> calculateStdDevs(VisionIO.CameraInputs cam, MegatagPoseEstimate est,
+            boolean isMT2) {
+        int offset = isMT2 ? 6 : 0;
+        // Use the LL4 provided standard deviations if available
+        return VecBuilder.fill(
+                cam.standardDeviations[offset],
+                cam.standardDeviations[offset + 1],
+                cam.standardDeviations[offset + 5]);
+    }
+
+    private Optional<VisionFieldPoseEstimate> fuseEstimates(
+            Optional<VisionFieldPoseEstimate> turret, Optional<VisionFieldPoseEstimate> chassis) {
+        if (turret.isEmpty())
+            return chassis;
+        if (chassis.isEmpty())
+            return turret;
+
+        VisionFieldPoseEstimate a = turret.get();
+        VisionFieldPoseEstimate b = chassis.get();
+
+        if (b.getTimestampSeconds() < a.getTimestampSeconds()) {
+            VisionFieldPoseEstimate tmp = a;
+            a = b;
+            b = tmp;
+        }
+
+        // Preview both estimates to the same timestamp
+        Transform2d a_T_b = state.getFieldToRobot(b.getTimestampSeconds())
+                .get()
+                .minus(state.getFieldToRobot(a.getTimestampSeconds()).get());
+
+        Pose2d poseA = a.getVisionRobotPoseMeters().transformBy(a_T_b);
+        Pose2d poseB = b.getVisionRobotPoseMeters();
+
+        // Inverse‑variance weighting
+        var varianceA = a.getVisionMeasurementStdDevs().elementTimes(a.getVisionMeasurementStdDevs());
+        var varianceB = b.getVisionMeasurementStdDevs().elementTimes(b.getVisionMeasurementStdDevs());
+
+        Rotation2d fusedHeading = poseB.getRotation();
+        if (varianceA.get(2, 0) < VisionConstants.kLargeVariance
+                && varianceB.get(2, 0) < VisionConstants.kLargeVariance) {
+            fusedHeading = new Rotation2d(
+                    poseA.getRotation().getCos() / varianceA.get(2, 0)
+                            + poseB.getRotation().getCos() / varianceB.get(2, 0),
+                    poseA.getRotation().getSin() / varianceA.get(2, 0)
+                            + poseB.getRotation().getSin() / varianceB.get(2, 0));
+        }
+
+        double weightAx = 1.0 / varianceA.get(0, 0);
+        double weightAy = 1.0 / varianceA.get(1, 0);
+        double weightBx = 1.0 / varianceB.get(0, 0);
+        double weightBy = 1.0 / varianceB.get(1, 0);
+
+        Pose2d fusedPose = new Pose2d(
+                new Translation2d(
+                        (poseA.getTranslation().getX() * weightAx
+                                + poseB.getTranslation().getX() * weightBx)
+                                / (weightAx + weightBx),
+                        (poseA.getTranslation().getY() * weightAy
+                                + poseB.getTranslation().getY() * weightBy)
+                                / (weightAy + weightBy)),
+                fusedHeading);
+
+        Matrix<N3, N1> fusedStdDev = VecBuilder.fill(
+                Math.sqrt(1.0 / (weightAx + weightBx)),
+                Math.sqrt(1.0 / (weightAy + weightBy)),
+                Math.sqrt(1.0 / (1.0 / varianceA.get(2, 0) + 1.0 / varianceB.get(2, 0))));
+
+        int numTags = a.getNumTags() + b.getNumTags();
+        double time = b.getTimestampSeconds();
+
+        return Optional.of(new VisionFieldPoseEstimate(fusedPose, time, fusedStdDev, numTags));
+    }
+
+    @Override
     public void determineSelf() {
         setState(State.VISION_SCANNING);
-    }
-
-    private void updateVision(boolean cameraSeesTarget, FiducialObservation[] cameraFiducialObservations,
-            MegatagPoseEstimate cameraMegatagPoseEstimate, MegatagPoseEstimate cameraMegatag2PoseEstimate,
-            boolean isTurretCamera) {
-
-        String logPreface = "Vision/" + (isTurretCamera ? "Turret/" : "Elevator/");
-        if (cameraMegatagPoseEstimate != null) {
-            var updateTimestamp = cameraMegatagPoseEstimate.timestampSeconds;
-            boolean alreadyProcessedTimestamp = (isTurretCamera ? lastProcessedTurretTimestamp
-                    : lastProcessedElevatorTimestamp) == updateTimestamp;
-            if (!alreadyProcessedTimestamp && cameraSeesTarget) {
-                // if (!isTurretCamera)
-                //     return;
-                Optional<VisionFieldPoseEstimate> pinholeEstimate = Optional.empty();// processPinholeVisionEstimate(pinholeObservations,
-                                                                                     // updateTimestamp,
-                                                                                     // isTurretCamera);
-
-                Optional<VisionFieldPoseEstimate> megatagEstimate = processMegatagPoseEstimate(
-                        cameraMegatagPoseEstimate,
-                        isTurretCamera);
-                Optional<VisionFieldPoseEstimate> megatag2Estimate = processMegatag2PoseEstimate(
-                        cameraMegatag2PoseEstimate, isTurretCamera, logPreface);
-
-                boolean used_megatag = false;
-                if (megatagEstimate.isPresent()) {
-                    if (shouldUseMegatag(cameraMegatagPoseEstimate, cameraFiducialObservations, isTurretCamera,
-                            logPreface)) {
-                        Logger.recordOutput(logPreface + "MegatagEstimate",
-                                megatagEstimate.get().getVisionRobotPoseMeters());
-                        state.updateMegatagEstimate(megatagEstimate.get());
-                        used_megatag = true;
-                    } else {
-                        if (megatagEstimate.isPresent()) {
-                            Logger.recordOutput(logPreface + "MegatagEstimateRejected",
-                                    megatagEstimate.get().getVisionRobotPoseMeters());
-                        }
-                    }
-                }
-
-                if (megatag2Estimate.isPresent() && !used_megatag) {
-                    if (shouldUseMegatag2(cameraMegatag2PoseEstimate, isTurretCamera, logPreface)) {
-                        Logger.recordOutput(logPreface + "Megatag2Estimate",
-                                megatag2Estimate.get().getVisionRobotPoseMeters());
-                        state.updateMegatagEstimate(megatag2Estimate.get());
-                    } else {
-                        if (megatagEstimate.isPresent()) {
-                            Logger.recordOutput(logPreface + "Megatag2EstimateRejected",
-                                    megatag2Estimate.get().getVisionRobotPoseMeters());
-                        }
-                    }
-                }
-                if (pinholeEstimate.isPresent()) {
-                    if (shouldUsePinhole(updateTimestamp, isTurretCamera, logPreface)) {
-                        Logger.recordOutput(logPreface + "PinholeEstimate",
-                                pinholeEstimate.get().getVisionRobotPoseMeters());
-                        state.updatePinholeEstimate(pinholeEstimate.get());
-                    } else {
-                        Logger.recordOutput(logPreface + "PinholeEstimateRejected",
-                                pinholeEstimate.get().getVisionRobotPoseMeters());
-                    }
-                }
-
-                if (isTurretCamera)
-                    lastProcessedTurretTimestamp = updateTimestamp;
-                else
-                    lastProcessedElevatorTimestamp = updateTimestamp;
-            }
-        }
-    }
-
-    @SuppressWarnings("unused")
-    private List<PinholeObservation> getPinholeObservations(FiducialObservation[] fiducials, boolean isTurretCamera) {
-        // Iterate over the fiducials to make VisionUpdates
-        return Arrays.stream(fiducials).map(fiducial -> {
-            Optional<Pose3d> tagPoseOptional = VisionConstants.kAprilTagLayout.getTagPose(fiducial.id);
-            if (tagPoseOptional.isEmpty()) {
-                return null;
-            }
-            Pose3d tagPose = tagPoseOptional.get();
-            Optional<Translation2d> cameraToTarget = getCameraToTargetTranslation(fiducial, tagPose, isTurretCamera);
-
-            if (cameraToTarget.isEmpty()) {
-                return null;
-            }
-
-            var observation = new PinholeObservation();
-            observation.cameraToTag = cameraToTarget.get();
-            observation.tagPose = tagPose;
-            return observation;
-        }).filter(Objects::nonNull).toList();
-    }
-
-    private Optional<Translation2d> getCameraToTargetTranslation(FiducialObservation fiducial, Pose3d tagLocation,
-            boolean isTurretCamera) {
-        // Get the yaw and pitch angles from to target from the camera POV
-        double yawRadians = Math.toRadians(fiducial.txnc);
-        double pitchRadians = Math.toRadians(fiducial.tync);
-
-        Transform3d cameraToTarget = new Transform3d(new Translation3d(), new Rotation3d(0.0, pitchRadians, 0.0));
-        cameraToTarget = cameraToTarget
-                .plus(new Transform3d(new Translation3d(), new Rotation3d(0.0, 0.0, yawRadians)));
-        Transform3d cameraGroundPlaneToCamera = new Transform3d(new Translation3d(),
-                new Rotation3d(0.0, isTurretCamera ? VisionConstants.kCameraPitchRads : VisionConstants.kCameraBPitchRads, 0));
-        Rotation3d cameraGroundPlaneToTarget = new Pose3d().plus(cameraGroundPlaneToCamera.plus(cameraToTarget))
-                .getRotation().unaryMinus();
-
-        // Built a unit vector from adjusted rotation.
-        // Raw vector: x = 1, y = tan(yaw), z = tan(pitch)
-        // Make it a unit vector by dividing each component by magnitude
-        // sqrt(x^2+y^2+z^2).
-        double tan_ty = Math.tan(cameraGroundPlaneToTarget.getZ()); // y and z switch intentional
-        double tan_tz = -Math.tan(cameraGroundPlaneToTarget.getY()); // y and z switch intentional
-
-        if (tan_tz == 0.0) {
-            // Protect against divide by zero (i.e. target is at same height as camera).
-            return Optional.empty();
-        }
-
-        // Find the fixed height difference between the center of the tag and the camera
-        // lens
-        double differential_height = tagLocation.getZ()
-                - (isTurretCamera ? VisionConstants.kCameraHeightOffGroundMeters : VisionConstants.kCameraBHeightOffGroundMeters);
-
-        // We now obtain 3d distance by dividing differential_height by our normalized z
-        // component z / (Math.sqrt(x^2+y^2+z^2))
-        double distance = differential_height * Math.sqrt(1.0 + tan_tz * tan_tz + tan_ty * tan_ty) / tan_tz;
-        // Build a 3d vector from distance (which we now know) and orientation (which we
-        // already computed above).
-        Translation3d cameraToTargetTranslation = new Translation3d(distance, cameraGroundPlaneToTarget);
-
-        // Grab the x and y components.
-        return Optional.of(new Translation2d(cameraToTargetTranslation.getX(), cameraToTargetTranslation.getY()));
-    }
-
-    final static Set<Integer> kTagsBlueSpeaker = new HashSet<>(List.of(7, 8));
-    final static Set<Integer> kTagsRedSpeaker = new HashSet<>(List.of(3, 4));
-
-    private boolean shouldUseMegatag(MegatagPoseEstimate poseEstimate, FiducialObservation[] fiducials,
-            boolean isTurretCamera, String logPreface) {
-        final double kMinAreaForTurretMegatagEnabled = 0.4;
-        final double kMinAreaForTurretMegatagDisabled = 0.05;
-
-        final double kMinAreaForElevatorMegatagEnabled = 0.4;
-        final double kMinAreaForElevatorMegatagDisabled = 0.05;
-
-        double kMinAreaForMegatag = 0.0;
-        if (DriverStation.isDisabled()) {
-            kMinAreaForMegatag = isTurretCamera ? kMinAreaForTurretMegatagDisabled
-                    : kMinAreaForElevatorMegatagDisabled;
-        } else {
-            kMinAreaForMegatag = isTurretCamera ? kMinAreaForTurretMegatagEnabled
-                    : kMinAreaForElevatorMegatagEnabled;
-        }
-
-        final int kExpectedTagCount = 2;
-
-        final double kLargeYawThreshold = Units.degreesToRadians(200.0);
-        final double kLargeYawEventTimeWindowS = 0.05;
-
-        if (!isTurretCamera) {
-            var maxYawVel = state.getMaxAbsDriveYawAngularVelocityInRange(
-                    poseEstimate.timestampSeconds - kLargeYawEventTimeWindowS,
-                    poseEstimate.timestampSeconds);
-            if (maxYawVel.isPresent() && Math.abs(maxYawVel.get()) > kLargeYawThreshold) {
-                Logger.recordOutput("Vision/Elevator/MegatagYawAngular", false);
-                return false;
-            }
-            Logger.recordOutput("Vision/Elevator/MegatagYawAngular", true);
-        }
-
-        if (poseEstimate.avgTagArea < kMinAreaForMegatag) {
-            Logger.recordOutput(logPreface + "megaTagAvgTagArea", false);
-            return false;
-        }
-        Logger.recordOutput(logPreface + "megaTagAvgTagArea", true);
-
-        if (poseEstimate.fiducialIds.length != kExpectedTagCount) {
-            Logger.recordOutput(logPreface + "fiducialLength", false);
-            return false;
-        }
-        Logger.recordOutput(logPreface + "fiducialLength", true);
-
-        if (poseEstimate.fiducialIds.length < 1) {
-            Logger.recordOutput(logPreface + "fiducialLengthLess1", false);
-            return false;
-        }
-        Logger.recordOutput(logPreface + "fiducialLengthLess1", true);
-
-        if (poseEstimate.fieldToCamera.getTranslation().getNorm() < 1.0) {
-            Logger.recordOutput(logPreface + "NormCheck", false);
-            return false;
-        }
-        Logger.recordOutput(logPreface + "NormCheck", true);
-
-        for (var fiducial : fiducials) {
-            if (fiducial.ambiguity > .9) {
-                Logger.recordOutput(logPreface + "Ambiguity", false);
-                return false;
-            }
-        }
-        Logger.recordOutput(logPreface + "Ambiguity", true);
-
-        Set<Integer> seenTags = Arrays.stream(poseEstimate.fiducialIds).boxed()
-                .collect(Collectors.toCollection(HashSet::new));
-        Set<Integer> expectedTags = state.isRedAlliance() ? kTagsRedSpeaker : kTagsBlueSpeaker;
-        var result = expectedTags.equals(seenTags);
-        Logger.recordOutput(logPreface + "SeenTags", result);
-        return result;
-    }
-
-    private boolean shouldUseMegatag2(MegatagPoseEstimate poseEstimate, boolean isTurretCamera, String logPreface) {
-        return shouldUsePinhole(poseEstimate.timestampSeconds, isTurretCamera, logPreface);
-    }
-
-    private boolean shouldUsePinhole(double timestamp, boolean isTurretCamera, String preface) {
-        final double kLargePitchRollYawEventTimeWindowS = 0.1;
-        final double kLargePitchRollThreshold = Units.degreesToRadians(10.0);
-        final double kLargeYawThreshold = Units.degreesToRadians(100.0);
-        if (isTurretCamera) {
-            var maxTurretVel = state.getMaxAbsTurretYawAngularVelocityInRange(
-                    timestamp - kLargePitchRollYawEventTimeWindowS, timestamp);
-            var maxYawVel = state.getMaxAbsDriveYawAngularVelocityInRange(
-                    timestamp - kLargePitchRollYawEventTimeWindowS,
-                    timestamp);
-
-            if (maxTurretVel.isPresent() && maxYawVel.isPresent() &&
-                    Math.abs(maxTurretVel.get() + maxYawVel.get()) > kLargeYawThreshold) {
-                Logger.recordOutput(preface + "PinholeTurretAngular", false);
-                return false;
-            }
-            Logger.recordOutput(preface + "PinholeTurretAngular", true);
-        } else {
-            var maxYawVel = state.getMaxAbsDriveYawAngularVelocityInRange(
-                    timestamp - kLargePitchRollYawEventTimeWindowS,
-                    timestamp);
-            if (maxYawVel.isPresent() && Math.abs(maxYawVel.get()) > kLargeYawThreshold) {
-                Logger.recordOutput(preface + "PinholeYawAngular", false);
-                return false;
-            }
-            Logger.recordOutput(preface + "PinholeYawAngular", true);
-        }
-
-        var maxPitchVel = state.getMaxAbsDrivePitchAngularVelocityInRange(
-                timestamp - kLargePitchRollYawEventTimeWindowS,
-                timestamp);
-        if (maxPitchVel.isPresent() && Math.abs(maxPitchVel.get()) > kLargePitchRollThreshold) {
-            Logger.recordOutput(preface + "PinholePitchAngular", false);
-            return false;
-        }
-        Logger.recordOutput(preface + "PinholePitchAngular", true);
-
-        var maxRollVel = state.getMaxAbsDriveRollAngularVelocityInRange(timestamp - kLargePitchRollYawEventTimeWindowS,
-                timestamp);
-        if (maxRollVel.isPresent() && Math.abs(maxRollVel.get()) > kLargePitchRollThreshold) {
-            Logger.recordOutput(preface + "PinholeRollAngular", false);
-            return false;
-        }
-        Logger.recordOutput(preface + "PinholeRollAngular", true);
-
-        return true;
-    }
-
-    private Optional<Pose2d> getFieldToRobotEstimate(MegatagPoseEstimate poseEstimate, boolean isTurretCamera) {
-        var fieldToCamera = poseEstimate.fieldToCamera;
-        if (fieldToCamera.getX() == 0.0) {
-            return Optional.empty();
-        }
-        var turretToCameraTransform = state.getTurretToCamera(isTurretCamera);
-        var cameraToTurretTransform = turretToCameraTransform.inverse();
-        var fieldToTurretPose = fieldToCamera.plus(cameraToTurretTransform);
-        var fieldToRobotEstimate = MathHelpers.kPose2dZero;
-        if (isTurretCamera) {
-            var robotToTurretObservation = state.getRobotToTurret(poseEstimate.timestampSeconds);
-            if (robotToTurretObservation.isEmpty()) {
-                return Optional.empty();
-            }
-            var turretToRobot = MathHelpers.transform2dFromRotation(robotToTurretObservation.get().unaryMinus());
-            fieldToRobotEstimate = fieldToTurretPose.plus(turretToRobot);
-        } else {
-            fieldToRobotEstimate = fieldToCamera.plus(turretToCameraTransform.inverse());
-        }
-
-        return Optional.of(fieldToRobotEstimate);
-    }
-
-    private Optional<VisionFieldPoseEstimate> processMegatag2PoseEstimate(MegatagPoseEstimate poseEstimate,
-            boolean isTurretCamera, String logPreface) {
-        var loggedFieldToRobot = state.getFieldToRobot(poseEstimate.timestampSeconds);
-        if (loggedFieldToRobot.isEmpty()) {
-            return Optional.empty();
-        }
-
-        var maybeFieldToRobotEstimate = getFieldToRobotEstimate(poseEstimate, isTurretCamera);
-        if (maybeFieldToRobotEstimate.isEmpty())
-            return Optional.empty();
-        var fieldToRobotEstimate = maybeFieldToRobotEstimate.get();
-
-        // distance from current pose to vision estimated pose
-        double poseDifference = fieldToRobotEstimate.getTranslation()
-                .getDistance(loggedFieldToRobot.get().getTranslation());
-
-        var defaultSet = state.isRedAlliance() ? kTagsRedSpeaker : kTagsBlueSpeaker;
-        Set<Integer> speakerTags = new HashSet<>(defaultSet);
-        speakerTags.removeAll(
-                Arrays.stream(poseEstimate.fiducialIds).boxed().collect(Collectors.toCollection(HashSet::new)));
-        boolean seesSpeakerTags = speakerTags.size() < 2;
-
-        double xyStds;
-        if (poseEstimate.fiducialIds.length > 0) {
-            // multiple targets detected
-            if (poseEstimate.fiducialIds.length >= 2 && poseEstimate.avgTagArea > 0.1) {
-                xyStds = 0.2;
-            }
-            // we detect at least one of our speaker tags and we're close to it.
-            else if (seesSpeakerTags && poseEstimate.avgTagArea > 0.2) {
-                xyStds = 0.5;
-            }
-            // 1 target with large area and close to estimated pose
-            else if (poseEstimate.avgTagArea > 0.8 && poseDifference < 0.5) {
-                xyStds = 0.5;
-            }
-            // 1 target farther away and estimated pose is close
-            else if (poseEstimate.avgTagArea > 0.1 && poseDifference < 0.3) {
-                xyStds = 1.0;
-            } else if (poseEstimate.fiducialIds.length > 1) {
-                xyStds = 1.2;
-            } else {
-                xyStds = 2.0;
-            }
-
-            Logger.recordOutput(logPreface + "Megatag2StdDev", xyStds);
-            Logger.recordOutput(logPreface + "Megatag2AvgTagArea", poseEstimate.avgTagArea);
-            Logger.recordOutput(logPreface + "Megatag2PoseDifference", poseDifference);
-
-            Matrix<N3, N1> visionMeasurementStdDevs = VecBuilder.fill(xyStds, xyStds, Units.degreesToRadians(50.0));
-            fieldToRobotEstimate = new Pose2d(fieldToRobotEstimate.getTranslation(),
-                    state.getDrive().getGyroIOInputs().yawPosition);
-            return Optional.of(
-                    new VisionFieldPoseEstimate(fieldToRobotEstimate, poseEstimate.timestampSeconds,
-                            visionMeasurementStdDevs));
-        }
-        return Optional.empty();
-    }
-
-    private Optional<VisionFieldPoseEstimate> processMegatagPoseEstimate(MegatagPoseEstimate poseEstimate,
-            boolean isTurretCamera) {
-        var loggedFieldToRobot = state.getFieldToRobot(poseEstimate.timestampSeconds);
-        if (loggedFieldToRobot.isEmpty()) {
-            return Optional.empty();
-        }
-
-        var maybeFieldToRobotEstimate = getFieldToRobotEstimate(poseEstimate, isTurretCamera);
-        if (maybeFieldToRobotEstimate.isEmpty())
-            return Optional.empty();
-        var fieldToRobotEstimate = maybeFieldToRobotEstimate.get();
-
-        // distance from current pose to vision estimated pose
-        double poseDifference = fieldToRobotEstimate.getTranslation()
-                .getDistance(loggedFieldToRobot.get().getTranslation());
-
-        if (poseEstimate.fiducialIds.length > 0) {
-            double xyStds = 1.0;
-            double degStds = 12;
-            // multiple targets detected
-            if (poseEstimate.fiducialIds.length >= 2) {
-                xyStds = 0.5;
-                degStds = 6;
-            }
-            // 1 target with large area and close to estimated pose
-            else if (poseEstimate.avgTagArea > 0.8 && poseDifference < 0.5) {
-                xyStds = 1.0;
-                degStds = 12;
-            }
-            // 1 target farther away and estimated pose is close
-            else if (poseEstimate.avgTagArea > 0.1 && poseDifference < 0.3) {
-                xyStds = 2.0;
-                degStds = 30;
-            }
-
-            Matrix<N3, N1> visionMeasurementStdDevs = VecBuilder.fill(xyStds, xyStds, Units.degreesToRadians(degStds));
-            return Optional.of(
-                    new VisionFieldPoseEstimate(fieldToRobotEstimate, poseEstimate.timestampSeconds,
-                            visionMeasurementStdDevs));
-        }
-        return Optional.empty();
-    }
-
-    @SuppressWarnings("unused")
-    private Optional<VisionFieldPoseEstimate> processPinholeVisionEstimate(List<PinholeObservation> observations,
-            double timestamp, boolean isTurretCamera) {
-        observations = observations.stream().filter((observation) -> {
-            if (observation.cameraToTag.getNorm() < 10.0) {
-                return true;
-            }
-            Logger.recordOutput("Vision/RejectOnNormTimestamp", RobotTime.getTimestampSeconds());
-            return false;
-        }).toList();
-
-        if (observations.isEmpty())
-            return Optional.empty();
-
-        int num_updates = 0;
-        double x = 0.0, y = 0.0;
-        // All timestamps and rotations are the same. If that changes, need to revisit.
-        Rotation2d rotation = MathHelpers.kRotation2dZero;
-        double avgRange = 0.0;
-        var poseTurret = state.getRobotToTurret(timestamp);
-        var poseRobot = state.getFieldToRobot(timestamp);
-        if (poseRobot.isEmpty() || poseTurret.isEmpty()) {
-            return Optional.empty();
-        }
-        for (var observation : observations) {
-            Pose2d fieldToRobotEstimate = estimateFieldToRobot(
-                    observation.cameraToTag,
-                    observation.tagPose,
-                    poseTurret.get(),
-                    poseRobot.get().getRotation(),
-                    MathHelpers.kRotation2dZero, isTurretCamera);
-            x += fieldToRobotEstimate.getX();
-            y += fieldToRobotEstimate.getY();
-            rotation = fieldToRobotEstimate.getRotation();
-            avgRange += observation.cameraToTag.getNorm();
-            num_updates++;
-        }
-
-        if (num_updates == 0)
-            return Optional.empty();
-
-        avgRange /= num_updates;
-
-        double xyStds = 100.0;
-        var fieldToRobotEstimate = new Pose2d(x / num_updates, y / num_updates, rotation);
-        var poseDifference = fieldToRobotEstimate.getTranslation().getDistance(poseRobot.get().getTranslation());
-        // multiple targets detected
-        if (observations.size() >= 2 && avgRange < 3.0) {
-            xyStds = 0.2;
-        } else if (avgRange < 5.0 && poseDifference < 0.5) {
-            xyStds = 0.5;
-        }
-        // 1 target farther away and estimated pose is close
-        else if (avgRange < 3.0 && poseDifference < 0.3) {
-            xyStds = 1.0;
-        } else if (observations.size() > 1) {
-            xyStds = 1.2;
-        } else {
-            xyStds = 2.0;
-        }
-        ;
-
-        final double rotStdDev = Units.degreesToRadians(50);
-        Matrix<N3, N1> visionMeasurementStdDevs = VecBuilder.fill(xyStds, xyStds, rotStdDev);
-        return Optional.of(new VisionFieldPoseEstimate(fieldToRobotEstimate, timestamp, visionMeasurementStdDevs));
-    }
-
-    private Pose2d estimateFieldToRobot(Translation2d cameraToTarget, Pose3d fieldToTarget, Rotation2d robotToTurret,
-            Rotation2d gyroAngle, Rotation2d cameraYawOffset, boolean isTurretCamera) {
-        Transform2d cameraToTargetFixed = MathHelpers
-                .transform2dFromTranslation(cameraToTarget.rotateBy(cameraYawOffset));
-        Transform2d turretToTarget = state.getTurretToCamera(isTurretCamera).plus(cameraToTargetFixed);
-        // In robot frame
-        Transform2d robotToTarget = turretToTarget;
-        if (isTurretCamera) {
-            robotToTarget = MathHelpers.transform2dFromRotation(robotToTurret).plus(turretToTarget);
-        }
-
-        // In field frame
-        Transform2d robotToTargetField = MathHelpers
-                .transform2dFromTranslation(robotToTarget.getTranslation().rotateBy(gyroAngle));
-
-        // In field frame
-        Pose2d fieldToTarget2d = MathHelpers.pose2dFromTranslation(fieldToTarget.toPose2d().getTranslation());
-
-        Pose2d fieldToRobot = fieldToTarget2d.transformBy(MathHelpers.transform2dFromTranslation(
-                robotToTargetField.getTranslation().unaryMinus()));
-
-        Pose2d fieldToRobotYawAdjusted = new Pose2d(fieldToRobot.getTranslation(), gyroAngle);
-        return fieldToRobotYawAdjusted;
-    }
-
-    public enum State {
-        UNDETERMINED,
-        VISION_SCANNING,
-        BROKEN,
-
-        // Flags
-
     }
 }

@@ -1,9 +1,7 @@
 package frc.robot.subsystems.vision;
 
-import java.util.concurrent.atomic.AtomicReference;
+import org.littletonrobotics.junction.Logger;
 
-
-import edu.wpi.first.math.util.Units;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -11,99 +9,83 @@ import frc.robot.RobotState;
 import frc.robot.util.LimelightHelpers;
 
 public class VisionIOHardwareLimelight implements VisionIO {
-    NetworkTable table = NetworkTableInstance.getDefault().getTable(VisionConstants.kLimelightTableName);
-    NetworkTable tableB = NetworkTableInstance.getDefault().getTable(VisionConstants.kLimelightBTableName);
-    
-    RobotState robotState;
-    AtomicReference<VisionIOInputs> latestInputs = new AtomicReference<>(new VisionIOInputs());
 
+    NetworkTable tableA = NetworkTableInstance.getDefault().getTable(VisionConstants.kLimelightTableName);
+    NetworkTable tableB = NetworkTableInstance.getDefault().getTable(VisionConstants.kLimelightBTableName);
+    RobotState robotState;
+    int imuMode = 1;
+
+    private static final double[] DEFAULT_STDDEVS = new double[VisionConstants.kExpectedStdDevArrayLength];
+
+    /** Creates a new Limelight vision IO instance. */
     public VisionIOHardwareLimelight(RobotState robotState) {
         this.robotState = robotState;
         setLLSettings();
     }
 
+    /** Configures Limelight camera poses in robot coordinate system. */
     private void setLLSettings() {
-        // double[] camerapose = { 0.0, 0.0, VisionConstants.kCameraHeightOffGroundMeters, 0.0, VisionConstants.kCameraPitchDegrees,
-        //         0.0 };
-        // table.getEntry("camerapose_robotspace_set").setDoubleArray(camerapose);
+        double[] cameraAPose = {
+                0,
+                0,
+                VisionConstants.kCameraHeightOffGroundMeters,
+                0.0,
+                VisionConstants.kCameraPitchDegrees,
+                0
+        };
 
-        // double[] cameraBpose = { 0.0, VisionConstants.kCameraBRightMeters, VisionConstants.kCameraBHeightOffGroundMeters, VisionConstants.kCameraBRollDegrees,
-        //         VisionConstants.kCameraBPitchDegrees, 0.0 };
-        // tableB.getEntry("camerapose_robotspace_set").setDoubleArray(cameraBpose);
+        tableA.getEntry("camerapose_robotspace_set").setDoubleArray(cameraAPose);
 
-        var fieldToTurretRotation = robotState.getLatestFieldToRobot().getValue().getRotation()
-                .rotateBy(robotState.getLatestRobotToTurret().getValue());
-        var fieldToTurretVelocity = Units.radiansToDegrees(robotState.getLatestTurretAngularVelocity()
-                + robotState.getLatestRobotRelativeChassisSpeed().omegaRadiansPerSecond);
-        LimelightHelpers.SetRobotOrientation(VisionConstants.kLimelightTableName, fieldToTurretRotation.getDegrees(),
-                fieldToTurretVelocity, 0, 0, 0, 0);
+        double[] cameraBPose = {
+                VisionConstants.kCameraBForwardMeters,
+                VisionConstants.kCameraBRightMeters,
+                VisionConstants.kCameraBHeightOffGroundMeters,
+                0.0,
+                VisionConstants.kCameraBPitchDegrees,
+                VisionConstants.kCameraBYawDegrees
+        };
 
-        var gyroAngle = robotState.getLatestFieldToRobot().getValue().getRotation();
-        var gyroAngularVelocity = Units
-                .radiansToDegrees(robotState.getLatestRobotRelativeChassisSpeed().omegaRadiansPerSecond);
-        LimelightHelpers.SetRobotOrientation(VisionConstants.kLimelightBTableName, gyroAngle.getDegrees(),
-                gyroAngularVelocity, 0, 0, 0, 0);
+        tableB.getEntry("camerapose_robotspace_set").setDoubleArray(cameraBPose);
 
-        LimelightHelpers.SetIMUMode(VisionConstants.kLimelightTableName, DriverStation.isEnabled() ? 4 : 1);
-        LimelightHelpers.SetIMUMode(VisionConstants.kLimelightBTableName, DriverStation.isEnabled() ? 4 : 1);
     }
 
     @Override
-    public void readInputs(VisionIOInputs inputs) {
-        inputs.turretCameraSeesTarget = table.getEntry("tv").getDouble(0) == 1.0;
-        inputs.elevatorCameraSeesTarget = tableB.getEntry("tv").getDouble(0) == 1.0;
-        if (inputs.turretCameraSeesTarget) {
-            // Read megatag updates
-            var megatag = LimelightHelpers.getBotPoseEstimate_wpiBlue(VisionConstants.kLimelightTableName);
-            var megatag2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(VisionConstants.kLimelightTableName);
-            inputs.turretCameraMegatagPoseEstimate = MegatagPoseEstimate.fromLimelight(megatag);
-            inputs.turretCameraMegatagCount = megatag.tagCount;
-            inputs.turretCameraMegatag2PoseEstimate = MegatagPoseEstimate.fromLimelight(megatag2);
-            inputs.turretCameraFiducialObservations = FiducialObservation.fromLimelight(megatag.rawFiducials);
-        }
-        if (inputs.elevatorCameraSeesTarget) {
-            // Read megatag updates
-            var megatag = LimelightHelpers.getBotPoseEstimate_wpiBlue(VisionConstants.kLimelightBTableName);
-            var megatag2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(VisionConstants.kLimelightBTableName);
-            inputs.elevatorCameraMegatagPoseEstimate = MegatagPoseEstimate.fromLimelight(megatag);
-            inputs.elevatorCameraMegatagCount = megatag.tagCount;
-            inputs.elevatorCameraMegatag2PoseEstimate = MegatagPoseEstimate.fromLimelight(megatag2);
-            inputs.elevatorCameraFiducialObservations = FiducialObservation.fromLimelight(megatag.rawFiducials);
-        }
-        latestInputs.set(inputs);
+    public void readInputs(CameraInputsAutoLogged turretCamera, CameraInputsAutoLogged chassisCamera) {
+        readCameraData(tableA, turretCamera, VisionConstants.kLimelightTableName);
+        readCameraData(tableB, chassisCamera, VisionConstants.kLimelightBTableName);
 
-        // Set the persistent settings into NT
-       setLLSettings();
+        LimelightHelpers.SetIMUMode(VisionConstants.kLimelightTableName,
+                DriverStation.isEnabled() ? 4 : 1);
+        LimelightHelpers.SetIMUMode(VisionConstants.kLimelightBTableName,
+                DriverStation.isEnabled() ? 4 : 1);
+
+        Logger.processInputs("Vision/Turret Camera", turretCamera);
+        Logger.processInputs("Vision/Chassis Camera", chassisCamera);
+   }
+
+    private void readCameraData(
+            NetworkTable table, VisionIO.CameraInputs camera, String limelightName) {
+        camera.seesTarget = table.getEntry("tv").getDouble(0) == 1.0;
+        if (camera.seesTarget) {
+            try {
+                var megatag = LimelightHelpers.getBotPoseEstimate_wpiBlue(limelightName);
+                var robotPose3d = LimelightHelpers.toPose3D(
+                        LimelightHelpers.getBotPose_wpiBlue(limelightName));
+
+                if (megatag != null) {
+                    camera.megatagPoseEstimate = MegatagPoseEstimate.fromLimelight(megatag);
+                    camera.megatagCount = megatag.tagCount;
+                    camera.fiducialObservations = FiducialObservation.fromLimelight(megatag.rawFiducials);
+                }
+                if (robotPose3d != null) {
+                    camera.pose3d = robotPose3d;
+                }
+
+                camera.standardDeviations = table.getEntry("stddevs").getDoubleArray(DEFAULT_STDDEVS);
+            } catch (Exception e) {
+                System.err.println("Error processing Limelight data: " + e.getMessage());
+            }
+        }
     }
 
-    @Override
-    public void pollNetworkTables() {
-        VisionIOInputs inputs = new VisionIOInputs();
-
-        // See if we see the target
-        inputs.turretCameraSeesTarget = table.getEntry("tv").getDouble(0) == 1.0;
-        inputs.elevatorCameraSeesTarget = tableB.getEntry("tv").getDouble(0) == 1.0;
-        if (inputs.turretCameraSeesTarget) {
-            // Read megatag updates
-            var megatag = LimelightHelpers.getBotPoseEstimate_wpiBlue(VisionConstants.kLimelightTableName);
-            var megatag2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(VisionConstants.kLimelightTableName);
-            inputs.turretCameraMegatagPoseEstimate = MegatagPoseEstimate.fromLimelight(megatag);
-            inputs.turretCameraMegatagCount = megatag.tagCount;
-            inputs.turretCameraMegatag2PoseEstimate = MegatagPoseEstimate.fromLimelight(megatag2);
-            inputs.turretCameraFiducialObservations = FiducialObservation.fromLimelight(megatag.rawFiducials);
-        }
-        if (inputs.elevatorCameraSeesTarget) {
-            // Read megatag updates
-            var megatag = LimelightHelpers.getBotPoseEstimate_wpiBlue(VisionConstants.kLimelightBTableName);
-            var megatag2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(VisionConstants.kLimelightBTableName);
-            inputs.elevatorCameraMegatagPoseEstimate = MegatagPoseEstimate.fromLimelight(megatag);
-            inputs.elevatorCameraMegatagCount = megatag.tagCount;
-            inputs.elevatorCameraMegatag2PoseEstimate = MegatagPoseEstimate.fromLimelight(megatag2);
-            inputs.elevatorCameraFiducialObservations = FiducialObservation.fromLimelight(megatag.rawFiducials);
-        }
-        latestInputs.set(inputs);
-
-        // Set the persistent settings into NT
-        setLLSettings();
-    }
 }

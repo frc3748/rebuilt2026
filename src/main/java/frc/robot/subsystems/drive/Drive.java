@@ -227,7 +227,7 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
     // robotState updating (some logic has been redone twice)
     {
       double timestamp = RobotTime.getTimestampSeconds();
-      robotState.addOdometryMeasurement(timestamp, getPose()); // test wihtout this too
+      // robotState.addOdometryMeasurement(timestamp, getPose()); // test wihtout this too
 
       StatusSignal<AngularVelocity> angularPitchVelocity = gyroIO.getPiegon().getAngularVelocityYDevice();
       StatusSignal<AngularVelocity> angularRollVelocity = gyroIO.getPiegon().getAngularVelocityXDevice();
