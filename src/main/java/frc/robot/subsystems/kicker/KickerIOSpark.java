@@ -2,7 +2,6 @@ package frc.robot.subsystems.kicker;
 
 import static frc.robot.util.SparkUtil.tryUntilOk;
 
-import com.ctre.phoenix6.hardware.CANcoder;
 import com.revrobotics.PersistMode;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.ResetMode;
@@ -12,6 +11,9 @@ import com.revrobotics.spark.SparkClosedLoopController;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.revrobotics.spark.config.SparkMaxConfig;
+
+import frc.robot.util.SparkUtil;
+
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 
 
@@ -25,34 +27,34 @@ public class KickerIOSpark implements KickerIO{
     // Closed loop controllers
     private final SparkClosedLoopController kickerController;
 
-    public ClimbIOSpark(){
+    public KickerIOSpark(){
 
-    kicker = new SparkMax(0, MotorType.kBrushless);
+    kicker = new SparkMax(KickerConstants.kKickerCanID, MotorType.kBrushless);
 
     kickerEncoder = kicker.getEncoder();
 
-    climbController = kicker.getClosedLoopController();
+    kickerController = kicker.getClosedLoopController();
 
     // Configure extention motor
     SparkMaxConfig kickerConfig = new SparkMaxConfig();
     kickerConfig
-        .inverted(false)
+        .inverted(KickerConstants.kKickerinverted)
         .idleMode(IdleMode.kBrake)
-        .smartCurrentLimit(10)
+        .smartCurrentLimit(KickerConstants.kKickerCurrentLimit)
         .voltageCompensation(12.0);
     kickerConfig
         .encoder
-        .positionConversionFactor(0)
-        .velocityConversionFactor(0);
+        .positionConversionFactor(KickerConstants.kKickerPositionConversionFactor)
+        .velocityConversionFactor(KickerConstants.kKickerVelocityConversionFactor);
     kickerConfig
         .closedLoop
         .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
         .positionWrappingEnabled(true)
-        .pid(0, 0, 0)
+        .pid(KickerConstants.kKickerP, KickerConstants.kKickerI, KickerConstants.kKickerD)
         .maxMotion
-        .maxAcceleration(0)
-        .cruiseVelocity(0)
-        .allowedProfileError(0);
+        .maxAcceleration(KickerConstants.kKickerMaxAccel)
+        .cruiseVelocity(KickerConstants.kKickerCruiseVel)
+        .allowedProfileError(KickerConstants.kKickerDeviationErr);
     kickerConfig
         .signals
         .primaryEncoderPositionAlwaysOn(true)
@@ -65,6 +67,16 @@ public class KickerIOSpark implements KickerIO{
     kicker.configure(kickerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     kicker.clearFaults();
 
+    SparkUtil.tunePID(
+        "Kicker",
+        kicker,
+        kickerConfig,
+        new double[] {KickerConstants.kKickerP, KickerConstants.kKickerI, KickerConstants.kKickerD, 0,0,0,0, KickerConstants.kKickerMaxAccel, KickerConstants.kKickerCruiseVel, KickerConstants.kKickerDeviationErr},
+        ResetMode.kResetSafeParameters,
+        PersistMode.kPersistParameters,
+        false,
+        false);
+
     }
 
     @Override
@@ -74,17 +86,17 @@ public class KickerIOSpark implements KickerIO{
 
     @Override
     public void setKickerVoltage(double volts) {
-        climb.setVoltage(volts);
+        kicker.setVoltage(volts);
     }
 
     @Override
-    public void setKickerSpeed(double position) {
-        climbController.setSetpoint(position, ControlType.kVelocity);
+    public void setKickerSpeed(double speed) {
+        kickerController.setSetpoint(speed, ControlType.kMAXMotionVelocityControl);
     }
 
     @Override
     public void stopKicker() {
-        climb.stopMotor();
+        kicker.stopMotor();
     }
   }
 

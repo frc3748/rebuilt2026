@@ -1,8 +1,5 @@
 package frc.robot.subsystems.climb;
 
-import static frc.robot.util.SparkUtil.tryUntilOk;
-
-import com.ctre.phoenix6.hardware.CANcoder;
 import com.revrobotics.PersistMode;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.ResetMode;
@@ -12,6 +9,9 @@ import com.revrobotics.spark.SparkClosedLoopController;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.revrobotics.spark.config.SparkMaxConfig;
+
+import frc.robot.util.SparkUtil;
+
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 
 
@@ -27,7 +27,7 @@ public class ClimbIOSpark implements ClimbIO{
 
     public ClimbIOSpark(){
 
-    climb = new SparkMax(0, MotorType.kBrushless);
+    climb = new SparkMax(ClimbConstants.kClimbCanID, MotorType.kBrushless);
 
     climbEncoder = climb.getEncoder();
 
@@ -36,23 +36,22 @@ public class ClimbIOSpark implements ClimbIO{
     // Configure extention motor
     SparkMaxConfig climbConfig = new SparkMaxConfig();
     climbConfig
-        .inverted(false)
+        .inverted(ClimbConstants.kClimbinverted)
         .idleMode(IdleMode.kBrake)
-        .smartCurrentLimit(10)
+        .smartCurrentLimit(ClimbConstants.kClimbCurrentLimit)
         .voltageCompensation(12.0);
     climbConfig
         .encoder
-        .positionConversionFactor(0)
-        .velocityConversionFactor(0);
+        .positionConversionFactor(ClimbConstants.kClimbPositionConversionFactor)
+        .velocityConversionFactor(ClimbConstants.kClimbVelocityConversionFactor);
     climbConfig
         .closedLoop
         .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
-        .positionWrappingEnabled(true)
-        .pid(0, 0, 0)
+        .pid(ClimbConstants.kClimbP, ClimbConstants.kClimbI, ClimbConstants.kClimbD)
         .maxMotion
-        .maxAcceleration(0)
-        .cruiseVelocity(0)
-        .allowedProfileError(0);
+        .maxAcceleration(ClimbConstants.kClimbMaxAccel)
+        .cruiseVelocity(ClimbConstants.kClimbCruiseVel)
+        .allowedProfileError(ClimbConstants.kClimbDeviationErr);
     climbConfig
         .signals
         .primaryEncoderPositionAlwaysOn(true)
@@ -64,6 +63,17 @@ public class ClimbIOSpark implements ClimbIO{
 
     climb.configure(climbConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     climb.clearFaults();
+
+    SparkUtil.tunePID(
+            "Climb",
+            climb,
+            climbConfig,
+            new double[] {ClimbConstants.kClimbP, ClimbConstants.kClimbI, ClimbConstants.kClimbD, 0,0,0,0, ClimbConstants.kClimbMaxAccel, ClimbConstants.kClimbCruiseVel, ClimbConstants.kClimbCruiseVel},
+            ResetMode.kResetSafeParameters,
+                PersistMode.kPersistParameters,
+                false,
+                true
+        );
 
     }
 

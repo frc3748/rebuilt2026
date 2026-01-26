@@ -68,6 +68,7 @@ public class IntakeIOSpark implements IntakeIO {
 
         rollers.configure(rollerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
         rollers.clearFaults();
+        
         // Configure extension motor
         SparkMaxConfig extensionConfig = new SparkMaxConfig();
         extensionConfig
@@ -94,8 +95,6 @@ public class IntakeIOSpark implements IntakeIO {
                 .busVoltagePeriodMs(20)
                 .outputCurrentPeriodMs(20);
 
-        // turnSpark.configure(turnConfig, ResetMode.kResetSafeParameters,
-        // PersistMode.kPersistParameters);
         extension.configure(extensionConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
         extension.clearFaults();
 

@@ -21,11 +21,11 @@ public class Kicker extends StateMachine<Kicker.State> implements KickerIO{
     @Override
     public void update() {
         kickerIO.updateInputs(inputs);
-        Logger.processInputs("Intake", inputs);
+        Logger.processInputs("Kicker", inputs);
     }
 
     public void shoot() {
-        kickerIO.setKickerSpeed(0);
+        kickerIO.setKickerVoltage(0);
 
     }
 

@@ -15,4 +15,11 @@ public interface HopperIO {
   default void updateInputs(HopperIOInputs inputs) {}
 
   default void applyOutputs(HopperIOOutputs outputs) {}
+
+  public default void setHopperVoltage(double volts) {}
+
+  public default void setHopperSpeed(double position) {}
+
+  public default void stopHopper() {}
+
 }

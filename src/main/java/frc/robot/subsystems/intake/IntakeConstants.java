@@ -22,10 +22,19 @@ public class IntakeConstants {
 
 
     // factors
-
     public static double kRollerPositionConversionFactor = 0;
     public static double kRollerVelocityConversionFactor = 0;
 
     public static double kExtensionPositionConversionFactor = 0;
     public static double kExtensionVelocityConversionFactor = 0;
+
+    // setpoints
+    public static double kExtensionStowSetpoint = 0;
+    public static double kExtensionIntakeSetpoint = 0;
+    public static double kRollerIntakeVoltage = 0;
+    public static double kExtensionOuttakeSetpoint = 0;
+    public static double kRollerOuttakeVoltage = 0;
+    public static double kRollerIntakeSpeed = 0;
+
+
 }

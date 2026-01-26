@@ -21,20 +21,20 @@ public class Climb extends StateMachine<Climb.State> implements ClimbIO{
     @Override
     public void update() {
         climbIO.updateInputs(inputs);
-        Logger.processInputs("Intake", inputs);
+        Logger.processInputs("Climb", inputs);
     }
 
     public void stow() {
-        climbIO.setClimbPosition(0);
+        climbIO.setClimbPosition(ClimbConstants.kClimbStowPos);
     }
     
     public void up() {
-        climbIO.setClimbPosition(0);
+        climbIO.setClimbPosition(ClimbConstants.kClimbUpPos);
 
     }
 
     public void down(){
-        climbIO.setClimbPosition(0);
+        climbIO.setClimbPosition(ClimbConstants.kClimbDownPos);
 
     }
 
@@ -43,14 +43,14 @@ public class Climb extends StateMachine<Climb.State> implements ClimbIO{
     }
 
     private void registerStateTransitions() {
-        addOmniTransitions(State.STOW, State.IDLE, State.UP, State.DOWN);
+        addOmniTransitions(State.STOW, State.IDLE, State.UP, State.CLIMB);
     }
 
     private void registerStateCommands() {
-        registerStateCommand(State.STOW, Commands.run(() -> stow(), this));
-        registerStateCommand(State.IDLE, Commands.run(() -> stop(), this));
-        registerStateCommand(State.UP, Commands.run(() -> up(), this));
-        registerStateCommand(State.DOWN, Commands.run(() -> down(), this));
+        registerStateCommand(State.STOW, Commands.run(() -> stow()));
+        registerStateCommand(State.IDLE, Commands.run(() -> stop()));
+        registerStateCommand(State.UP, Commands.run(() -> up()));
+        registerStateCommand(State.CLIMB, Commands.run(() -> down()));
     }
 
      @Override
@@ -64,7 +64,7 @@ public class Climb extends StateMachine<Climb.State> implements ClimbIO{
         STOW,
         IDLE,
         UP,
-        DOWN,
+        CLIMB
 
         // flags
 

@@ -25,23 +25,23 @@ public class Intake extends StateMachine<Intake.State> implements IntakeIO{
     }
 
     public void stow() {
-        intakeIO.setExtensionPosition(0);
-        intakeIO.setRollerSpeed(0);
+        intakeIO.setExtensionPosition(IntakeConstants.kExtensionStowSetpoint);
+        intakeIO.stopRollers();
     }
 
     public void intakeidle() {
-        intakeIO.setExtensionPosition(0);
+        intakeIO.setExtensionPosition(IntakeConstants.kExtensionIntakeSetpoint);
         intakeIO.stopRollers();
     }
     
     public void intake() {
-        intakeIO.setExtensionPosition(0);
-        intakeIO.setRollerSpeed(0);
+        intakeIO.setExtensionPosition(IntakeConstants.kExtensionIntakeSetpoint);
+        intakeIO.setRollerVoltage(IntakeConstants.kRollerIntakeVoltage);
     }
 
     public void outake(){
-        intakeIO.setExtensionPosition(0);
-        intakeIO.setRollerSpeed(0);
+        intakeIO.setExtensionPosition(IntakeConstants.kExtensionOuttakeSetpoint);
+        intakeIO.setRollerVoltage(IntakeConstants.kRollerOuttakeVoltage);
     }
 
     public void stop() {
@@ -73,7 +73,7 @@ public class Intake extends StateMachine<Intake.State> implements IntakeIO{
         STOW,
         IDLE,
         INTAKE,
-        OUTAKE,
+        OUTAKE
 
         // flags
 
