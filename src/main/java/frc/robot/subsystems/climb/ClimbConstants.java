@@ -2,30 +2,30 @@ package frc.robot.subsystems.climb;
 
 public class ClimbConstants {
 
-    public static int kClimbCanID = 0;
+    public static final int kClimbCanID = 0;
 
     // Climb PID
-    public static double kClimbP = 0;
-    public static double kClimbI = 0;
-    public static double kClimbD = 0;
-    public static double kClimbMaxAccel = 0;
-    public static double kClimbCruiseVel = 0;
-    public static double kClimbDeviationErr = 0;
+    public static final double kClimbP = 0;
+    public static final double kClimbI = 0;
+    public static final double kClimbD = 0;
+    public static final double kClimbMaxAccel = 0;
+    public static final double kClimbCruiseVel = 0;
+    public static final double kClimbDeviationErr = 0;
 
 
     // factors
-    public static double kClimbPositionConversionFactor = 0;
-    public static double kClimbVelocityConversionFactor = 0;
+    public static final double kClimbPositionConversionFactor = 0;
+    public static final double kClimbVelocityConversionFactor = 0;
 
 
     // Configuration
-    public static boolean kClimbinverted = false;
-    public static int kClimbCurrentLimit = 10;
+    public static final boolean kClimbinverted = false;
+    public static final int kClimbCurrentLimit = 10;
 
 
     // setpoints
-    public static double kClimbStowPos = 0;
-    public static double kClimbUpPos = 0;
-    public static double kClimbDownPos = 0;
+    public static final double kClimbStowPos = 0;
+    public static final double kClimbUpPos = 0;
+    public static final double kClimbDownPos = 0;
     
 }

@@ -75,7 +75,7 @@ public class HopperIOSpark implements HopperIO{
         ResetMode.kResetSafeParameters,
         PersistMode.kPersistParameters,
         false,
-        false);
+        true);
 
     }
 

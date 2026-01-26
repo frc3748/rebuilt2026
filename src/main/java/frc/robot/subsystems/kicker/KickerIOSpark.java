@@ -1,6 +1,5 @@
 package frc.robot.subsystems.kicker;
 
-import static frc.robot.util.SparkUtil.tryUntilOk;
 
 import com.revrobotics.PersistMode;
 import com.revrobotics.RelativeEncoder;
@@ -75,7 +74,7 @@ public class KickerIOSpark implements KickerIO{
         ResetMode.kResetSafeParameters,
         PersistMode.kPersistParameters,
         false,
-        false);
+        true);
 
     }
 

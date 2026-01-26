@@ -9,11 +9,12 @@ import com.revrobotics.ResetMode;
 import com.revrobotics.spark.FeedbackSensor;
 import com.revrobotics.spark.SparkBase.ControlType;
 import com.revrobotics.spark.SparkClosedLoopController;
-import com.revrobotics.spark.SparkFlex;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
-import com.revrobotics.spark.config.SparkFlexConfig;
 import com.revrobotics.spark.config.SparkMaxConfig;
+
+import frc.robot.util.SparkUtil;
+
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 
 
@@ -39,24 +40,23 @@ public class TurretIOSpark implements TurretIO{
     // NEED TO CONFIGURE
     SparkMaxConfig turretConfig = new SparkMaxConfig();
     turretConfig
-        .inverted(false)
+        .inverted(TurretConstants.kTurretinverted)
         .idleMode(IdleMode.kBrake)
-        .smartCurrentLimit(0)
+        .smartCurrentLimit(TurretConstants.kTurretCurrentLimit)
         .voltageCompensation(12.0);
     turretConfig
         .encoder
-        .positionConversionFactor(0)
-        .velocityConversionFactor(0);
+        .positionConversionFactor(TurretConstants.kTurretPositionConversionFactor)
+        .velocityConversionFactor(TurretConstants.kTurretVelocityConversionFactor);
     turretConfig
         .closedLoop
         .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
-        .positionWrappingEnabled(true)
-        .positionWrappingInputRange(0, 0) // we might need this
-        .pid(0, 0, 0)
+        .positionWrappingInputRange(0,2 * Math.PI)
+        .pid(TurretConstants.kTurretP, TurretConstants.kTurretI, TurretConstants.kTurretD)
         .maxMotion
-        .maxAcceleration(0)
-        .cruiseVelocity(0)
-        .allowedProfileError(0);
+        .maxAcceleration(TurretConstants.kTurretMaxAccel)
+        .cruiseVelocity(TurretConstants.kTurretCruiseVel)
+        .allowedProfileError(TurretConstants.kTurretDeviationErr);
     turretConfig
         .signals
         .primaryEncoderPositionAlwaysOn(true)
@@ -66,9 +66,21 @@ public class TurretIOSpark implements TurretIO{
         .busVoltagePeriodMs(20)
         .outputCurrentPeriodMs(20);
 
-    // turnSpark.configure(turnConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     turret.configure(turretConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     turret.clearFaults();
+
+    SparkUtil.tunePID(
+            "Turret",
+            turret,
+            turretConfig,
+            new double[] {TurretConstants.kTurretP, TurretConstants.kTurretI, TurretConstants.kTurretD, 0,0,0,0, TurretConstants.kTurretMaxAccel, TurretConstants.kTurretCruiseVel, TurretConstants.kTurretCruiseVel},
+            ResetMode.kResetSafeParameters,
+                PersistMode.kPersistParameters,
+                false,
+                true
+        );
+
+
 
 
     }

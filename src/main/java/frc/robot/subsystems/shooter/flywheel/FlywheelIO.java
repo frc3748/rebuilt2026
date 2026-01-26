@@ -16,11 +16,10 @@ public interface FlywheelIO {
 
   default void applyOutputs(FlywheelIOOutputs outputs) {}
 
-  public default void setFlywheelVoltage(double speed) {}
+  public default void setFlywheelVoltage(double volts) {}
 
-  public default void setFlywheelSpeed(double speed) {}
+  public default void setFlywheelSpeed(double position) {}
 
   public default void stopFlywheel() {}
-
 
 }
