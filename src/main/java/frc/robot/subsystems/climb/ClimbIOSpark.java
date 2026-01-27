@@ -36,19 +36,19 @@ public class ClimbIOSpark implements ClimbIO{
     // Configure extention motor
     SparkMaxConfig climbConfig = new SparkMaxConfig();
     climbConfig
-        .inverted(false)
+        .inverted(climbInverted)
         .idleMode(IdleMode.kBrake)
         .smartCurrentLimit(10)
         .voltageCompensation(12.0);
     climbConfig
         .encoder
-        .positionConversionFactor(0)
-        .velocityConversionFactor(0);
+        .positionConversionFactor(climbEncoderPositionFactor)
+        .velocityConversionFactor(climbEncoderVelocityFactor);
     climbConfig
         .closedLoop
         .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
         .positionWrappingEnabled(true)
-        .pid(0, 0, 0)
+        .pid(climbKp, climbKi, climbKd)
         .maxMotion
         .maxAcceleration(0)
         .cruiseVelocity(0)
@@ -69,7 +69,16 @@ public class ClimbIOSpark implements ClimbIO{
 
     @Override
     public void updateInputs(ClimbIOInputs inputs) {
-        
+        // Update climb inputs - Lily:I don't know how this works tbh
+        sparkStickyFault = false;
+        ifOk(climb, climbEncoder::getPosition, (value) -> inputs.climbPositionRad = value);
+        ifOk(climb, climbEncoder::getVelocity, (value) -> inputs.climbVelocityRadPerSec = value);
+        ifOk(
+            climb,
+            new DoubleSupplier[] {climb::getAppliedOutput, climb::getBusVoltage},
+            (values) -> inputs.climbAppliedVolts = values[0] * values[1]);
+        ifOk(climb, climb::getOutputCurrent, (value) -> inputs.climbCurrentAmps = value);
+        inputs.climbConnected = climbConnectedDebounce.calculate(!sparkStickyFault);
     }
 
     @Override
@@ -86,6 +95,17 @@ public class ClimbIOSpark implements ClimbIO{
     public void stopClimb() {
         climb.stopMotor();
     }
+
+    SparkUtil.tunePID(
+        "Climb PID " + module, 
+        climb, 
+        climbConfig, 
+        new double [] {climbKp, climbKi, climbKd, 0, climbKf, 0, 0},
+        ResetMode.kResetSafeParameters, 
+        PersistMode.kPersistParameters,
+        true,
+        false
+        );
   }
 
 
