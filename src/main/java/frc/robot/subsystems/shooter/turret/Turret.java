@@ -1,19 +1,23 @@
 package frc.robot.subsystems.shooter.turret;
 
 
+import java.util.function.Supplier;
+
 import org.littletonrobotics.junction.Logger;
 
 import edu.wpi.first.wpilibj2.command.Commands;
-
+import frc.robot.util.ShooterSetpoint;
 import frc.robot.util.state.StateMachine;
 
 public class Turret extends StateMachine<Turret.State> implements TurretIO{
     private final TurretIO turretIO;
+    private final Supplier<ShooterSetpoint> goalSupplier;
     private final TurretIOInputsAutoLogged inputs = new TurretIOInputsAutoLogged();
 
-    public Turret(TurretIO turretIO) {
+    public Turret(TurretIO turretIO, Supplier<ShooterSetpoint> goalSupplier) {
         super("Turret", State.UNDETERMINED, State.class);
         this.turretIO = turretIO;
+        this.goalSupplier = goalSupplier;
         registerStateTransitions();
         registerStateCommands();
         enable();
@@ -24,6 +28,7 @@ public class Turret extends StateMachine<Turret.State> implements TurretIO{
     public void update() {
         turretIO.updateInputs(inputs);
         Logger.processInputs("Turret", inputs);
+        turretIO.setTurretPosition(goalSupplier.get().getTurretRadiansFromCenter());
         
     }
 
@@ -41,8 +46,9 @@ public class Turret extends StateMachine<Turret.State> implements TurretIO{
     }
 
     private void registerStateCommands() {
+
         registerStateCommand(State.IDLE, Commands.run(() -> stop()));
-        registerStateCommand(State.TARGET_TRACKING, Commands.run(() -> setPos()));
+        registerStateCommand(State.TARGET_TRACKING, Commands.run(() -> setPos(goalSupplier.get().getTurretRadiansFromCenter())));
     }
 
      @Override
