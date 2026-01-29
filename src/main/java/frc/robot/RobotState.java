@@ -1,20 +1,8 @@
 package frc.robot;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
-
-import org.littletonrobotics.junction.Logger;
-import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
-
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.commands.PathPlannerAuto;
 import com.pathplanner.lib.path.PathPlannerPath;
-
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -54,14 +42,26 @@ import frc.robot.util.Elastic.Notification;
 import frc.robot.util.MathHelpers;
 import frc.robot.util.SimulatedRobotState;
 import frc.robot.util.state.StateMachine;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+import org.littletonrobotics.junction.Logger;
+import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 public class RobotState extends StateMachine<RobotState.State> {
-    public final static int robotState = 1; // real, sim, replay
 
-    public final static double LOOKBACK_TIME = 1.0;
-    public final static AtomicBoolean hubActivated = new AtomicBoolean();
+    public static final int robotState = 1; // real, sim, replay
 
-    private final SimulatedRobotState simulatedRobotState = Robot.isSimulation() ? new SimulatedRobotState(this) : null;
+    public static final double LOOKBACK_TIME = 1.0;
+    public static final AtomicBoolean hubActivated = new AtomicBoolean();
+
+    private final SimulatedRobotState simulatedRobotState = Robot.isSimulation()
+        ? new SimulatedRobotState(this)
+        : null;
 
     private Drive drive;
     private VisionSubsystem vision;
@@ -73,45 +73,65 @@ public class RobotState extends StateMachine<RobotState.State> {
     private final Consumer<VisionFieldPoseEstimate> visionEstimateConsumer;
 
     // kinematic frame
-    private final ConcurrentTimeInterpolatableBuffer<Pose2d> fieldToRobot = ConcurrentTimeInterpolatableBuffer
-            .createBuffer(LOOKBACK_TIME);
-    private final ConcurrentTimeInterpolatableBuffer<Rotation2d> robotToTurret = ConcurrentTimeInterpolatableBuffer
-            .createBuffer(LOOKBACK_TIME);
-    private static final Transform2d TURRET_TO_CAMERA = new Transform2d(VisionConstants.kTurretToCameraX,
-            VisionConstants.kTurretToCameraY,
-            MathHelpers.kRotation2dZero);
-    private static final Transform2d ROBOT_TO_CAMERA_B = new Transform2d(VisionConstants.kTurretToCameraBX,
-            VisionConstants.kTurretToCameraBY,
-            MathHelpers.kRotation2dZero);
-    private final AtomicReference<ChassisSpeeds> measuredRobotRelativeChassisSpeeds = new AtomicReference<>(
-            new ChassisSpeeds());
-    private final AtomicReference<ChassisSpeeds> measuredFieldRelativeChassisSpeeds = new AtomicReference<>(
-            new ChassisSpeeds());
-    private final AtomicReference<ChassisSpeeds> desiredFieldRelativeChassisSpeeds = new AtomicReference<>(
-            new ChassisSpeeds());
-    private final AtomicReference<ChassisSpeeds> fusedFieldRelativeChassisSpeeds = new AtomicReference<>(
-            new ChassisSpeeds());
+    private final ConcurrentTimeInterpolatableBuffer<Pose2d> fieldToRobot =
+        ConcurrentTimeInterpolatableBuffer.createBuffer(LOOKBACK_TIME);
+    private final ConcurrentTimeInterpolatableBuffer<Rotation2d> robotToTurret =
+        ConcurrentTimeInterpolatableBuffer.createBuffer(LOOKBACK_TIME);
+    private static final Transform2d TURRET_TO_CAMERA = new Transform2d(
+        VisionConstants.kTurretToCameraX,
+        VisionConstants.kTurretToCameraY,
+        MathHelpers.kRotation2dZero
+    );
+    private static final Transform2d ROBOT_TO_CAMERA_B = new Transform2d(
+        VisionConstants.kTurretToCameraBX,
+        VisionConstants.kTurretToCameraBY,
+        MathHelpers.kRotation2dZero
+    );
+    private final AtomicReference<
+        ChassisSpeeds
+    > measuredRobotRelativeChassisSpeeds = new AtomicReference<>(
+        new ChassisSpeeds()
+    );
+    private final AtomicReference<
+        ChassisSpeeds
+    > measuredFieldRelativeChassisSpeeds = new AtomicReference<>(
+        new ChassisSpeeds()
+    );
+    private final AtomicReference<
+        ChassisSpeeds
+    > desiredFieldRelativeChassisSpeeds = new AtomicReference<>(
+        new ChassisSpeeds()
+    );
+    private final AtomicReference<
+        ChassisSpeeds
+    > fusedFieldRelativeChassisSpeeds = new AtomicReference<>(
+        new ChassisSpeeds()
+    );
 
     private double lastUsedMegatagTimestamp = 0;
-    private ConcurrentTimeInterpolatableBuffer<Double> turretAngularVelocity = ConcurrentTimeInterpolatableBuffer
-            .createDoubleBuffer(LOOKBACK_TIME);
-    private ConcurrentTimeInterpolatableBuffer<Double> turretPositionRadians = ConcurrentTimeInterpolatableBuffer
-            .createDoubleBuffer(LOOKBACK_TIME);
-    private ConcurrentTimeInterpolatableBuffer<Double> driveYawAngularVelocity = ConcurrentTimeInterpolatableBuffer
-            .createDoubleBuffer(LOOKBACK_TIME);
-    private ConcurrentTimeInterpolatableBuffer<Double> driveRollAngularVelocity = ConcurrentTimeInterpolatableBuffer
-            .createDoubleBuffer(LOOKBACK_TIME);
-    private ConcurrentTimeInterpolatableBuffer<Double> drivePitchAngularVelocity = ConcurrentTimeInterpolatableBuffer
-            .createDoubleBuffer(LOOKBACK_TIME);
+    private ConcurrentTimeInterpolatableBuffer<Double> turretAngularVelocity =
+        ConcurrentTimeInterpolatableBuffer.createDoubleBuffer(LOOKBACK_TIME);
+    private ConcurrentTimeInterpolatableBuffer<Double> turretPositionRadians =
+        ConcurrentTimeInterpolatableBuffer.createDoubleBuffer(LOOKBACK_TIME);
+    private ConcurrentTimeInterpolatableBuffer<Double> driveYawAngularVelocity =
+        ConcurrentTimeInterpolatableBuffer.createDoubleBuffer(LOOKBACK_TIME);
+    private ConcurrentTimeInterpolatableBuffer<
+        Double
+    > driveRollAngularVelocity =
+        ConcurrentTimeInterpolatableBuffer.createDoubleBuffer(LOOKBACK_TIME);
+    private ConcurrentTimeInterpolatableBuffer<
+        Double
+    > drivePitchAngularVelocity =
+        ConcurrentTimeInterpolatableBuffer.createDoubleBuffer(LOOKBACK_TIME);
 
-    private ConcurrentTimeInterpolatableBuffer<Double> drivePitchRads = ConcurrentTimeInterpolatableBuffer
-            .createDoubleBuffer(LOOKBACK_TIME);
-    private ConcurrentTimeInterpolatableBuffer<Double> driveRollRads = ConcurrentTimeInterpolatableBuffer
-            .createDoubleBuffer(LOOKBACK_TIME);
-    private ConcurrentTimeInterpolatableBuffer<Double> accelX = ConcurrentTimeInterpolatableBuffer
-            .createDoubleBuffer(LOOKBACK_TIME);
-    private ConcurrentTimeInterpolatableBuffer<Double> accelY = ConcurrentTimeInterpolatableBuffer
-            .createDoubleBuffer(LOOKBACK_TIME);
+    private ConcurrentTimeInterpolatableBuffer<Double> drivePitchRads =
+        ConcurrentTimeInterpolatableBuffer.createDoubleBuffer(LOOKBACK_TIME);
+    private ConcurrentTimeInterpolatableBuffer<Double> driveRollRads =
+        ConcurrentTimeInterpolatableBuffer.createDoubleBuffer(LOOKBACK_TIME);
+    private ConcurrentTimeInterpolatableBuffer<Double> accelX =
+        ConcurrentTimeInterpolatableBuffer.createDoubleBuffer(LOOKBACK_TIME);
+    private ConcurrentTimeInterpolatableBuffer<Double> accelY =
+        ConcurrentTimeInterpolatableBuffer.createDoubleBuffer(LOOKBACK_TIME);
 
     private final AtomicBoolean enablePathCancel = new AtomicBoolean(false);
 
@@ -132,22 +152,34 @@ public class RobotState extends StateMachine<RobotState.State> {
             visionEstimateConsumer = new Consumer<VisionFieldPoseEstimate>() {
                 @Override
                 public void accept(VisionFieldPoseEstimate estimate) {
-                    drive.addVisionMeasurement(estimate.getVisionRobotPoseMeters(), estimate.getTimestampSeconds(), estimate.getVisionMeasurementStdDevs());
+                    drive.addVisionMeasurement(
+                        estimate.getVisionRobotPoseMeters(),
+                        estimate.getTimestampSeconds(),
+                        estimate.getVisionMeasurementStdDevs()
+                    );
                 }
             };
 
-
-            switch(robotState) {
+            switch (robotState) {
                 case 1:
-                    vision = new VisionSubsystem(new VisionIOHardwareLimelight(this), this);
+                    vision = new VisionSubsystem(
+                        new VisionIOHardwareLimelight(this),
+                        this
+                    );
                     break;
                 default:
-                    vision = new VisionSubsystem(new VisionIOSimPhoton(this, simulatedRobotState), this);
+                    vision = new VisionSubsystem(
+                        new VisionIOSimPhoton(this, simulatedRobotState),
+                        this
+                    );
                     break;
             }
 
             Elastic.sendNotification(
-                    new Notification().withTitle("Vision Subsystem").withDescription("Vision Started"));
+                new Notification()
+                    .withTitle("Vision Subsystem")
+                    .withDescription("Vision Started")
+            );
         }
 
         // drive intialization
@@ -155,41 +187,46 @@ public class RobotState extends StateMachine<RobotState.State> {
             switch (robotState) {
                 case 1:
                     drive = new Drive(
-                            new GyroIOPigeon2(),
-                            new ModuleIOSpark(0),
-                            new ModuleIOSpark(1),
-                            new ModuleIOSpark(2),
-                            new ModuleIOSpark(3),
-                            this);
+                        new GyroIOPigeon2(),
+                        new ModuleIOSpark(0),
+                        new ModuleIOSpark(1),
+                        new ModuleIOSpark(2),
+                        new ModuleIOSpark(3),
+                        this
+                    );
                     break;
                 case 2:
                     drive = new Drive(
-                            new GyroIO() {},
-                            new ModuleIOSim(),
-                            new ModuleIOSim(),
-                            new ModuleIOSim(),
-                            new ModuleIOSim(),
-                            this);
+                        new GyroIO() {},
+                        new ModuleIOSim(),
+                        new ModuleIOSim(),
+                        new ModuleIOSim(),
+                        new ModuleIOSim(),
+                        this
+                    );
                 default:
                     drive = new Drive(
-                            new GyroIO() {
-                            },
-                            new ModuleIO() {
-                            },
-                            new ModuleIO() {
-                            },
-                            new ModuleIO() {
-                            },
-                            new ModuleIO() {
-                            },
-                            this);
+                        new GyroIO() {},
+                        new ModuleIO() {},
+                        new ModuleIO() {},
+                        new ModuleIO() {},
+                        new ModuleIO() {},
+                        this
+                    );
             }
-            Elastic.sendNotification(new Notification().withTitle("Drive Subsystem").withDescription("Drive Started"));
+            Elastic.sendNotification(
+                new Notification()
+                    .withTitle("Drive Subsystem")
+                    .withDescription("Drive Started")
+            );
         }
 
         // auto setup
         {
-            autoChooser = new LoggedDashboardChooser<>("Auto Choices", AutoBuilder.buildAutoChooser());
+            autoChooser = new LoggedDashboardChooser<>(
+                "Auto Choices",
+                AutoBuilder.buildAutoChooser()
+            );
             setupDriveDiagnosisAutos();
         }
 
@@ -208,22 +245,38 @@ public class RobotState extends StateMachine<RobotState.State> {
 
     private void setupDriveDiagnosisAutos() {
         autoChooser.addOption(
-                "Drive Wheel Radius Characterization", DriveCommands.wheelRadiusCharacterization(drive));
+            "Drive Wheel Radius Characterization",
+            DriveCommands.wheelRadiusCharacterization(drive)
+        );
         autoChooser.addOption(
-                "Drive Simple FF Characterization", DriveCommands.feedforwardCharacterization(drive));
+            "Drive Simple FF Characterization",
+            DriveCommands.feedforwardCharacterization(drive)
+        );
         autoChooser.addOption(
-                "Drive SysId (Quasistatic Forward)",
-                drive.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
+            "Drive SysId (Quasistatic Forward)",
+            drive.sysIdQuasistatic(SysIdRoutine.Direction.kForward)
+        );
         autoChooser.addOption(
-                "Drive SysId (Quasistatic Reverse)",
-                drive.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
+            "Drive SysId (Quasistatic Reverse)",
+            drive.sysIdQuasistatic(SysIdRoutine.Direction.kReverse)
+        );
         autoChooser.addOption(
-                "Drive SysId (Dynamic Forward)", drive.sysIdDynamic(SysIdRoutine.Direction.kForward));
+            "Drive SysId (Dynamic Forward)",
+            drive.sysIdDynamic(SysIdRoutine.Direction.kForward)
+        );
         autoChooser.addOption(
-                "Drive SysId (Dynamic Reverse)", drive.sysIdDynamic(SysIdRoutine.Direction.kReverse));
+            "Drive SysId (Dynamic Reverse)",
+            drive.sysIdDynamic(SysIdRoutine.Direction.kReverse)
+        );
 
-        autoChooser.addOption("Valid Auto Template", new InstantCommand().withName("Game <- this is a template"));
-        autoChooser.addOption("Testing Auto", AutoCommands.testingAuto().withName("Testing Auto (Game)"));
+        autoChooser.addOption(
+            "Valid Auto Template",
+            new InstantCommand().withName("Game <- this is a template")
+        );
+        autoChooser.addOption(
+            "Testing Auto",
+            AutoCommands.testingAuto().withName("Testing Auto (Game)")
+        );
     }
 
     private void setupNotis() {
@@ -231,61 +284,104 @@ public class RobotState extends StateMachine<RobotState.State> {
         Trigger notifyLowOnTime = new Trigger(() -> {
             // when in teleop tether mode the getMatchTime counts up. only do this when
             // counting down
-            boolean isTeleopOnField = DriverStation.isTeleopEnabled() && DriverStation.isFMSAttached();
+            boolean isTeleopOnField =
+                DriverStation.isTeleopEnabled() &&
+                DriverStation.isFMSAttached();
             double matchTime = DriverStation.getMatchTime();
             double ts = Timer.getFPGATimestamp();
 
             // teleop
-            return isTeleopOnField &&
-            // 25-35s
-                    (matchTime >= 15.0 && matchTime <= 35.0) &&
-            // for a small amount of time each second
-                    ((ts - Math.floor(ts)) > 0.700);
+            return (
+                isTeleopOnField &&
+                // 25-35s
+                (matchTime >= 15.0 && matchTime <= 35.0) &&
+                // for a small amount of time each second
+                ((ts - Math.floor(ts)) > 0.700)
+            );
         });
     }
 
     private void registerStateTransitions() {
-        addOmniTransitions(State.SOFT_STOP, State.TRAVERSING, State.AUTO, State.SHOOTING, State.SHOOTING_INTAKING,
-                State.CLIMBING, State.INTAKING, State.PASSING, State.PASSING_INTAKING);
+        addOmniTransitions(
+            State.SOFT_STOP,
+            State.TRAVERSING,
+            State.AUTO,
+            State.SHOOTING,
+            State.SHOOTING_INTAKING,
+            State.CLIMBING,
+            State.INTAKING,
+            State.PASSING,
+            State.PASSING_INTAKING
+        );
     }
 
     private void registerStateCommands() {
-        registerStateCommand(State.SOFT_STOP, new ParallelCommandGroup(
-                drive.transitionCommand(Drive.State.IDLE)));
+        registerStateCommand(
+            State.SOFT_STOP,
+            new ParallelCommandGroup(drive.transitionCommand(Drive.State.IDLE))
+        );
 
-        registerStateCommand(State.TRAVERSING, new ParallelCommandGroup(
-                drive.transitionCommand(Drive.State.TRAVERSING)));
+        registerStateCommand(
+            State.TRAVERSING,
+            new ParallelCommandGroup(
+                drive.transitionCommand(Drive.State.TRAVERSING)
+            )
+        );
 
         // // change this to an auto state in the future?
-        registerStateCommand(State.AUTO, new ParallelCommandGroup(
-                drive.transitionCommand(Drive.State.TRAVERSING)));
+        registerStateCommand(
+            State.AUTO,
+            new ParallelCommandGroup(
+                drive.transitionCommand(Drive.State.TRAVERSING)
+            )
+        );
     }
 
     private void setupControllerBindings() {
-        controller.a().onTrue(drive.transitionCommand(Drive.State.TRAVERSING_AT_ANGLE))
-                .onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
-        controller.x().onTrue(drive.transitionCommand(Drive.State.CROSSED))
-                .onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
-        controller.b().onTrue(drive.transitionCommand(Drive.State.SLOW))
-                .onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
         controller
-                .b()
-                // .onTrue(Commands.runOnce( () -> drive.zeroGyro()));
-                .onTrue(
-                        Commands.runOnce(
-                                () -> drive.setPose(
-                                        new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
-                                drive)
-                                .ignoringDisable(true));
+            .a()
+            .onTrue(drive.transitionCommand(Drive.State.TRAVERSING_AT_ANGLE))
+            .onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
+        controller
+            .x()
+            .onTrue(drive.transitionCommand(Drive.State.CROSSED))
+            .onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
+        controller
+            .b()
+            .onTrue(drive.transitionCommand(Drive.State.SLOW))
+            .onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
+        controller
+            .b()
+            // .onTrue(Commands.runOnce( () -> drive.zeroGyro()));
+            .onTrue(
+                Commands.runOnce(
+                    () ->
+                        drive.setPose(
+                            new Pose2d(
+                                drive.getPose().getTranslation(),
+                                Rotation2d.kZero
+                            )
+                        ),
+                    drive
+                ).ignoringDisable(true)
+            );
 
-        Pose2d tagPos = VisionConstants.kAprilTagLayout.getTagPose(13).get().toPose2d()
-                .plus(new Transform2d(0, 0, new Rotation2d(Units.degreesToRadians(90))));
+        Pose2d tagPos = VisionConstants.kAprilTagLayout
+            .getTagPose(13)
+            .get()
+            .toPose2d()
+            .plus(
+                new Transform2d(
+                    0,
+                    0,
+                    new Rotation2d(Units.degreesToRadians(90))
+                )
+            );
         // .plus(new Transform2d(Units.inchesToMeters(30), Units.inchesToMeters(0), new
         // Rotation2d(Units.degreesToRadians(90))));
         controller
-                .y()
-                .onTrue(
-                        new AutoAlignToPoseCommand(drive, this, tagPos, 1.0));
+            .y()
+            .onTrue(new AutoAlignToPoseCommand(drive, this, tagPos, 1.0));
     }
 
     // public Command getAutonomousCommand() {
@@ -297,8 +393,7 @@ public class RobotState extends StateMachine<RobotState.State> {
     }
 
     public VisionSubsystem getVision() {
-        return null;
-        // return vision;
+        return vision;
     }
 
     public CommandXboxController getController() {
@@ -329,20 +424,25 @@ public class RobotState extends StateMachine<RobotState.State> {
         fieldToRobot.addSample(timestamp, pose);
     }
 
-    public void addDriveMotionMeasurements(double timestamp,
-            double angularRollRadsPerS,
-            double angularPitchRadsPerS,
-            double angularYawRadsPerS,
-            double pitchRads,
-            double rollRads,
-            double accelX,
-            double accelY,
-            ChassisSpeeds desiredFieldRelativeSpeeds,
-            ChassisSpeeds measuredSpeeds,
-            ChassisSpeeds measuredFieldRelativeSpeeds,
-            ChassisSpeeds fusedFieldRelativeSpeeds) {
+    public void addDriveMotionMeasurements(
+        double timestamp,
+        double angularRollRadsPerS,
+        double angularPitchRadsPerS,
+        double angularYawRadsPerS,
+        double pitchRads,
+        double rollRads,
+        double accelX,
+        double accelY,
+        ChassisSpeeds desiredFieldRelativeSpeeds,
+        ChassisSpeeds measuredSpeeds,
+        ChassisSpeeds measuredFieldRelativeSpeeds,
+        ChassisSpeeds fusedFieldRelativeSpeeds
+    ) {
         this.driveRollAngularVelocity.addSample(timestamp, angularRollRadsPerS);
-        this.drivePitchAngularVelocity.addSample(timestamp, angularPitchRadsPerS);
+        this.drivePitchAngularVelocity.addSample(
+            timestamp,
+            angularPitchRadsPerS
+        );
         this.driveYawAngularVelocity.addSample(timestamp, angularYawRadsPerS);
         this.drivePitchRads.addSample(timestamp, pitchRads);
         this.driveRollRads.addSample(timestamp, rollRads);
@@ -350,7 +450,9 @@ public class RobotState extends StateMachine<RobotState.State> {
         this.accelX.addSample(timestamp, accelX);
         this.desiredFieldRelativeChassisSpeeds.set(desiredFieldRelativeSpeeds);
         this.measuredRobotRelativeChassisSpeeds.set(measuredSpeeds);
-        this.measuredFieldRelativeChassisSpeeds.set(measuredFieldRelativeSpeeds);
+        this.measuredFieldRelativeChassisSpeeds.set(
+            measuredFieldRelativeSpeeds
+        );
         this.fusedFieldRelativeChassisSpeeds.set(fusedFieldRelativeSpeeds);
     }
 
@@ -360,34 +462,54 @@ public class RobotState extends StateMachine<RobotState.State> {
 
     public Pose2d getPredictedFieldToRobot(double lookaheadTimeS) {
         var maybeFieldToRobot = getLatestFieldToRobot();
-        Pose2d fieldToRobot = maybeFieldToRobot == null ? MathHelpers.kPose2dZero : maybeFieldToRobot.getValue();
+        Pose2d fieldToRobot =
+            maybeFieldToRobot == null
+                ? MathHelpers.kPose2dZero
+                : maybeFieldToRobot.getValue();
         var delta = getLatestRobotRelativeChassisSpeed();
         delta = delta.times(lookaheadTimeS);
-        return fieldToRobot
-                .exp(new Twist2d(delta.vxMetersPerSecond, delta.vyMetersPerSecond, delta.omegaRadiansPerSecond));
+        return fieldToRobot.exp(
+            new Twist2d(
+                delta.vxMetersPerSecond,
+                delta.vyMetersPerSecond,
+                delta.omegaRadiansPerSecond
+            )
+        );
     }
 
     public Pose2d getLatestFieldToRobotCenter() {
-        return fieldToRobot.getLatest().getValue().transformBy(VisionConstants.kTurretToRobotCenter);
+        return fieldToRobot
+            .getLatest()
+            .getValue()
+            .transformBy(VisionConstants.kTurretToRobotCenter);
     }
 
     // This has rotation and radians to allow for wrapping tracking.
-    public void addTurretUpdates(double timestamp,
-            Rotation2d turretRotation,
-            double turretRadians,
-            double angularYawRadsPerS) {
+    public void addTurretUpdates(
+        double timestamp,
+        Rotation2d turretRotation,
+        double turretRadians,
+        double angularYawRadsPerS
+    ) {
         // turret frame 180 degrees off from robot frame
-        robotToTurret.addSample(timestamp, turretRotation.rotateBy(MathHelpers.kRotation2dPi));
+        robotToTurret.addSample(
+            timestamp,
+            turretRotation.rotateBy(MathHelpers.kRotation2dPi)
+        );
         this.turretAngularVelocity.addSample(timestamp, angularYawRadsPerS);
         this.turretPositionRadians.addSample(timestamp, turretRadians);
     }
 
     public double getLatestTurretPositionRadians() {
-        return this.turretPositionRadians.getInternalBuffer().lastEntry().getValue();
+        return this.turretPositionRadians.getInternalBuffer()
+            .lastEntry()
+            .getValue();
     }
 
     public double getLatestTurretAngularVelocity() {
-        return this.turretAngularVelocity.getInternalBuffer().lastEntry().getValue();
+        return this.turretAngularVelocity.getInternalBuffer()
+            .lastEntry()
+            .getValue();
     }
 
     public Transform2d getTurretToCamera(boolean isTurretCamera) {
@@ -424,7 +546,8 @@ public class RobotState extends StateMachine<RobotState.State> {
 
     public ChassisSpeeds getLatestFusedRobotRelativeChassisSpeed() {
         var speeds = getLatestRobotRelativeChassisSpeed();
-        speeds.omegaRadiansPerSecond = getLatestFusedFieldRelativeChassisSpeed().omegaRadiansPerSecond;
+        speeds.omegaRadiansPerSecond =
+            getLatestFusedFieldRelativeChassisSpeed().omegaRadiansPerSecond;
         return speeds;
     }
 
@@ -432,36 +555,64 @@ public class RobotState extends StateMachine<RobotState.State> {
         return turretAngularVelocity.getSample(timestamp);
     }
 
-    private Optional<Double> getMaxAbsValueInRange(ConcurrentTimeInterpolatableBuffer<Double> buffer, double minTime,
-            double maxTime) {
-        var submap = buffer.getInternalBuffer().subMap(minTime, maxTime).values();
+    private Optional<Double> getMaxAbsValueInRange(
+        ConcurrentTimeInterpolatableBuffer<Double> buffer,
+        double minTime,
+        double maxTime
+    ) {
+        var submap = buffer
+            .getInternalBuffer()
+            .subMap(minTime, maxTime)
+            .values();
         var max = submap.stream().max(Double::compare);
         var min = submap.stream().min(Double::compare);
-        if (max.isEmpty() || min.isEmpty())
-            return Optional.empty();
-        if (Math.abs(max.get()) >= Math.abs(min.get()))
-            return max;
-        else
-            return min;
+        if (max.isEmpty() || min.isEmpty()) return Optional.empty();
+        if (Math.abs(max.get()) >= Math.abs(min.get())) return max;
+        else return min;
     }
 
-    public Optional<Double> getMaxAbsTurretYawAngularVelocityInRange(double minTime, double maxTime) {
+    public Optional<Double> getMaxAbsTurretYawAngularVelocityInRange(
+        double minTime,
+        double maxTime
+    ) {
         return getMaxAbsValueInRange(turretAngularVelocity, minTime, maxTime);
     }
 
-    public Optional<Double> getMaxAbsDriveYawAngularVelocityInRange(double minTime, double maxTime) {
+    public Optional<Double> getMaxAbsDriveYawAngularVelocityInRange(
+        double minTime,
+        double maxTime
+    ) {
         // Gyro yaw rate not set in sim.
-        if (Robot.isReal())
-            return getMaxAbsValueInRange(driveYawAngularVelocity, minTime, maxTime);
-        return Optional.of(measuredRobotRelativeChassisSpeeds.get().omegaRadiansPerSecond);
+        if (Robot.isReal()) return getMaxAbsValueInRange(
+            driveYawAngularVelocity,
+            minTime,
+            maxTime
+        );
+        return Optional.of(
+            measuredRobotRelativeChassisSpeeds.get().omegaRadiansPerSecond
+        );
     }
 
-    public Optional<Double> getMaxAbsDrivePitchAngularVelocityInRange(double minTime, double maxTime) {
-        return getMaxAbsValueInRange(drivePitchAngularVelocity, minTime, maxTime);
+    public Optional<Double> getMaxAbsDrivePitchAngularVelocityInRange(
+        double minTime,
+        double maxTime
+    ) {
+        return getMaxAbsValueInRange(
+            drivePitchAngularVelocity,
+            minTime,
+            maxTime
+        );
     }
 
-    public Optional<Double> getMaxAbsDriveRollAngularVelocityInRange(double minTime, double maxTime) {
-        return getMaxAbsValueInRange(driveRollAngularVelocity, minTime, maxTime);
+    public Optional<Double> getMaxAbsDriveRollAngularVelocityInRange(
+        double minTime,
+        double maxTime
+    ) {
+        return getMaxAbsValueInRange(
+            driveRollAngularVelocity,
+            minTime,
+            maxTime
+        );
     }
 
     public void updateMegatagEstimate(VisionFieldPoseEstimate megatagEstimate) {
@@ -474,31 +625,69 @@ public class RobotState extends StateMachine<RobotState.State> {
     }
 
     public boolean isRedAlliance() {
-        return DriverStation.getAlliance().isPresent() && DriverStation.getAlliance().equals(Optional.of(Alliance.Red));
+        return (
+            DriverStation.getAlliance().isPresent() &&
+            DriverStation.getAlliance().equals(Optional.of(Alliance.Red))
+        );
     }
 
     public void updateLogger() {
-        if (this.driveYawAngularVelocity.getInternalBuffer().lastEntry() != null) {
-            Logger.recordOutput("RobotState/YawAngularVelocity",
-                    this.driveYawAngularVelocity.getInternalBuffer().lastEntry().getValue());
+        if (
+            this.driveYawAngularVelocity.getInternalBuffer().lastEntry() != null
+        ) {
+            Logger.recordOutput(
+                "RobotState/YawAngularVelocity",
+                this.driveYawAngularVelocity.getInternalBuffer()
+                    .lastEntry()
+                    .getValue()
+            );
         }
-        if (this.driveRollAngularVelocity.getInternalBuffer().lastEntry() != null) {
-            Logger.recordOutput("RobotState/RollAngularVelocity",
-                    this.driveRollAngularVelocity.getInternalBuffer().lastEntry().getValue());
+        if (
+            this.driveRollAngularVelocity.getInternalBuffer().lastEntry() !=
+            null
+        ) {
+            Logger.recordOutput(
+                "RobotState/RollAngularVelocity",
+                this.driveRollAngularVelocity.getInternalBuffer()
+                    .lastEntry()
+                    .getValue()
+            );
         }
-        if (this.drivePitchAngularVelocity.getInternalBuffer().lastEntry() != null) {
-            Logger.recordOutput("RobotState/PitchAngularVelocity",
-                    this.drivePitchAngularVelocity.getInternalBuffer().lastEntry().getValue());
+        if (
+            this.drivePitchAngularVelocity.getInternalBuffer().lastEntry() !=
+            null
+        ) {
+            Logger.recordOutput(
+                "RobotState/PitchAngularVelocity",
+                this.drivePitchAngularVelocity.getInternalBuffer()
+                    .lastEntry()
+                    .getValue()
+            );
         }
         if (this.accelX.getInternalBuffer().lastEntry() != null) {
-            Logger.recordOutput("RobotState/AccelX", this.accelX.getInternalBuffer().lastEntry().getValue());
+            Logger.recordOutput(
+                "RobotState/AccelX",
+                this.accelX.getInternalBuffer().lastEntry().getValue()
+            );
         }
         if (this.accelY.getInternalBuffer().lastEntry() != null) {
-            Logger.recordOutput("RobotState/AccelY", this.accelY.getInternalBuffer().lastEntry().getValue());
+            Logger.recordOutput(
+                "RobotState/AccelY",
+                this.accelY.getInternalBuffer().lastEntry().getValue()
+            );
         }
-        Logger.recordOutput("RobotState/DesiredChassisSpeedFieldFrame", getLatestDesiredFieldRelativeChassisSpeed());
-        Logger.recordOutput("RobotState/MeasuredChassisSpeedFieldFrame", getLatestMeasuredFieldRelativeChassisSpeeds());
-        Logger.recordOutput("RobotState/FusedChassisSpeedFieldFrame", getLatestFusedFieldRelativeChassisSpeed());
+        Logger.recordOutput(
+            "RobotState/DesiredChassisSpeedFieldFrame",
+            getLatestDesiredFieldRelativeChassisSpeed()
+        );
+        Logger.recordOutput(
+            "RobotState/MeasuredChassisSpeedFieldFrame",
+            getLatestMeasuredFieldRelativeChassisSpeeds()
+        );
+        Logger.recordOutput(
+            "RobotState/FusedChassisSpeedFieldFrame",
+            getLatestFusedFieldRelativeChassisSpeed()
+        );
     }
 
     @Override
@@ -508,13 +697,17 @@ public class RobotState extends StateMachine<RobotState.State> {
 
     @Override
     protected void onAutonomousStart() {
-        registerStateCommand(State.AUTO, autoChooser.get().andThen(new PrintCommand("Auto is Done!")));
+        registerStateCommand(
+            State.AUTO,
+            autoChooser.get().andThen(new PrintCommand("Auto is Done!"))
+        );
         requestTransition(State.AUTO);
 
         String autoName = autoChooser.get().getName();
 
         try {
-            List<PathPlannerPath> pathGroup = PathPlannerAuto.getPathGroupFromAutoFile(autoName);
+            List<PathPlannerPath> pathGroup =
+                PathPlannerAuto.getPathGroupFromAutoFile(autoName);
 
             List<Pose2d> allPoses = new ArrayList<>();
             for (PathPlannerPath path : pathGroup) {
@@ -523,7 +716,10 @@ public class RobotState extends StateMachine<RobotState.State> {
             drive.setFieldPoses(allPoses.toArray(new Pose2d[0]));
         } catch (Exception e) {
             Elastic.sendNotification(
-                    new Notification().withTitle("Auto Mapping").withDescription("Unable to add Auto Trajectory"));
+                new Notification()
+                    .withTitle("Auto Mapping")
+                    .withDescription("Unable to add Auto Trajectory")
+            );
         }
     }
 
@@ -577,15 +773,24 @@ public class RobotState extends StateMachine<RobotState.State> {
             }
         }
 
-        if (teamAlliance.isPresent() && message.length() > 0 && !inTransitionShift && !inEndGame
-                && DriverStation.isTeleop()) {
+        if (
+            teamAlliance.isPresent() &&
+            message.length() > 0 &&
+            !inTransitionShift &&
+            !inEndGame &&
+            DriverStation.isTeleop()
+        ) {
             char myColor = (teamAlliance.get() == Alliance.Red) ? 'R' : 'B';
             boolean isStageEven = (currentStage % 2 == 0);
 
             if (autoWinner == 'B') {
-                hubActivated.set(isStageEven ? (myColor == 'B') : (myColor == 'R'));
+                hubActivated.set(
+                    isStageEven ? (myColor == 'B') : (myColor == 'R')
+                );
             } else if (autoWinner == 'R') {
-                hubActivated.set(isStageEven ? (myColor == 'R') : (myColor == 'B'));
+                hubActivated.set(
+                    isStageEven ? (myColor == 'R') : (myColor == 'B')
+                );
             } else {
                 hubActivated.set(true);
             }
@@ -596,10 +801,15 @@ public class RobotState extends StateMachine<RobotState.State> {
 
         SmartDashboard.putBoolean("Game/HubActivated", hubActivated.get());
         SmartDashboard.putString("Game/GameState", gameState);
-        SmartDashboard.putString("Game/ShiftCountdown", String.format("%.2f", secondsUntilAllianceShift));
+        SmartDashboard.putString(
+            "Game/ShiftCountdown",
+            String.format("%.2f", secondsUntilAllianceShift)
+        );
 
-        // TODO identifier for a real game auto
-        SmartDashboard.putBoolean("Robot/AutoChoosed", autoChooser.get().getName().toLowerCase().contains("game"));
+        SmartDashboard.putBoolean(
+            "Robot/AutoChoosed",
+            autoChooser.get().getName().toLowerCase().contains("game")
+        );
     }
 
     public enum State {
@@ -613,6 +823,6 @@ public class RobotState extends StateMachine<RobotState.State> {
         SHOOTING_INTAKING,
         INTAKING,
         PASSING,
-        PASSING_INTAKING
+        PASSING_INTAKING,
     }
 }

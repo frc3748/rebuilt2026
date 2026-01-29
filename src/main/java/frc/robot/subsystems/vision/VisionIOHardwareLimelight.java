@@ -1,21 +1,26 @@
 package frc.robot.subsystems.vision;
 
-import org.littletonrobotics.junction.Logger;
-
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.DriverStation;
 import frc.robot.RobotState;
 import frc.robot.util.LimelightHelpers;
+import org.littletonrobotics.junction.Logger;
 
 public class VisionIOHardwareLimelight implements VisionIO {
 
-    NetworkTable tableA = NetworkTableInstance.getDefault().getTable(VisionConstants.kLimelightTableName);
-    NetworkTable tableB = NetworkTableInstance.getDefault().getTable(VisionConstants.kLimelightBTableName);
+    NetworkTable tableA = NetworkTableInstance.getDefault().getTable(
+        VisionConstants.kLimelightTableName
+    );
+    NetworkTable tableB = NetworkTableInstance.getDefault().getTable(
+        VisionConstants.kLimelightBTableName
+    );
     RobotState robotState;
     int imuMode = 1;
 
-    private static final double[] DEFAULT_STDDEVS = new double[VisionConstants.kExpectedStdDevArrayLength];
+    private static final double[] DEFAULT_STDDEVS =
+        new double[VisionConstants.kExpectedStdDevArrayLength];
 
     /** Creates a new Limelight vision IO instance. */
     public VisionIOHardwareLimelight(RobotState robotState) {
@@ -34,23 +39,29 @@ public class VisionIOHardwareLimelight implements VisionIO {
                 0
         };
 
-        tableA.getEntry("camerapose_robotspace_set").setDoubleArray(cameraAPose);
+        tableA
+            .getEntry("camerapose_robotspace_set")
+            .setDoubleArray(cameraAPose);
 
         double[] cameraBPose = {
-                VisionConstants.kCameraBForwardMeters,
-                VisionConstants.kCameraBRightMeters,
-                VisionConstants.kCameraBHeightOffGroundMeters,
-                0.0,
-                VisionConstants.kCameraBPitchDegrees,
-                VisionConstants.kCameraBYawDegrees
+            VisionConstants.kCameraBForwardMeters,
+            VisionConstants.kCameraBRightMeters,
+            VisionConstants.kCameraBHeightOffGroundMeters,
+            0.0,
+            VisionConstants.kCameraBPitchDegrees,
+            VisionConstants.kCameraBYawDegrees,
         };
 
-        tableB.getEntry("camerapose_robotspace_set").setDoubleArray(cameraBPose);
-
+        tableB
+            .getEntry("camerapose_robotspace_set")
+            .setDoubleArray(cameraBPose);
     }
 
     @Override
-    public void readInputs(CameraInputsAutoLogged turretCamera, CameraInputsAutoLogged chassisCamera) {
+    public void readInputs(
+        CameraInputsAutoLogged turretCamera,
+        CameraInputsAutoLogged chassisCamera
+    ) {
         readCameraData(tableA, turretCamera, VisionConstants.kLimelightTableName);
         readCameraData(tableB, chassisCamera, VisionConstants.kLimelightBTableName);
 
@@ -61,7 +72,7 @@ public class VisionIOHardwareLimelight implements VisionIO {
 
         Logger.processInputs("Vision/Turret Camera", turretCamera);
         Logger.processInputs("Vision/Chassis Camera", chassisCamera);
-   }
+    }
 
     private void readCameraData(
             NetworkTable table, VisionIO.CameraInputs camera, String limelightName) {
@@ -70,10 +81,12 @@ public class VisionIOHardwareLimelight implements VisionIO {
             try {
                 var megatag = LimelightHelpers.getBotPoseEstimate_wpiBlue(limelightName);
                 var robotPose3d = LimelightHelpers.toPose3D(
-                        LimelightHelpers.getBotPose_wpiBlue(limelightName));
+                    LimelightHelpers.getBotPose_wpiBlue(limelightName)
+                );
 
                 if (megatag != null) {
-                    camera.megatagPoseEstimate = MegatagPoseEstimate.fromLimelight(megatag);
+                    camera.megatagPoseEstimate =
+                        MegatagPoseEstimate.fromLimelight(megatag);
                     camera.megatagCount = megatag.tagCount;
                     camera.fiducialObservations = FiducialObservation.fromLimelight(megatag.rawFiducials);
                 }
@@ -81,9 +94,13 @@ public class VisionIOHardwareLimelight implements VisionIO {
                     camera.pose3d = robotPose3d;
                 }
 
-                camera.standardDeviations = table.getEntry("stddevs").getDoubleArray(DEFAULT_STDDEVS);
+                camera.standardDeviations = table
+                    .getEntry("stddevs")
+                    .getDoubleArray(DEFAULT_STDDEVS);
             } catch (Exception e) {
-                System.err.println("Error processing Limelight data: " + e.getMessage());
+                System.err.println(
+                    "Error processing Limelight data: " + e.getMessage()
+                );
             }
         }
     }

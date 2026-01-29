@@ -1,0 +1,3 @@
+Run photovision:
+
+java -jar ".\photovision-win.jar"
