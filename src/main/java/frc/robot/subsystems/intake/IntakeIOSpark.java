@@ -95,6 +95,7 @@ public class IntakeIOSpark implements IntakeIO {
                 .busVoltagePeriodMs(20)
                 .outputCurrentPeriodMs(20);
 
+
         extension.configure(extensionConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
         extension.clearFaults();
 

@@ -18,10 +18,12 @@ public class Flywheel extends StateMachine<Flywheel.State> implements FlywheelIO
         enable();
     }
 
+
     @Override
     public void update() {
         flywheelIO.updateInputs(inputs);
         Logger.processInputs("Flywheel", inputs);
+        
     }
 
     public void shoot() {
