@@ -54,11 +54,7 @@ public class VisionSubsystem extends StateMachine<VisionSubsystem.State> {
         Optional<VisionFieldPoseEstimate> fused = fuseEstimates(turretEst, chassisEst);
 
         if (fused.isPresent()) {
-            if (getState() != State.VISION_SCANNING)
-                setState(State.VISION_SCANNING);
             state.updateMegatagEstimate(fused.get());
-        } else if (getState() == State.VISION_SCANNING) {
-            setState(State.UNDETERMINED);
         }
     }
 
@@ -157,7 +153,7 @@ public class VisionSubsystem extends StateMachine<VisionSubsystem.State> {
         return VecBuilder.fill(
                 cam.standardDeviations[offset],
                 cam.standardDeviations[offset + 1],
-                cam.standardDeviations[offset + 5]);
+                isMT2? 9999: cam.standardDeviations[offset + 5]);
     }
 
     private Optional<VisionFieldPoseEstimate> fuseEstimates(

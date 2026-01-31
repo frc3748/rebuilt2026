@@ -80,9 +80,12 @@ public class RobotState extends StateMachine<RobotState.State> {
     private static final Transform2d TURRET_TO_CAMERA = new Transform2d(VisionConstants.kTurretToCameraX,
             VisionConstants.kTurretToCameraY,
             MathHelpers.kRotation2dZero);
-    private static final Transform2d ROBOT_TO_CAMERA_B = new Transform2d(VisionConstants.kTurretToCameraBX,
-            VisionConstants.kTurretToCameraBY,
-            MathHelpers.kRotation2dZero);
+
+    // private static final Transform2d ROBOT_TO_CAMERA_B = new Transform2d(VisionConstants.kTurretToCameraBX,
+    //         VisionConstants.kTurretToCameraBY,
+    //         MathHelpers.kRotation2dZero);
+
+    private static final Transform2d ROBOT_TO_CAMERA_B = new Transform2d();
     private final AtomicReference<ChassisSpeeds> measuredRobotRelativeChassisSpeeds = new AtomicReference<>(
             new ChassisSpeeds());
     private final AtomicReference<ChassisSpeeds> measuredFieldRelativeChassisSpeeds = new AtomicReference<>(
@@ -279,7 +282,7 @@ public class RobotState extends StateMachine<RobotState.State> {
                                 .ignoringDisable(true));
 
         Pose2d tagPos = VisionConstants.kAprilTagLayout.getTagPose(13).get().toPose2d()
-                .plus(new Transform2d(0, 0, new Rotation2d(Units.degreesToRadians(90))));
+                .plus(new Transform2d(Units.inchesToMeters(36), Units.inchesToMeters(0), new Rotation2d(Units.degreesToRadians(270))));
         // .plus(new Transform2d(Units.inchesToMeters(30), Units.inchesToMeters(0), new
         // Rotation2d(Units.degreesToRadians(90))));
         controller
@@ -288,9 +291,6 @@ public class RobotState extends StateMachine<RobotState.State> {
                         new AutoAlignToPoseCommand(drive, this, tagPos, 1.0));
     }
 
-    // public Command getAutonomousCommand() {
-    // return autoChooser.get();
-    // }
 
     public Drive getDrive() {
         return drive;
@@ -503,13 +503,13 @@ public class RobotState extends StateMachine<RobotState.State> {
 
     @Override
     protected void onTeleopStart() {
-        requestTransition(State.TRAVERSING);
+        setState(State.TRAVERSING);
     }
 
     @Override
     protected void onAutonomousStart() {
         registerStateCommand(State.AUTO, autoChooser.get().andThen(new PrintCommand("Auto is Done!")));
-        requestTransition(State.AUTO);
+        setState(State.AUTO);
 
         String autoName = autoChooser.get().getName();
 

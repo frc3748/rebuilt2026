@@ -2,6 +2,7 @@ package frc.robot.subsystems.vision;
 
 import org.littletonrobotics.junction.Logger;
 
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -45,7 +46,7 @@ public class VisionIOHardwareLimelight implements VisionIO {
                 VisionConstants.kCameraBYawDegrees
         };
 
-        tableB.getEntry("camerapose_robotspace_set").setDoubleArray(cameraBPose);
+        // tableB.getEntry("camerapose_robotspace_set").setDoubleArray(cameraBPose);
 
     }
 
@@ -59,29 +60,36 @@ public class VisionIOHardwareLimelight implements VisionIO {
         LimelightHelpers.SetIMUMode(VisionConstants.kLimelightBTableName,
                 DriverStation.isEnabled() ? 4 : 1);
 
+        var gyroAngle = robotState.getLatestFieldToRobot().getValue().getRotation();
+        var gyroAngularVelocity = Units.radiansToDegrees(robotState.getLatestRobotRelativeChassisSpeed().omegaRadiansPerSecond);
+        LimelightHelpers.SetRobotOrientation(VisionConstants.kLimelightBTableName, gyroAngle.getDegrees(),
+                gyroAngularVelocity, 0, 0, 0, 0);
+        
         Logger.processInputs("Vision/Turret Camera", turretCamera);
         Logger.processInputs("Vision/Chassis Camera", chassisCamera);
-   }
+    }
 
     private void readCameraData(
             NetworkTable table, VisionIO.CameraInputs camera, String limelightName) {
         camera.seesTarget = table.getEntry("tv").getDouble(0) == 1.0;
         if (camera.seesTarget) {
             try {
-                var megatag = LimelightHelpers.getBotPoseEstimate_wpiBlue(limelightName);
+                var megatag = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(limelightName);
                 var robotPose3d = LimelightHelpers.toPose3D(
-                        LimelightHelpers.getBotPose_wpiBlue(limelightName));
+                        LimelightHelpers.getBotPose(limelightName));
 
                 if (megatag != null) {
                     camera.megatagPoseEstimate = MegatagPoseEstimate.fromLimelight(megatag);
-                    camera.megatagCount = megatag.tagCount;
+                    camera.megatag2PoseEstimate = MegatagPoseEstimate.fromLimelight(megatag);
+                    camera.megatag2Count = megatag.tagCount;
                     camera.fiducialObservations = FiducialObservation.fromLimelight(megatag.rawFiducials);
                 }
                 if (robotPose3d != null) {
                     camera.pose3d = robotPose3d;
                 }
 
-                camera.standardDeviations = table.getEntry("stddevs").getDoubleArray(DEFAULT_STDDEVS);
+                camera.standardDeviations =
+                table.getEntry("stddevs").getDoubleArray(DEFAULT_STDDEVS);
             } catch (Exception e) {
                 System.err.println("Error processing Limelight data: " + e.getMessage());
             }

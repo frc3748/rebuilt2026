@@ -114,9 +114,7 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
     // Configure AutoBuilder for PathPlanner
     AutoBuilder.configure(
         () -> robotState.getLatestFieldToRobotCenter(),
-        (pose) -> {
-        },
-        // this::setPose,
+        this::setPose,
         () -> robotState.getLatestRobotRelativeChassisSpeed(),
         this::runVelocity,
         new PPHolonomicDriveController(
@@ -227,7 +225,7 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
     // robotState updating (some logic has been redone twice)
     {
       double timestamp = RobotTime.getTimestampSeconds();
-      // robotState.addOdometryMeasurement(timestamp, getPose()); // test wihtout this too
+      robotState.addOdometryMeasurement(timestamp, getPose()); // test wihtout this too
 
       StatusSignal<AngularVelocity> angularPitchVelocity = gyroIO.getPiegon().getAngularVelocityYDevice();
       StatusSignal<AngularVelocity> angularRollVelocity = gyroIO.getPiegon().getAngularVelocityXDevice();
