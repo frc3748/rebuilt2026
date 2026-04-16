@@ -27,7 +27,7 @@ public class VisionConstants {
         public static final Pose2d kErrorPoseRed = new Pose2d(8.364, 4.141, Rotation2d.fromDegrees(0));
 
         public static double linearStdDevBaseline = 0.02; // Meters
-        public static double angularStdDevBaseline = 0.06;
+        public static double angularStdDevBaseline = 0.1;
         public static double linearStdDevMegatag2Factor = 0.5; // More stable than full 3D solve
         public static double angularStdDevMegatag2Factor =
                 Double.POSITIVE_INFINITY;

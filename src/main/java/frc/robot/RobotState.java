@@ -346,32 +346,32 @@ public class RobotState extends StateMachine<RobotState.State> {
         }
 
         { // climb
-            switch (robotState) {
-                case 1:
-                    climb = new Climb(
-                            new ClimbIOSpark(),
-                            new BeamBreakerTOF(1),
-                            new BeamBreakerTOF(2),
-                            this);
-                    break;
-                case 2:
+            // switch (robotState) {
+            //         climb = new Climb(
+            //                 new ClimbIOSpark(),
+            //                 new BeamBreakerTOF(1),
+            //                 new BeamBreakerTOF(2),
+            //                 this);
+            //         break;
+            //     case 2:
                     climb = new Climb(
                             new ClimbIOSim(),
                             new BeamBreakerSim(1, this),
                             new BeamBreakerSim(2, this),
                             this);
-                    break;
-                default:
-                    climb = new/**/ Climb(
-                            new ClimbIO() {
-                            },
                             new BeamBreakerIO() {
-                            },
-                            new BeamBreakerIO() {
-                            },
-                            this);
-                    break;
-            }
+            //         break;
+            //     default:
+            //         climb = new/**/ Climb(
+            //                 new ClimbIO() {
+            //                 },
+            //                 new BeamBreakerIO() {
+            //                 },
+            //                 new BeamBreakerIO() {
+            //                 },
+            //                 this);
+            //         break;
+            // }
         }
 
         { // hopper
@@ -1015,7 +1015,7 @@ public class RobotState extends StateMachine<RobotState.State> {
                     ? currentPose.getX() <= blueHubX
                     : currentPose.getX() >= redHubX;
 
-            if (shouldShoot && RobotState.hubActivated.get()) {
+            if (shouldShoot) {
                 return new Pose2d(BallTargetFactory.generate(this).toTranslation2d(), new Rotation2d());
             } else {
                 return new Pose2d(PassTargetFactory.generate(this).toTranslation2d(), new Rotation2d());
