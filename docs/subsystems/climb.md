@@ -55,7 +55,7 @@ manual climb), call `disable()` on the subsystem.
 
 A `zero()` command — usually bound to a long-press operator combo —
 runs the motor slowly *down* into the hard stop until current spikes.
-Once the motor stops moving (and stalls), the encoder zero is reset.
+Once the motor stops moving, the encoder zero is reset.
 
 This is required after every code deploy because the motor uses a
 relative encoder.
