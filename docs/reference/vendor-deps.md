@@ -48,7 +48,6 @@ build time. Here's the full set.
 
 | Lib | Why |
 | --- | --- |
-| **Playing with Fusion 2026** | Time-of-flight sensors (used by climb beam-breaks). |
 | **libgrapplefrc2026** | Grapple/LaserCAN-style sensors. |
 | **redux** | Redux Robotics sensor support. |
 | **ThriftyLib** (`2026.1.0`) | Thrifty Bot encoder support. |

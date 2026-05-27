@@ -39,7 +39,7 @@ In its constructor, `RobotState` instantiates:
 - One `Intake` (with `IntakeIO`)
 - One `Hopper` (with `HopperIO`)
 - One `Kicker` (with `KickerIO`)
-- One `Climb` (with `ClimbIO` + 2× `BeamBreakerIO`)
+- One `Climb` (with `ClimbIO`)
 
 The choice of IO implementation comes from a single `robotState`
 integer field — see [the IO pattern]({{ '/architecture/io-pattern/' | relative_url }}).

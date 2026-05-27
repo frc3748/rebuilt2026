@@ -17,8 +17,7 @@ get logged as 3D poses for AdvantageScope.
 mirrors the live `RobotState` in simulation. It tracks:
 
 - Simulated game pieces in the world (position, velocity, rotation).
-- Whether the intake "sees" a piece (used by `IntakeIOSim` to fake
-  the beam-break input).
+- Whether the intake currently has a piece staged (used by `IntakeIOSim`).
 - Whether the hopper currently holds a piece.
 
 This is consulted by every `*IOSim` implementation that needs to know

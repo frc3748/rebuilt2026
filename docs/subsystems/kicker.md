@@ -50,5 +50,4 @@ states.
 - **Piece won't transfer.** Increase `KickerConstants.kShootVolts`.
   Check the roller isn't slipping on the piece.
 - **Double-feeds.** `SHOOT` is held too long. The shooter should
-  return the kicker to `IDLE` as soon as the beam-break (or timeout)
-  fires. Verify the shooter's `SHOOTING` state command exits.
+  return the kicker to `IDLE` as soon as the shoot timeout fires. Verify the shooter's `SHOOTING` state command exits.

@@ -158,5 +158,5 @@ subsystem was trying to do, frame by frame.
   often `run(() -> io.setPosition(supplier.get()))` — the supplier is
   the actual control loop.
 - **Transition commands wait on physical conditions.** A climb
-  deployment transition might `waitUntil(beamBreak::isTripped)` before
+  deployment transition might `waitUntil(stallDetected)` before
   declaring victory.

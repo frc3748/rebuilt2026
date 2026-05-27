@@ -55,10 +55,7 @@ CTRE bus, so no conflict.
 
 | Device | CAN ID | Defined in |
 | --- | --- | --- |
-| Climb left | (see `ClimbConstants`) | `ClimbConstants` |
-| Climb right | (see `ClimbConstants`) | `ClimbConstants` |
-| Beam-break left (TOF) | (see `ClimbConstants`) | `ClimbConstants` |
-| Beam-break right (TOF) | (see `ClimbConstants`) | `ClimbConstants` |
+| Climb motor | (see `ClimbConstants`) | `ClimbConstants` |
 
 ## Adding a new device
 

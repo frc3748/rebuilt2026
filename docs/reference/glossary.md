@@ -20,12 +20,6 @@ permalink: /reference/glossary/
 <dt>AutoLog</dt>
 <dd>An annotation provided by AdvantageKit. Mark an inputs class with <code>@AutoLog</code> and the annotation processor generates a serializable subclass (<code>FooInputsAutoLogged</code>) that <code>Logger.processInputs</code> knows how to record and replay.</dd>
 
-<dt>Beam-break</dt>
-<dd>A sensor that detects when an object breaks an IR beam. Used by climb to detect rung capture. In sim, faked via <code>SimulatedRobotState</code>.</dd>
-
-<dt>BeamBreakerIO</dt>
-<dd>The IO interface for beam-breaks. Real: <code>BeamBreakerTOF</code> (time-of-flight). Sim: <code>BeamBreakerSim</code>.</dd>
-
 <dt>CAN</dt>
 <dd>Controller Area Network. The bus that connects every motor controller and most sensors. The roboRIO has one bus; a CANivore adds a second.</dd>
 
@@ -115,9 +109,6 @@ permalink: /reference/glossary/
 
 <dt>SysId</dt>
 <dd>WPILib's system-identification framework. The drive has SysId routines for characterization.</dd>
-
-<dt>TOF</dt>
-<dd>Time-of-flight sensor. Used by climb beam-breaks.</dd>
 
 <dt>Transition</dt>
 <dd>A directed edge in a state-machine graph, backed by a <code>Command</code>. See <a href="{{ '/architecture/state-machines/' | relative_url }}">State Machines</a>.</dd>

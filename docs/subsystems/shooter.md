@@ -51,7 +51,7 @@ When `SHOOTING` is entered:
 
 1. The parent waits until `flywheel.isReady() && hood.isReady() && turret.isReady()`.
 2. Then it requests `Hopper.SHOOT` and `Kicker.SHOOT`.
-3. After a short timeout (or a beam-break clear), it returns to `IDLE`.
+3. After a short timeout, it returns to `IDLE`.
 
 This pattern keeps each subsystem focused on its own job.
 

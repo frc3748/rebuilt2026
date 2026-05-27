@@ -108,7 +108,7 @@ Three patterns shape almost every file:
 <tr><td><a href="{{ '/subsystems/intake/' | relative_url }}">Intake</a></td><td>Pivoting arm that pulls game pieces from the floor.</td></tr>
 <tr><td><a href="{{ '/subsystems/hopper/' | relative_url }}">Hopper</a></td><td>Carries pieces from intake to shooter; jam-aware.</td></tr>
 <tr><td><a href="{{ '/subsystems/kicker/' | relative_url }}">Kicker</a></td><td>Pushes the piece the final inch into the flywheel.</td></tr>
-<tr><td><a href="{{ '/subsystems/climb/' | relative_url }}">Climb</a></td><td>One-motor elevator with TOF rung sensing.</td></tr>
+<tr><td><a href="{{ '/subsystems/climb/' | relative_url }}">Climb</a></td><td>One-motor elevator with stalling based zeroing mechanism.</td></tr>
 </tbody>
 </table>
 

@@ -77,8 +77,8 @@ Coordinates drive + climb for a rung climb:
 2. Climb deploys: `STOW → UP`.
 3. Waits for an operator confirmation (a specific button press) to
    start `UP → DOWN`.
-4. The `Climb` subsystem auto-completes to `CLIMB` once both beam-breaks
-   trip.
+4. The `Climb` subsystem auto-completes to `CLIMB` once the motor
+   stall-current threshold is exceeded.
 
 ## The "utility" family
 

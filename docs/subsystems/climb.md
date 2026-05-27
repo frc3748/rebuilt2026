@@ -2,7 +2,7 @@
 layout: default
 title: Climb
 eyebrow: Subsystem
-description: One-motor elevator with time-of-flight rung sensing.
+description: Single-motor elevator that pulls the robot to the rung.
 permalink: /subsystems/climb/
 ---
 
@@ -12,9 +12,9 @@ permalink: /subsystems/climb/
 | **Public class** | [`Climb`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/subsystems/climb/Climb.java) extends `StateMachine<Climb.State>` |
 | **Constants** | `ClimbConstants` |
 
-The climb is the only mechanism with two independently controlled
-motors (one per side) and is one of the few that uses an external
-sensor — two time-of-flight beam-breakers to detect rung capture.
+The climb is a one-motor elevator. It extends up to grab the rung,
+then retracts to pull the robot up. No sensors beyond the motor's
+own encoder — current spikes and encoder position do the rest.
 
 ## States
 
@@ -34,35 +34,35 @@ State flow during a climb:
    STOW ──▶ UP ──▶ (driver positions robot) ──▶ DOWN ──▶ CLIMB
 ```
 
-`CLIMB` engages brake mode on the motors to hold the robot's weight
+`CLIMB` engages brake mode on the motor to hold the robot's weight
 without consuming amps.
 
-## Beam-break sensors
+## Detecting the end of travel
 
-Two TOF sensors detect whether the hooks have engaged the rung. The IO
-interface is `BeamBreakerIO` with two implementations:
+There's no external sensor. Two cues tell the subsystem when the climb
+is finished:
 
-- **`BeamBreakerTOF`** — real hardware (Playing with Fusion or similar).
-- **`BeamBreakerSim`** — sim, driven by `FuelSim`/`SimulatedRobotState`.
+- **Encoder position.** `UP` ends when the motor reaches the extended
+  setpoint (`ClimbConstants.kExtendedPositionRad`).
+- **Current spike.** `DOWN → CLIMB` triggers when the motor stalls
+  against the rung — current crosses `ClimbConstants.kStallCurrentAmps`
+  for at least `kStallPersistenceSeconds`.
 
-Both sensors must report tripped for the `DOWN → CLIMB` transition to
-complete.
+If you ever need to lock out the auto-completion (for testing or a
+manual climb), call `disable()` on the subsystem.
 
 ## Zero calibration
 
 A `zero()` command — usually bound to a long-press operator combo —
-runs both motors slowly *down* into the hard stop until current
-spikes. Once both motors stop moving, the encoder zero is reset.
+runs the motor slowly *down* into the hard stop until current spikes.
+Once the motor stops moving, the encoder zero is reset.
 
-This is required after every code deploy because the motors are
-relative encoders.
+This is required after every code deploy because the motor uses a
+relative encoder.
 
 ## Mechanism
 
-- NEOs in brake mode when the elevator is stationary.
-- **No common shaft** — each side moves independently; the
-  state-machine sets matched setpoints, but mechanical binding ensures
-  they stay aligned.
+- **One motor** — NEO in brake mode when the elevator is stationary.
 - **Hard stops** — top and bottom of travel, used for zeroing.
 
 ## Auto-climb
@@ -73,20 +73,22 @@ composes drive + climb:
 1. Drive auto-aligns to the configured climb pose.
 2. Climb transitions `STOW → UP`.
 3. Drive holds position while operator manually triggers `UP → DOWN`.
-4. Climb auto-completes `DOWN → CLIMB` when both beam-breaks trip.
+4. The climb subsystem auto-completes `DOWN → CLIMB` when the stall
+   current threshold is exceeded.
 
 ## Logging
 
-The climb publishes a 3D pose for the elevator extent and a separate
-pose per side, so AdvantageScope can render the climb deployment over
-time.
+The climb publishes a 3D pose for the elevator stage to AdvantageScope,
+so you can see the climb deployment over time.
 
 ## Pitfalls
 
-- **One side runs ahead.** Mechanical bind. Don't fight it in
-  software — fix the linkage.
-- **`DOWN → CLIMB` never fires.** A beam-break isn't triggering. Plot
-  `Climb/leftBreak` and `Climb/rightBreak` in AdvantageScope; check
-  power and CAN to the TOF sensors.
-- **Robot sags after `CLIMB`.** Brake mode isn't holding. Confirm both
-  motors are set to brake in `ClimbIOSpark`.
+- **`DOWN → CLIMB` never fires.** Stall threshold is too high, or the
+  motor isn't actually loaded. Plot `Climb/current` in AdvantageScope
+  during a real attempt; pick a number that's clearly above unloaded
+  draw and clearly below the breaker trip.
+- **`DOWN → CLIMB` fires too early.** Stall persistence too short. Bump
+  `kStallPersistenceSeconds` up — even 100 ms of confirmation prevents
+  noise from latching the state.
+- **Robot sags after `CLIMB`.** Brake mode isn't holding. Confirm the
+  motor is set to brake in `ClimbIOSpark`.
