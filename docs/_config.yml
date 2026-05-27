@@ -1,7 +1,7 @@
 title: "Rebuilt 2026"
 description: "FRC 3748 — 2026 robot code documentation"
-baseurl: ""
-url: ""
+url: "https://frc3748.github.io"
+baseurl: "/rebuilt2026"
 
 markdown: kramdown
 highlighter: rouge
