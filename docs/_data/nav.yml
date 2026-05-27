@@ -1,0 +1,49 @@
+- title: Welcome
+  items:
+    - { title: "Introduction", url: "/" }
+    - { title: "Getting Started", url: "/getting-started/" }
+    - { title: "Project Layout", url: "/project-layout/" }
+
+- title: Architecture
+  items:
+    - { title: "Robot Lifecycle", url: "/architecture/robot-lifecycle/" }
+    - { title: "The IO Layer Pattern", url: "/architecture/io-pattern/" }
+    - { title: "State Machines", url: "/architecture/state-machines/" }
+    - { title: "Subsystem Manager", url: "/architecture/subsystem-manager/" }
+    - { title: "Logging & Telemetry", url: "/architecture/logging/" }
+    - { title: "RobotState", url: "/architecture/robot-state/" }
+
+- title: Subsystems
+  items:
+    - { title: "Drive", url: "/subsystems/drive/" }
+    - { title: "Vision", url: "/subsystems/vision/" }
+    - { title: "Shooter", url: "/subsystems/shooter/" }
+    - { title: "Intake", url: "/subsystems/intake/" }
+    - { title: "Hopper", url: "/subsystems/hopper/" }
+    - { title: "Kicker", url: "/subsystems/kicker/" }
+    - { title: "Climb", url: "/subsystems/climb/" }
+
+- title: Commands
+  items:
+    - { title: "Action Commands", url: "/commands/action-commands/" }
+    - { title: "Drive Commands", url: "/commands/drive-commands/" }
+    - { title: "Auto Commands", url: "/commands/auto-commands/" }
+    - { title: "AutoAlign", url: "/commands/auto-align/" }
+
+- title: Utilities
+  items:
+    - { title: "Geometry & Math", url: "/utilities/geometry-math/" }
+    - { title: "Tuning (GetTuned)", url: "/utilities/get-tuned/" }
+    - { title: "Time Buffers", url: "/utilities/time-buffers/" }
+    - { title: "Shooter Setpoint", url: "/utilities/shooter-setpoint/" }
+    - { title: "Turret Calculator", url: "/utilities/turret-calculator/" }
+    - { title: "Path Generation", url: "/utilities/path-generation/" }
+    - { title: "Simulation", url: "/utilities/simulation/" }
+    - { title: "Driver Feedback (Elastic)", url: "/utilities/elastic/" }
+
+- title: Reference
+  items:
+    - { title: "Vendor Dependencies", url: "/reference/vendor-deps/" }
+    - { title: "CAN ID Map", url: "/reference/can-ids/" }
+    - { title: "Field Constants", url: "/reference/field-constants/" }
+    - { title: "Glossary", url: "/reference/glossary/" }

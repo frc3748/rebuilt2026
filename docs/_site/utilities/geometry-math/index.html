@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Geometry & Math · Rebuilt 2026</title>
+  <meta name="description" content="GeomUtil, MathHelpers — pose math you'll write fifty times if you don't import these." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/assets/css/style.css" />
+  <link rel="stylesheet" href="/assets/css/syntax.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <button class="hamburger" id="sidebar-toggle" aria-label="Toggle navigation">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <a class="brand" href="/">
+        <span class="brand-mark">⚙</span>
+        <span class="brand-text">Rebuilt <span class="brand-year">2026</span></span>
+      </a>
+      <nav class="topbar-nav">
+        <a href="/getting-started/">Tutorials</a>
+        <a href="/architecture/robot-lifecycle/">Architecture</a>
+        <a href="/subsystems/drive/">Subsystems</a>
+        <a href="/reference/glossary/">Reference</a>
+      </nav>
+      <div class="topbar-actions">
+        <button id="theme-toggle" class="icon-button" aria-label="Toggle theme" title="Toggle theme">
+          <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <a class="github-link icon-button" href="https://github.com/frc3748/rebuilt2026" target="_blank" rel="noopener" aria-label="GitHub">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.3 1.9 1.3 1.1 1.9 2.9 1.4 3.6 1 .1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.7-5.5 6 .4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-inner">
+        <div class="search-box">
+          <input type="search" id="nav-search" placeholder="Filter pages…" aria-label="Filter pages" />
+        </div>
+        <nav class="sidebar-nav">
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Welcome</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/"
+                   class="nav-link">
+                  Introduction
+                </a>
+              </li>
+              
+              <li>
+                <a href="/getting-started/"
+                   class="nav-link">
+                  Getting Started
+                </a>
+              </li>
+              
+              <li>
+                <a href="/project-layout/"
+                   class="nav-link">
+                  Project Layout
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Architecture</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/architecture/robot-lifecycle/"
+                   class="nav-link">
+                  Robot Lifecycle
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/io-pattern/"
+                   class="nav-link">
+                  The IO Layer Pattern
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/state-machines/"
+                   class="nav-link">
+                  State Machines
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/subsystem-manager/"
+                   class="nav-link">
+                  Subsystem Manager
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/logging/"
+                   class="nav-link">
+                  Logging & Telemetry
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/robot-state/"
+                   class="nav-link">
+                  RobotState
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Subsystems</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/subsystems/drive/"
+                   class="nav-link">
+                  Drive
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/vision/"
+                   class="nav-link">
+                  Vision
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/shooter/"
+                   class="nav-link">
+                  Shooter
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/intake/"
+                   class="nav-link">
+                  Intake
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/hopper/"
+                   class="nav-link">
+                  Hopper
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/kicker/"
+                   class="nav-link">
+                  Kicker
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/climb/"
+                   class="nav-link">
+                  Climb
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Commands</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/commands/action-commands/"
+                   class="nav-link">
+                  Action Commands
+                </a>
+              </li>
+              
+              <li>
+                <a href="/commands/drive-commands/"
+                   class="nav-link">
+                  Drive Commands
+                </a>
+              </li>
+              
+              <li>
+                <a href="/commands/auto-commands/"
+                   class="nav-link">
+                  Auto Commands
+                </a>
+              </li>
+              
+              <li>
+                <a href="/commands/auto-align/"
+                   class="nav-link">
+                  AutoAlign
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Utilities</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/utilities/geometry-math/"
+                   class="nav-link active">
+                  Geometry & Math
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/get-tuned/"
+                   class="nav-link">
+                  Tuning (GetTuned)
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/time-buffers/"
+                   class="nav-link">
+                  Time Buffers
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/shooter-setpoint/"
+                   class="nav-link">
+                  Shooter Setpoint
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/turret-calculator/"
+                   class="nav-link">
+                  Turret Calculator
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/path-generation/"
+                   class="nav-link">
+                  Path Generation
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/simulation/"
+                   class="nav-link">
+                  Simulation
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/elastic/"
+                   class="nav-link">
+                  Driver Feedback (Elastic)
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Reference</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/reference/vendor-deps/"
+                   class="nav-link">
+                  Vendor Dependencies
+                </a>
+              </li>
+              
+              <li>
+                <a href="/reference/can-ids/"
+                   class="nav-link">
+                  CAN ID Map
+                </a>
+              </li>
+              
+              <li>
+                <a href="/reference/field-constants/"
+                   class="nav-link">
+                  Field Constants
+                </a>
+              </li>
+              
+              <li>
+                <a href="/reference/glossary/"
+                   class="nav-link">
+                  Glossary
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+        </nav>
+      </div>
+    </aside>
+
+    <main class="content" id="main">
+      <article class="article">
+        
+        <header class="article-header">
+          <div class="eyebrow">Utilities</div>
+          <h1>Geometry & Math</h1>
+          <p class="lede">GeomUtil, MathHelpers — pose math you'll write fifty times if you don't import these.</p>
+        </header>
+        
+
+        <div class="article-body">
+          <p>Two utility classes cover almost every geometric operation in the codebase:</p>
+
+<h2 id="geomutil"><code class="language-plaintext highlighter-rouge">GeomUtil</code></h2>
+
+<p><a href="https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/util/GeomUtil.java"><code class="language-plaintext highlighter-rouge">GeomUtil</code></a>
+holds pose-transformation helpers.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Compose &amp; invert</span>
+<span class="nc">Transform2d</span>  <span class="nf">invert</span><span class="o">(</span><span class="nc">Transform2d</span> <span class="n">t</span><span class="o">);</span>
+<span class="nc">Pose2d</span>       <span class="nf">compose</span><span class="o">(</span><span class="nc">Pose2d</span> <span class="n">a</span><span class="o">,</span> <span class="nc">Transform2d</span> <span class="n">b</span><span class="o">);</span>
+
+<span class="c1">// Conversions</span>
+<span class="nc">Transform2d</span>  <span class="nf">poseAsTransform</span><span class="o">(</span><span class="nc">Pose2d</span> <span class="n">p</span><span class="o">);</span>
+<span class="nc">Pose2d</span>       <span class="nf">transformAsPose</span><span class="o">(</span><span class="nc">Transform2d</span> <span class="n">t</span><span class="o">);</span>
+
+<span class="c1">// 2D &lt;-&gt; 3D</span>
+<span class="nc">Pose3d</span>       <span class="nf">toPose3d</span><span class="o">(</span><span class="nc">Pose2d</span> <span class="n">p</span><span class="o">);</span>   <span class="c1">// z = 0, pitch/roll = 0</span>
+<span class="nc">Pose2d</span>       <span class="nf">toPose2d</span><span class="o">(</span><span class="nc">Pose3d</span> <span class="n">p</span><span class="o">);</span>   <span class="c1">// drop z, pitch, roll</span>
+
+<span class="c1">// Distance / angle queries</span>
+<span class="kt">double</span>       <span class="nf">distanceTo</span><span class="o">(</span><span class="nc">Pose2d</span> <span class="n">a</span><span class="o">,</span> <span class="nc">Pose2d</span> <span class="n">b</span><span class="o">);</span>
+<span class="nc">Rotation2d</span>   <span class="nf">angleTo</span><span class="o">(</span><span class="nc">Pose2d</span> <span class="n">from</span><span class="o">,</span> <span class="nc">Translation2d</span> <span class="n">target</span><span class="o">);</span>
+</code></pre></div></div>
+
+<p>The 2D ↔ 3D helpers are used heavily by vision and turret math because
+shooting is inherently 3D but the drive lives in 2D.</p>
+
+<h2 id="mathhelpers"><code class="language-plaintext highlighter-rouge">MathHelpers</code></h2>
+
+<p><a href="https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/util/MathHelpers.java"><code class="language-plaintext highlighter-rouge">MathHelpers</code></a>
+exposes pre-baked zero constants and angle utilities.</p>
+
+<h3 id="zero-constants">Zero constants</h3>
+
+<p>Allocating <code class="language-plaintext highlighter-rouge">new Pose2d()</code> every loop is wasteful and gives the GC
+something to do. These constants are immutable singletons:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">MathHelpers</span><span class="o">.</span><span class="na">kPose2dZero</span><span class="o">;</span>
+<span class="nc">MathHelpers</span><span class="o">.</span><span class="na">kPose3dZero</span><span class="o">;</span>
+<span class="nc">MathHelpers</span><span class="o">.</span><span class="na">kRotation2dZero</span><span class="o">;</span>
+<span class="nc">MathHelpers</span><span class="o">.</span><span class="na">kRotation3dZero</span><span class="o">;</span>
+<span class="nc">MathHelpers</span><span class="o">.</span><span class="na">kTranslation2dZero</span><span class="o">;</span>
+<span class="nc">MathHelpers</span><span class="o">.</span><span class="na">kTranslation3dZero</span><span class="o">;</span>
+</code></pre></div></div>
+
+<p>Use them anywhere you’d type <code class="language-plaintext highlighter-rouge">new Pose2d()</code> for an identity value.</p>
+
+<h3 id="angle-helpers">Angle helpers</h3>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">double</span> <span class="nf">wrap</span><span class="o">(</span><span class="kt">double</span> <span class="n">radians</span><span class="o">);</span>        <span class="c1">// wrap to [-pi, pi]</span>
+<span class="kt">double</span> <span class="nf">wrapDegrees</span><span class="o">(</span><span class="kt">double</span> <span class="n">deg</span><span class="o">);</span>     <span class="c1">// wrap to [-180, 180]</span>
+<span class="kt">double</span> <span class="nf">smallestAngleDelta</span><span class="o">(</span><span class="kt">double</span> <span class="n">a</span><span class="o">,</span> <span class="kt">double</span> <span class="n">b</span><span class="o">);</span>
+</code></pre></div></div>
+
+<p>These are the ones you reach for when an angle is “almost equal” to
+another but shows up off by 2π.</p>
+
+<h2 id="patterns-youll-see">Patterns you’ll see</h2>
+
+<ul>
+  <li><strong><code class="language-plaintext highlighter-rouge">MathHelpers.kPose2dZero</code></strong> in default field-pose fallbacks.</li>
+  <li><strong><code class="language-plaintext highlighter-rouge">GeomUtil.distanceTo</code></strong> in any shooter solver.</li>
+  <li><strong><code class="language-plaintext highlighter-rouge">GeomUtil.toPose3d</code></strong> when the drive pose needs to seed a vision
+transform chain.</li>
+</ul>
+
+<h2 id="adding-new-helpers">Adding new helpers</h2>
+
+<p>Both files are catch-alls — if you find yourself writing the same
+geometric expression in two subsystems, lift it into one of these.
+Don’t make a new utility class for one method.</p>
+
+        </div>
+
+        <footer class="article-footer">
+          <hr />
+          <p class="muted">
+            FRC Team 3748 · Robot code for the 2026 season · Built with
+            <a href="https://github.com/wpilibsuite/allwpilib">WPILib</a> and
+            <a href="https://github.com/Mechanical-Advantage/AdvantageKit">AdvantageKit</a>.
+          </p>
+        </footer>
+      </article>
+
+      <aside class="toc-rail" id="toc"></aside>
+    </main>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>

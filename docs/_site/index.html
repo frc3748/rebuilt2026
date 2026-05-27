@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rebuilt 2026 · Rebuilt 2026</title>
+  <meta name="description" content="The 2026 robot code for FRC Team 3748 — a state-machine driven, hardware-abstracted Java codebase built on WPILib and AdvantageKit." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/assets/css/style.css" />
+  <link rel="stylesheet" href="/assets/css/syntax.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <button class="hamburger" id="sidebar-toggle" aria-label="Toggle navigation">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <a class="brand" href="/">
+        <span class="brand-mark">⚙</span>
+        <span class="brand-text">Rebuilt <span class="brand-year">2026</span></span>
+      </a>
+      <nav class="topbar-nav">
+        <a href="/getting-started/">Tutorials</a>
+        <a href="/architecture/robot-lifecycle/">Architecture</a>
+        <a href="/subsystems/drive/">Subsystems</a>
+        <a href="/reference/glossary/">Reference</a>
+      </nav>
+      <div class="topbar-actions">
+        <button id="theme-toggle" class="icon-button" aria-label="Toggle theme" title="Toggle theme">
+          <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <a class="github-link icon-button" href="https://github.com/frc3748/rebuilt2026" target="_blank" rel="noopener" aria-label="GitHub">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.3 1.9 1.3 1.1 1.9 2.9 1.4 3.6 1 .1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.7-5.5 6 .4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-inner">
+        <div class="search-box">
+          <input type="search" id="nav-search" placeholder="Filter pages…" aria-label="Filter pages" />
+        </div>
+        <nav class="sidebar-nav">
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Welcome</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/"
+                   class="nav-link active">
+                  Introduction
+                </a>
+              </li>
+              
+              <li>
+                <a href="/getting-started/"
+                   class="nav-link">
+                  Getting Started
+                </a>
+              </li>
+              
+              <li>
+                <a href="/project-layout/"
+                   class="nav-link">
+                  Project Layout
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Architecture</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/architecture/robot-lifecycle/"
+                   class="nav-link">
+                  Robot Lifecycle
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/io-pattern/"
+                   class="nav-link">
+                  The IO Layer Pattern
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/state-machines/"
+                   class="nav-link">
+                  State Machines
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/subsystem-manager/"
+                   class="nav-link">
+                  Subsystem Manager
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/logging/"
+                   class="nav-link">
+                  Logging & Telemetry
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/robot-state/"
+                   class="nav-link">
+                  RobotState
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Subsystems</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/subsystems/drive/"
+                   class="nav-link">
+                  Drive
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/vision/"
+                   class="nav-link">
+                  Vision
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/shooter/"
+                   class="nav-link">
+                  Shooter
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/intake/"
+                   class="nav-link">
+                  Intake
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/hopper/"
+                   class="nav-link">
+                  Hopper
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/kicker/"
+                   class="nav-link">
+                  Kicker
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/climb/"
+                   class="nav-link">
+                  Climb
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Commands</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/commands/action-commands/"
+                   class="nav-link">
+                  Action Commands
+                </a>
+              </li>
+              
+              <li>
+                <a href="/commands/drive-commands/"
+                   class="nav-link">
+                  Drive Commands
+                </a>
+              </li>
+              
+              <li>
+                <a href="/commands/auto-commands/"
+                   class="nav-link">
+                  Auto Commands
+                </a>
+              </li>
+              
+              <li>
+                <a href="/commands/auto-align/"
+                   class="nav-link">
+                  AutoAlign
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Utilities</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/utilities/geometry-math/"
+                   class="nav-link">
+                  Geometry & Math
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/get-tuned/"
+                   class="nav-link">
+                  Tuning (GetTuned)
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/time-buffers/"
+                   class="nav-link">
+                  Time Buffers
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/shooter-setpoint/"
+                   class="nav-link">
+                  Shooter Setpoint
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/turret-calculator/"
+                   class="nav-link">
+                  Turret Calculator
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/path-generation/"
+                   class="nav-link">
+                  Path Generation
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/simulation/"
+                   class="nav-link">
+                  Simulation
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/elastic/"
+                   class="nav-link">
+                  Driver Feedback (Elastic)
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Reference</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/reference/vendor-deps/"
+                   class="nav-link">
+                  Vendor Dependencies
+                </a>
+              </li>
+              
+              <li>
+                <a href="/reference/can-ids/"
+                   class="nav-link">
+                  CAN ID Map
+                </a>
+              </li>
+              
+              <li>
+                <a href="/reference/field-constants/"
+                   class="nav-link">
+                  Field Constants
+                </a>
+              </li>
+              
+              <li>
+                <a href="/reference/glossary/"
+                   class="nav-link">
+                  Glossary
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+        </nav>
+      </div>
+    </aside>
+
+    <main class="content" id="main">
+      <article class="article">
+        
+
+        <div class="article-body">
+          <section class="hero">
+  <div class="eyebrow">FRC Team 3748 · Season 2026</div>
+  <h1>Rebuilt&nbsp;2026</h1>
+  <p class="lede">
+    A hardware-abstracted, state-machine driven Java codebase for FRC.
+    Swerve drive, vision-fused odometry, a turreted shooter, automatic
+    pathing, and a tunable simulator — all logged through AdvantageKit.
+  </p>
+  <div class="hero-actions">
+    <a class="btn btn-primary" href="/getting-started/">Get started →</a>
+    <a class="btn" href="/architecture/robot-lifecycle/">Read the architecture</a>
+    <a class="btn" href="https://github.com/frc3748/rebuilt2026" target="_blank" rel="noopener">View source</a>
+  </div>
+</section>
+
+<div class="article-body">
+
+<h2 id="explore-the-docs">Explore the docs</h2>
+
+<div class="card-grid">
+  <a class="card" href="/getting-started/">
+    <h3>Getting Started</h3>
+    <p>Clone the repo, install WPILib, deploy to a roboRIO, run the sim.</p>
+  </a>
+  <a class="card" href="/architecture/robot-lifecycle/">
+    <h3>Robot Lifecycle</h3>
+    <p>How <code>Main</code>, <code>Robot</code>, and <code>RobotState</code> fit together.</p>
+  </a>
+  <a class="card" href="/architecture/io-pattern/">
+    <h3>The IO Layer Pattern</h3>
+    <p>Why every subsystem has an interface, a Spark impl, and a Sim impl.</p>
+  </a>
+  <a class="card" href="/architecture/state-machines/">
+    <h3>State Machines</h3>
+    <p>The transition graph that drives every mechanism on the robot.</p>
+  </a>
+  <a class="card" href="/subsystems/drive/">
+    <h3>Drive</h3>
+    <p>Swerve modules, pose estimation, and PathPlanner integration.</p>
+  </a>
+  <a class="card" href="/subsystems/shooter/">
+    <h3>Shooter</h3>
+    <p>Turret, hood, and flywheel — a child-subsystem composite.</p>
+  </a>
+  <a class="card" href="/subsystems/vision/">
+    <h3>Vision</h3>
+    <p>Two Limelights, Megatag fusion, and the pose-estimator hand-off.</p>
+  </a>
+  <a class="card" href="/commands/action-commands/">
+    <h3>Commands</h3>
+    <p>The buttons, the autos, and how driver intent becomes motion.</p>
+  </a>
+</div>
+
+<h2 id="what-makes-this-codebase">What makes this codebase</h2>
+
+<p>
+Three patterns shape almost every file:
+</p>
+
+<ol>
+  <li>
+    <strong>IO layering</strong> — every subsystem talks to hardware
+    through an interface (<code>ModuleIO</code>, <code>VisionIO</code>,
+    <code>FlywheelIO</code>, …). Real implementations live alongside
+    simulator implementations; the subsystem code itself never knows
+    the difference.
+  </li>
+  <li>
+    <strong>State machines</strong> — every subsystem extends
+    <code>StateMachine&lt;E&gt;</code> with its own state enum.
+    Transitions are <code>Command</code>s registered in a directional
+    graph. <code>requestTransition(state)</code> is the public verb.
+  </li>
+  <li>
+    <strong>AdvantageKit-first logging</strong> — inputs are recorded
+    on every loop, replayable in AdvantageScope, and surfaced live on
+    the dashboard via DogLog and Elastic.
+  </li>
+</ol>
+
+<blockquote class="callout">
+  <div class="callout-title">New to the codebase?</div>
+  <p>
+    Read <a href="/architecture/robot-lifecycle/">Robot Lifecycle</a>
+    first to see how a single button press travels from the controller
+    all the way to a motor.
+  </p>
+</blockquote>
+
+<h2 id="quick-tour">Quick tour</h2>
+
+<p>The robot has seven physical subsystems:</p>
+
+<table>
+<thead><tr><th>Subsystem</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><a href="/subsystems/drive/">Drive</a></td><td>Four swerve modules, 28″×28″, max ~5.27 m/s.</td></tr>
+<tr><td><a href="/subsystems/vision/">Vision</a></td><td>Turret + chassis Limelights, Megatag2 pose fusion.</td></tr>
+<tr><td><a href="/subsystems/shooter/">Shooter</a></td><td>Composite of turret, hood, and flywheel.</td></tr>
+<tr><td><a href="/subsystems/intake/">Intake</a></td><td>Pivoting arm that pulls game pieces from the floor.</td></tr>
+<tr><td><a href="/subsystems/hopper/">Hopper</a></td><td>Carries pieces from intake to shooter; jam-aware.</td></tr>
+<tr><td><a href="/subsystems/kicker/">Kicker</a></td><td>Pushes the piece the final inch into the flywheel.</td></tr>
+<tr><td><a href="/subsystems/climb/">Climb</a></td><td>One-motor elevator with TOF rung sensing.</td></tr>
+</tbody>
+</table>
+
+</div>
+
+        </div>
+
+        <footer class="article-footer">
+          <hr />
+          <p class="muted">
+            FRC Team 3748 · Robot code for the 2026 season · Built with
+            <a href="https://github.com/wpilibsuite/allwpilib">WPILib</a> and
+            <a href="https://github.com/Mechanical-Advantage/AdvantageKit">AdvantageKit</a>.
+          </p>
+        </footer>
+      </article>
+
+      <aside class="toc-rail" id="toc"></aside>
+    </main>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Subsystem Manager · Rebuilt 2026</title>
+  <meta name="description" content="A singleton registry that broadcasts lifecycle events to every state machine." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/assets/css/style.css" />
+  <link rel="stylesheet" href="/assets/css/syntax.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <button class="hamburger" id="sidebar-toggle" aria-label="Toggle navigation">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <a class="brand" href="/">
+        <span class="brand-mark">⚙</span>
+        <span class="brand-text">Rebuilt <span class="brand-year">2026</span></span>
+      </a>
+      <nav class="topbar-nav">
+        <a href="/getting-started/">Tutorials</a>
+        <a href="/architecture/robot-lifecycle/">Architecture</a>
+        <a href="/subsystems/drive/">Subsystems</a>
+        <a href="/reference/glossary/">Reference</a>
+      </nav>
+      <div class="topbar-actions">
+        <button id="theme-toggle" class="icon-button" aria-label="Toggle theme" title="Toggle theme">
+          <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <a class="github-link icon-button" href="https://github.com/frc3748/rebuilt2026" target="_blank" rel="noopener" aria-label="GitHub">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.3 1.9 1.3 1.1 1.9 2.9 1.4 3.6 1 .1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.7-5.5 6 .4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-inner">
+        <div class="search-box">
+          <input type="search" id="nav-search" placeholder="Filter pages…" aria-label="Filter pages" />
+        </div>
+        <nav class="sidebar-nav">
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Welcome</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/"
+                   class="nav-link">
+                  Introduction
+                </a>
+              </li>
+              
+              <li>
+                <a href="/getting-started/"
+                   class="nav-link">
+                  Getting Started
+                </a>
+              </li>
+              
+              <li>
+                <a href="/project-layout/"
+                   class="nav-link">
+                  Project Layout
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Architecture</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/architecture/robot-lifecycle/"
+                   class="nav-link">
+                  Robot Lifecycle
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/io-pattern/"
+                   class="nav-link">
+                  The IO Layer Pattern
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/state-machines/"
+                   class="nav-link">
+                  State Machines
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/subsystem-manager/"
+                   class="nav-link active">
+                  Subsystem Manager
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/logging/"
+                   class="nav-link">
+                  Logging & Telemetry
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/robot-state/"
+                   class="nav-link">
+                  RobotState
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Subsystems</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/subsystems/drive/"
+                   class="nav-link">
+                  Drive
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/vision/"
+                   class="nav-link">
+                  Vision
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/shooter/"
+                   class="nav-link">
+                  Shooter
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/intake/"
+                   class="nav-link">
+                  Intake
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/hopper/"
+                   class="nav-link">
+                  Hopper
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/kicker/"
+                   class="nav-link">
+                  Kicker
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/climb/"
+                   class="nav-link">
+                  Climb
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Commands</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/commands/action-commands/"
+                   class="nav-link">
+                  Action Commands
+                </a>
+              </li>
+              
+              <li>
+                <a href="/commands/drive-commands/"
+                   class="nav-link">
+                  Drive Commands
+                </a>
+              </li>
+              
+              <li>
+                <a href="/commands/auto-commands/"
+                   class="nav-link">
+                  Auto Commands
+                </a>
+              </li>
+              
+              <li>
+                <a href="/commands/auto-align/"
+                   class="nav-link">
+                  AutoAlign
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Utilities</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/utilities/geometry-math/"
+                   class="nav-link">
+                  Geometry & Math
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/get-tuned/"
+                   class="nav-link">
+                  Tuning (GetTuned)
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/time-buffers/"
+                   class="nav-link">
+                  Time Buffers
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/shooter-setpoint/"
+                   class="nav-link">
+                  Shooter Setpoint
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/turret-calculator/"
+                   class="nav-link">
+                  Turret Calculator
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/path-generation/"
+                   class="nav-link">
+                  Path Generation
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/simulation/"
+                   class="nav-link">
+                  Simulation
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/elastic/"
+                   class="nav-link">
+                  Driver Feedback (Elastic)
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Reference</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/reference/vendor-deps/"
+                   class="nav-link">
+                  Vendor Dependencies
+                </a>
+              </li>
+              
+              <li>
+                <a href="/reference/can-ids/"
+                   class="nav-link">
+                  CAN ID Map
+                </a>
+              </li>
+              
+              <li>
+                <a href="/reference/field-constants/"
+                   class="nav-link">
+                  Field Constants
+                </a>
+              </li>
+              
+              <li>
+                <a href="/reference/glossary/"
+                   class="nav-link">
+                  Glossary
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+        </nav>
+      </div>
+    </aside>
+
+    <main class="content" id="main">
+      <article class="article">
+        
+        <header class="article-header">
+          <div class="eyebrow">Architecture</div>
+          <h1>Subsystem Manager</h1>
+          <p class="lede">A singleton registry that broadcasts lifecycle events to every state machine.</p>
+        </header>
+        
+
+        <div class="article-body">
+          <p>The <a href="https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/util/state/SubsystemManager.java"><code class="language-plaintext highlighter-rouge">SubsystemManager</code></a>
+is the glue between <code class="language-plaintext highlighter-rouge">Robot</code>’s lifecycle hooks and the many subsystems
+that want to react to them.</p>
+
+<h2 id="the-contract">The contract</h2>
+
+<p>Every subsystem registers itself in its constructor:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">SubsystemManagerFactory</span><span class="o">.</span><span class="na">getInstance</span><span class="o">().</span><span class="na">registerSubsystem</span><span class="o">(</span><span class="k">this</span><span class="o">);</span>
+</code></pre></div></div>
+
+<p>After registration, the subsystem will receive broadcasts whenever the
+robot’s mode changes.</p>
+
+<h2 id="what-it-broadcasts">What it broadcasts</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Method on <code class="language-plaintext highlighter-rouge">SubsystemManager</code></th>
+      <th>Called from</th>
+      <th>Effect on each subsystem</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">notifyAutonomousStart()</code></td>
+      <td><code class="language-plaintext highlighter-rouge">Robot.autonomousInit()</code></td>
+      <td>Calls <code class="language-plaintext highlighter-rouge">onAutonomousStart()</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">notifyTeleopStart()</code></td>
+      <td><code class="language-plaintext highlighter-rouge">Robot.teleopInit()</code></td>
+      <td>Calls <code class="language-plaintext highlighter-rouge">onTeleopStart()</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">notifyTestStart()</code></td>
+      <td><code class="language-plaintext highlighter-rouge">Robot.testInit()</code></td>
+      <td>Calls <code class="language-plaintext highlighter-rouge">onTestStart()</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">enableAllSubsystems()</code></td>
+      <td><code class="language-plaintext highlighter-rouge">Robot.enabledInit()</code> (implicit)</td>
+      <td><code class="language-plaintext highlighter-rouge">enable()</code> + transition to a sane state</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">disableAllSubsystems()</code></td>
+      <td><code class="language-plaintext highlighter-rouge">Robot.disabledInit()</code></td>
+      <td><code class="language-plaintext highlighter-rouge">disable()</code> on every machine</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">prepSubsystems()</code></td>
+      <td>Custom auto setup</td>
+      <td>Enable + force <code class="language-plaintext highlighter-rouge">requestDetermine()</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="why-a-registry">Why a registry?</h2>
+
+<p>A few reasons:</p>
+
+<ul>
+  <li><strong>Order independence.</strong> Subsystems can be constructed in any order;
+the manager finds them all afterward.</li>
+  <li><strong>One-line lifecycle for new mechanisms.</strong> Add a new subsystem and it
+gets disabled-on-disable for free, without touching <code class="language-plaintext highlighter-rouge">Robot.java</code>.</li>
+  <li><strong>Dashboard chooser.</strong> When a subsystem registers, the manager
+publishes a <code class="language-plaintext highlighter-rouge">SendableChooser</code> to SmartDashboard for forcing states
+during testing.</li>
+</ul>
+
+<h2 id="subsystemmanagerfactory"><code class="language-plaintext highlighter-rouge">SubsystemManagerFactory</code></h2>
+
+<p>A thin wrapper around the singleton plus a few convenience methods:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">SubsystemManagerFactory</span><span class="o">.</span><span class="na">getInstance</span><span class="o">().</span><span class="na">registerSubsystem</span><span class="o">(</span><span class="k">this</span><span class="o">);</span>
+<span class="nc">SubsystemManagerFactory</span><span class="o">.</span><span class="na">disableAllSubsystems</span><span class="o">();</span>   <span class="c1">// static shortcut</span>
+</code></pre></div></div>
+
+<p>There’s nothing surprising in there — it just keeps the call sites
+short.</p>
+
+<h2 id="implementation-detail-how-subsystems-get-ticked">Implementation detail: how subsystems get ticked</h2>
+
+<p>The manager <strong>doesn’t</strong> tick subsystems. That’s the
+<code class="language-plaintext highlighter-rouge">CommandScheduler</code>’s job (because each <code class="language-plaintext highlighter-rouge">StateMachine</code> extends
+<code class="language-plaintext highlighter-rouge">SubsystemBase</code>). The manager is purely for lifecycle and registry.</p>
+
+<p>This is worth knowing if you ever wonder <em>“who calls
+<code class="language-plaintext highlighter-rouge">Subsystem.periodic()</code>?”</em> — the answer is always the WPILib command
+scheduler, never the manager.</p>
+
+        </div>
+
+        <footer class="article-footer">
+          <hr />
+          <p class="muted">
+            FRC Team 3748 · Robot code for the 2026 season · Built with
+            <a href="https://github.com/wpilibsuite/allwpilib">WPILib</a> and
+            <a href="https://github.com/Mechanical-Advantage/AdvantageKit">AdvantageKit</a>.
+          </p>
+        </footer>
+      </article>
+
+      <aside class="toc-rail" id="toc"></aside>
+    </main>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>

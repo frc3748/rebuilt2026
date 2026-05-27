@@ -1,0 +1,17 @@
+/* Rouge highlighting — dark by default, light theme overrides below */
+.highlight .c, .highlight .c1, .highlight .cm, .highlight .cp, .highlight .cs { color: var(--com); font-style: italic; }
+.highlight .k, .highlight .kc, .highlight .kd, .highlight .kn, .highlight .kp, .highlight .kr, .highlight .kt { color: var(--kw); }
+.highlight .s, .highlight .s1, .highlight .s2, .highlight .sb, .highlight .sc, .highlight .sd, .highlight .se, .highlight .sh, .highlight .si, .highlight .sr, .highlight .ss, .highlight .sx { color: var(--str); }
+.highlight .m, .highlight .mf, .highlight .mh, .highlight .mi, .highlight .mo, .highlight .il { color: var(--num); }
+.highlight .nc, .highlight .nn { color: var(--typ); font-weight: 500; }
+.highlight .nf, .highlight .fm { color: var(--fn); }
+.highlight .nb, .highlight .bp { color: var(--typ); }
+.highlight .o, .highlight .ow { color: var(--text); }
+.highlight .p { color: var(--text-soft); }
+.highlight .na { color: var(--accent); }
+.highlight .nt { color: var(--kw); }
+.highlight .nv, .highlight .vc, .highlight .vg, .highlight .vi { color: var(--text); }
+.highlight .err { color: #ef6c6c; }
+.highlight .gd { color: #ef6c6c; }
+.highlight .gi { color: #a5e075; }
+.highlight .gh, .highlight .gu { color: var(--accent); font-weight: 600; }

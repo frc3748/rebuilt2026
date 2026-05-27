@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drive · Rebuilt 2026</title>
+  <meta name="description" content="Four-module swerve drive with high-rate odometry, vision fusion, and PathPlanner integration." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/assets/css/style.css" />
+  <link rel="stylesheet" href="/assets/css/syntax.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <button class="hamburger" id="sidebar-toggle" aria-label="Toggle navigation">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <a class="brand" href="/">
+        <span class="brand-mark">⚙</span>
+        <span class="brand-text">Rebuilt <span class="brand-year">2026</span></span>
+      </a>
+      <nav class="topbar-nav">
+        <a href="/getting-started/">Tutorials</a>
+        <a href="/architecture/robot-lifecycle/">Architecture</a>
+        <a href="/subsystems/drive/">Subsystems</a>
+        <a href="/reference/glossary/">Reference</a>
+      </nav>
+      <div class="topbar-actions">
+        <button id="theme-toggle" class="icon-button" aria-label="Toggle theme" title="Toggle theme">
+          <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <a class="github-link icon-button" href="https://github.com/frc3748/rebuilt2026" target="_blank" rel="noopener" aria-label="GitHub">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.3 1.9 1.3 1.1 1.9 2.9 1.4 3.6 1 .1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.7-5.5 6 .4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-inner">
+        <div class="search-box">
+          <input type="search" id="nav-search" placeholder="Filter pages…" aria-label="Filter pages" />
+        </div>
+        <nav class="sidebar-nav">
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Welcome</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/"
+                   class="nav-link">
+                  Introduction
+                </a>
+              </li>
+              
+              <li>
+                <a href="/getting-started/"
+                   class="nav-link">
+                  Getting Started
+                </a>
+              </li>
+              
+              <li>
+                <a href="/project-layout/"
+                   class="nav-link">
+                  Project Layout
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Architecture</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/architecture/robot-lifecycle/"
+                   class="nav-link">
+                  Robot Lifecycle
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/io-pattern/"
+                   class="nav-link">
+                  The IO Layer Pattern
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/state-machines/"
+                   class="nav-link">
+                  State Machines
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/subsystem-manager/"
+                   class="nav-link">
+                  Subsystem Manager
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/logging/"
+                   class="nav-link">
+                  Logging & Telemetry
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/robot-state/"
+                   class="nav-link">
+                  RobotState
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Subsystems</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/subsystems/drive/"
+                   class="nav-link active">
+                  Drive
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/vision/"
+                   class="nav-link">
+                  Vision
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/shooter/"
+                   class="nav-link">
+                  Shooter
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/intake/"
+                   class="nav-link">
+                  Intake
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/hopper/"
+                   class="nav-link">
+                  Hopper
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/kicker/"
+                   class="nav-link">
+                  Kicker
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/climb/"
+                   class="nav-link">
+                  Climb
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Commands</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/commands/action-commands/"
+                   class="nav-link">
+                  Action Commands
+                </a>
+              </li>
+              
+              <li>
+                <a href="/commands/drive-commands/"
+                   class="nav-link">
+                  Drive Commands
+                </a>
+              </li>
+              
+              <li>
+                <a href="/commands/auto-commands/"
+                   class="nav-link">
+                  Auto Commands
+                </a>
+              </li>
+              
+              <li>
+                <a href="/commands/auto-align/"
+                   class="nav-link">
+                  AutoAlign
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Utilities</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/utilities/geometry-math/"
+                   class="nav-link">
+                  Geometry & Math
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/get-tuned/"
+                   class="nav-link">
+                  Tuning (GetTuned)
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/time-buffers/"
+                   class="nav-link">
+                  Time Buffers
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/shooter-setpoint/"
+                   class="nav-link">
+                  Shooter Setpoint
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/turret-calculator/"
+                   class="nav-link">
+                  Turret Calculator
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/path-generation/"
+                   class="nav-link">
+                  Path Generation
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/simulation/"
+                   class="nav-link">
+                  Simulation
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/elastic/"
+                   class="nav-link">
+                  Driver Feedback (Elastic)
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Reference</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/reference/vendor-deps/"
+                   class="nav-link">
+                  Vendor Dependencies
+                </a>
+              </li>
+              
+              <li>
+                <a href="/reference/can-ids/"
+                   class="nav-link">
+                  CAN ID Map
+                </a>
+              </li>
+              
+              <li>
+                <a href="/reference/field-constants/"
+                   class="nav-link">
+                  Field Constants
+                </a>
+              </li>
+              
+              <li>
+                <a href="/reference/glossary/"
+                   class="nav-link">
+                  Glossary
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+        </nav>
+      </div>
+    </aside>
+
+    <main class="content" id="main">
+      <article class="article">
+        
+        <header class="article-header">
+          <div class="eyebrow">Subsystem</div>
+          <h1>Drive</h1>
+          <p class="lede">Four-module swerve drive with high-rate odometry, vision fusion, and PathPlanner integration.</p>
+        </header>
+        
+
+        <div class="article-body">
+          <p>The drive subsystem is the most complex and the most foundational.
+Every other subsystem that needs a pose asks <code class="language-plaintext highlighter-rouge">Drive</code> (via <code class="language-plaintext highlighter-rouge">RobotState</code>)
+for it.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th> </th>
+      <th> </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Source</strong></td>
+      <td><code class="language-plaintext highlighter-rouge">src/main/java/frc/robot/subsystems/drive/</code></td>
+    </tr>
+    <tr>
+      <td><strong>Public class</strong></td>
+      <td><a href="https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/subsystems/drive/Drive.java"><code class="language-plaintext highlighter-rouge">Drive</code></a> extends <code class="language-plaintext highlighter-rouge">StateMachine&lt;Drive.State&gt;</code></td>
+    </tr>
+    <tr>
+      <td><strong>Children</strong></td>
+      <td>Four <code class="language-plaintext highlighter-rouge">Module</code> wrappers (FL, FR, BL, BR)</td>
+    </tr>
+    <tr>
+      <td><strong>Constants</strong></td>
+      <td><a href="https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/subsystems/drive/DriveConstants.java"><code class="language-plaintext highlighter-rouge">DriveConstants</code></a></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="states">States</h2>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">enum</span> <span class="nc">State</span> <span class="o">{</span>
+  <span class="no">UNDETERMINED</span><span class="o">,</span>
+  <span class="no">IDLE</span><span class="o">,</span>
+  <span class="no">TRAVERSING</span><span class="o">,</span>             <span class="c1">// open-loop, joystick-driven</span>
+  <span class="no">SLOW</span><span class="o">,</span>                   <span class="c1">// reduced max velocity for fine alignment</span>
+  <span class="no">TRAVERSING_AT_ANGLE</span>     <span class="c1">// joystick translation, locked heading</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">UNDETERMINED</code> → <code class="language-plaintext highlighter-rouge">IDLE</code> happens automatically once odometry has at
+least one valid sample.</p>
+
+<h2 id="geometry">Geometry</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Parameter</th>
+      <th>Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Track width</td>
+      <td>0.71 m (28″)</td>
+    </tr>
+    <tr>
+      <td>Wheel base</td>
+      <td>0.71 m (28″)</td>
+    </tr>
+    <tr>
+      <td>Wheel radius</td>
+      <td>0.0508 m (2″)</td>
+    </tr>
+    <tr>
+      <td>Max translation speed</td>
+      <td>5.27 m/s</td>
+    </tr>
+    <tr>
+      <td>Slow-mode max</td>
+      <td>0.5 m/s</td>
+    </tr>
+    <tr>
+      <td>Drive reduction</td>
+      <td>6.48 : 1 (L2 SDS)</td>
+    </tr>
+    <tr>
+      <td>Turn reduction</td>
+      <td>12.1 : 1</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Module translations are computed from track width and wheel base in
+<code class="language-plaintext highlighter-rouge">DriveConstants</code> and passed to <code class="language-plaintext highlighter-rouge">SwerveDriveKinematics</code>.</p>
+
+<h2 id="module-layout">Module layout</h2>
+
+<p>The four modules are indexed 0–3:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Index</th>
+      <th>Position</th>
+      <th>Drive CAN</th>
+      <th>Turn CAN</th>
+      <th>Encoder CAN</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>0</td>
+      <td>Front-Left</td>
+      <td>8</td>
+      <td>3</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Front-Right</td>
+      <td>2</td>
+      <td>9</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Back-Left</td>
+      <td>4</td>
+      <td>7</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Back-Right</td>
+      <td>6</td>
+      <td>5</td>
+      <td>3</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Drive motors are NEOs; turn motors are NEO 550s with absolute
+CANcoders. The Pigeon 2 gyro lives on CAN ID 50.</p>
+
+<h2 id="hardware-abstraction">Hardware abstraction</h2>
+
+<p>Three IO interfaces:</p>
+
+<ul>
+  <li><strong><code class="language-plaintext highlighter-rouge">GyroIO</code></strong> / <code class="language-plaintext highlighter-rouge">GyroIOPigeon2</code> — yaw, pitch, roll, angular velocities.</li>
+  <li><strong><code class="language-plaintext highlighter-rouge">ModuleIO</code></strong> / <code class="language-plaintext highlighter-rouge">ModuleIOSpark</code> / <code class="language-plaintext highlighter-rouge">ModuleIOSim</code> — per-wheel I/O.</li>
+  <li><strong><code class="language-plaintext highlighter-rouge">DriveIO</code></strong> — chassis-level (used in some legacy paths).</li>
+</ul>
+
+<p>The real impl runs a <strong><code class="language-plaintext highlighter-rouge">SparkOdometryThread</code></strong> at 250 Hz to capture
+sub-loop wheel positions, giving more accurate dead-reckoning between
+the 50 Hz <code class="language-plaintext highlighter-rouge">periodic()</code> ticks.</p>
+
+<h2 id="pose-estimation">Pose estimation</h2>
+
+<p>A WPILib <code class="language-plaintext highlighter-rouge">SwerveDrivePoseEstimator</code> fuses three inputs:</p>
+
+<ol>
+  <li><strong>Module odometry</strong> — every loop, the 250 Hz samples are batched
+and replayed in time order.</li>
+  <li><strong>Vision</strong> — <code class="language-plaintext highlighter-rouge">Drive#addVisionMeasurement(Pose2d, double timestamp,
+Matrix stdDevs)</code> is called by <code class="language-plaintext highlighter-rouge">VisionSubsystem</code> whenever a Megatag
+estimate arrives.</li>
+  <li><strong>Gyro</strong> — the Pigeon 2 yaw provides absolute heading reference.</li>
+</ol>
+
+<p>The result is read by everyone via:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">robotState</span><span class="o">.</span><span class="na">getLatestFieldToRobot</span><span class="o">();</span>    <span class="c1">// pose now</span>
+<span class="n">robotState</span><span class="o">.</span><span class="na">getPredictedFieldToRobot</span><span class="o">();</span> <span class="c1">// pose extrapolated forward</span>
+</code></pre></div></div>
+
+<h2 id="pathplanner-integration">PathPlanner integration</h2>
+
+<p><code class="language-plaintext highlighter-rouge">Drive</code> registers a <code class="language-plaintext highlighter-rouge">PPHolonomicDriveController</code> with PathPlanner. Auto
+routines and dynamic paths from
+<a href="/utilities/path-generation/"><code class="language-plaintext highlighter-rouge">DynamicPathGenerator</code></a>
+both feed through it.</p>
+
+<p>Path-following tolerances and controller PID gains live in
+<code class="language-plaintext highlighter-rouge">DriveConstants</code> and are tunable via
+<a href="/utilities/get-tuned/"><code class="language-plaintext highlighter-rouge">GetTuned</code></a>.</p>
+
+<h2 id="driver-control">Driver control</h2>
+
+<p><code class="language-plaintext highlighter-rouge">DriveCommands.joystickDrive(Drive, …)</code> is the standard binding:</p>
+
+<ul>
+  <li>Left stick → translation, scaled to max velocity.</li>
+  <li>Right stick → rotation (or held heading in <code class="language-plaintext highlighter-rouge">TRAVERSING_AT_ANGLE</code>).</li>
+  <li>A deadband + cubed response is applied for fine control.</li>
+</ul>
+
+<p>When the driver releases the sticks, the modules <strong>brake-park</strong> (X
+pattern) — implemented by holding <code class="language-plaintext highlighter-rouge">IDLE</code> and requesting an X module
+state.</p>
+
+<h2 id="public-api-selected">Public API (selected)</h2>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">Pose2d</span> <span class="nf">getPose</span><span class="o">();</span>
+<span class="kt">void</span>   <span class="nf">setPose</span><span class="o">(</span><span class="nc">Pose2d</span> <span class="n">pose</span><span class="o">);</span>                            <span class="c1">// teleport — usually only auto init</span>
+<span class="kt">void</span>   <span class="nf">addVisionMeasurement</span><span class="o">(</span><span class="nc">Pose2d</span><span class="o">,</span> <span class="kt">double</span> <span class="n">t</span><span class="o">,</span> <span class="nc">Matrix</span><span class="o">);</span>  <span class="c1">// from VisionSubsystem</span>
+<span class="kt">void</span>   <span class="nf">runSetpoint</span><span class="o">(</span><span class="nc">ChassisSpeeds</span> <span class="n">speeds</span><span class="o">);</span>               <span class="c1">// field-relative</span>
+<span class="kt">void</span>   <span class="nf">runCharacterization</span><span class="o">(</span><span class="kt">double</span> <span class="n">volts</span><span class="o">);</span>               <span class="c1">// for SysId</span>
+<span class="nc">Rotation2d</span> <span class="nf">getAimRotationForHub</span><span class="o">();</span>                      <span class="c1">// shortest-path heading toward hub</span>
+<span class="nc">Field2d</span> <span class="nf">getField</span><span class="o">();</span>                                     <span class="c1">// for Shuffleboard</span>
+</code></pre></div></div>
+
+<h2 id="characterization">Characterization</h2>
+
+<p><code class="language-plaintext highlighter-rouge">DriveCommands</code> exposes:</p>
+
+<ul>
+  <li><strong>Wheel-radius characterization</strong> — spins the robot in place and
+computes the effective wheel radius from gyro vs. odometry.</li>
+  <li><strong>Feedforward characterization</strong> — sweeps voltage and records
+velocity to fit <code class="language-plaintext highlighter-rouge">kS</code>, <code class="language-plaintext highlighter-rouge">kV</code>, <code class="language-plaintext highlighter-rouge">kA</code>.</li>
+  <li><strong>SysId routines</strong> — quasistatic and dynamic, forward and reverse.</li>
+</ul>
+
+<p>Run via dashboard chooser entries; outputs land in AdvantageKit logs
+for offline analysis.</p>
+
+<h2 id="tuning-knobs">Tuning knobs</h2>
+
+<p>Every PID gain and tolerance is wrapped in
+<a href="/utilities/get-tuned/"><code class="language-plaintext highlighter-rouge">GetTuned</code></a>. The most
+common to touch:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">Drive/Module/Drive/kP</code>, <code class="language-plaintext highlighter-rouge">kI</code>, <code class="language-plaintext highlighter-rouge">kD</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Drive/Module/Turn/kP</code>, <code class="language-plaintext highlighter-rouge">kI</code>, <code class="language-plaintext highlighter-rouge">kD</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Drive/HeadingController/kP</code>, <code class="language-plaintext highlighter-rouge">kI</code>, <code class="language-plaintext highlighter-rouge">kD</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Drive/MaxLinearSpeed</code>, <code class="language-plaintext highlighter-rouge">Drive/MaxAngularSpeed</code></li>
+</ul>
+
+<h2 id="common-pitfalls">Common pitfalls</h2>
+
+<ul>
+  <li><strong><code class="language-plaintext highlighter-rouge">UNDETERMINED</code> forever.</strong> Means odometry never delivered a valid
+sample. Usually a CANcoder offset issue — verify the offsets in
+<code class="language-plaintext highlighter-rouge">DriveConstants</code> against the values in the Spark client.</li>
+  <li><strong>Wheels skip in autos.</strong> Reduce <code class="language-plaintext highlighter-rouge">Drive/Module/Drive/kP</code> or lower
+the auto’s max acceleration.</li>
+  <li><strong>Vision fusion overpowers odometry.</strong> Increase the vision standard
+deviation factors in
+<a href="https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/subsystems/vision/VisionConstants.java"><code class="language-plaintext highlighter-rouge">VisionConstants</code></a>.</li>
+</ul>
+
+        </div>
+
+        <footer class="article-footer">
+          <hr />
+          <p class="muted">
+            FRC Team 3748 · Robot code for the 2026 season · Built with
+            <a href="https://github.com/wpilibsuite/allwpilib">WPILib</a> and
+            <a href="https://github.com/Mechanical-Advantage/AdvantageKit">AdvantageKit</a>.
+          </p>
+        </footer>
+      </article>
+
+      <aside class="toc-rail" id="toc"></aside>
+    </main>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>

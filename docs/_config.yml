@@ -1,0 +1,43 @@
+title: "Rebuilt 2026"
+description: "FRC 3748 — 2026 robot code documentation"
+baseurl: ""
+url: ""
+
+markdown: kramdown
+highlighter: rouge
+kramdown:
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    css_class: "highlight"
+    span:
+      line_numbers: false
+    block:
+      line_numbers: false
+
+permalink: pretty
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: "default"
+
+collections:
+  subsystems:
+    output: true
+    permalink: /subsystems/:name/
+  commands:
+    output: true
+    permalink: /commands/:name/
+  utilities:
+    output: true
+    permalink: /utilities/:name/
+  architecture:
+    output: true
+    permalink: /architecture/:name/
+
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - vendor/

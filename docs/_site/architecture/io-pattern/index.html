@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The IO Layer Pattern · Rebuilt 2026</title>
+  <meta name="description" content="Every subsystem talks to hardware through an interface. Here is why, and how it is structured." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/assets/css/style.css" />
+  <link rel="stylesheet" href="/assets/css/syntax.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <button class="hamburger" id="sidebar-toggle" aria-label="Toggle navigation">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <a class="brand" href="/">
+        <span class="brand-mark">⚙</span>
+        <span class="brand-text">Rebuilt <span class="brand-year">2026</span></span>
+      </a>
+      <nav class="topbar-nav">
+        <a href="/getting-started/">Tutorials</a>
+        <a href="/architecture/robot-lifecycle/">Architecture</a>
+        <a href="/subsystems/drive/">Subsystems</a>
+        <a href="/reference/glossary/">Reference</a>
+      </nav>
+      <div class="topbar-actions">
+        <button id="theme-toggle" class="icon-button" aria-label="Toggle theme" title="Toggle theme">
+          <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <a class="github-link icon-button" href="https://github.com/frc3748/rebuilt2026" target="_blank" rel="noopener" aria-label="GitHub">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.3 1.9 1.3 1.1 1.9 2.9 1.4 3.6 1 .1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.7-5.5 6 .4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-inner">
+        <div class="search-box">
+          <input type="search" id="nav-search" placeholder="Filter pages…" aria-label="Filter pages" />
+        </div>
+        <nav class="sidebar-nav">
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Welcome</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/"
+                   class="nav-link">
+                  Introduction
+                </a>
+              </li>
+              
+              <li>
+                <a href="/getting-started/"
+                   class="nav-link">
+                  Getting Started
+                </a>
+              </li>
+              
+              <li>
+                <a href="/project-layout/"
+                   class="nav-link">
+                  Project Layout
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Architecture</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/architecture/robot-lifecycle/"
+                   class="nav-link">
+                  Robot Lifecycle
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/io-pattern/"
+                   class="nav-link active">
+                  The IO Layer Pattern
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/state-machines/"
+                   class="nav-link">
+                  State Machines
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/subsystem-manager/"
+                   class="nav-link">
+                  Subsystem Manager
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/logging/"
+                   class="nav-link">
+                  Logging & Telemetry
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/robot-state/"
+                   class="nav-link">
+                  RobotState
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Subsystems</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/subsystems/drive/"
+                   class="nav-link">
+                  Drive
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/vision/"
+                   class="nav-link">
+                  Vision
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/shooter/"
+                   class="nav-link">
+                  Shooter
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/intake/"
+                   class="nav-link">
+                  Intake
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/hopper/"
+                   class="nav-link">
+                  Hopper
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/kicker/"
+                   class="nav-link">
+                  Kicker
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/climb/"
+                   class="nav-link">
+                  Climb
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Commands</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/commands/action-commands/"
+                   class="nav-link">
+                  Action Commands
+                </a>
+              </li>
+              
+              <li>
+                <a href="/commands/drive-commands/"
+                   class="nav-link">
+                  Drive Commands
+                </a>
+              </li>
+              
+              <li>
+                <a href="/commands/auto-commands/"
+                   class="nav-link">
+                  Auto Commands
+                </a>
+              </li>
+              
+              <li>
+                <a href="/commands/auto-align/"
+                   class="nav-link">
+                  AutoAlign
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Utilities</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/utilities/geometry-math/"
+                   class="nav-link">
+                  Geometry & Math
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/get-tuned/"
+                   class="nav-link">
+                  Tuning (GetTuned)
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/time-buffers/"
+                   class="nav-link">
+                  Time Buffers
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/shooter-setpoint/"
+                   class="nav-link">
+                  Shooter Setpoint
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/turret-calculator/"
+                   class="nav-link">
+                  Turret Calculator
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/path-generation/"
+                   class="nav-link">
+                  Path Generation
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/simulation/"
+                   class="nav-link">
+                  Simulation
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/elastic/"
+                   class="nav-link">
+                  Driver Feedback (Elastic)
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Reference</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/reference/vendor-deps/"
+                   class="nav-link">
+                  Vendor Dependencies
+                </a>
+              </li>
+              
+              <li>
+                <a href="/reference/can-ids/"
+                   class="nav-link">
+                  CAN ID Map
+                </a>
+              </li>
+              
+              <li>
+                <a href="/reference/field-constants/"
+                   class="nav-link">
+                  Field Constants
+                </a>
+              </li>
+              
+              <li>
+                <a href="/reference/glossary/"
+                   class="nav-link">
+                  Glossary
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+        </nav>
+      </div>
+    </aside>
+
+    <main class="content" id="main">
+      <article class="article">
+        
+        <header class="article-header">
+          <div class="eyebrow">Architecture</div>
+          <h1>The IO Layer Pattern</h1>
+          <p class="lede">Every subsystem talks to hardware through an interface. Here is why, and how it is structured.</p>
+        </header>
+        
+
+        <div class="article-body">
+          <p>The codebase follows the <strong>AdvantageKit IO pattern</strong>: every subsystem
+sees hardware through an <em>interface</em>, not a concrete implementation.</p>
+
+<h2 id="the-three-layers">The three layers</h2>
+
+<p>For any mechanism — call it <code class="language-plaintext highlighter-rouge">Foo</code> — you will see three files:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>File</th>
+      <th>What it is</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">FooIO.java</code></td>
+      <td>An <strong>interface</strong> declaring <code class="language-plaintext highlighter-rouge">updateInputs()</code> and any setters. Contains an <code class="language-plaintext highlighter-rouge">@AutoLog</code>-annotated <code class="language-plaintext highlighter-rouge">Inputs</code> inner class.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">FooIOSpark.java</code></td>
+      <td>A <strong>real-hardware implementation</strong> that talks to actual motors and sensors.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">FooIOSim.java</code></td>
+      <td>A <strong>simulation implementation</strong> that runs physics in software.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>The subsystem class (<code class="language-plaintext highlighter-rouge">Foo.java</code>) holds a reference of type <code class="language-plaintext highlighter-rouge">FooIO</code> — it
+neither knows nor cares which concrete class is on the other side.</p>
+
+<h2 id="a-concrete-example-flywheelio">A concrete example: <code class="language-plaintext highlighter-rouge">FlywheelIO</code></h2>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">FlywheelIO</span> <span class="o">{</span>
+  <span class="nd">@AutoLog</span>
+  <span class="kd">class</span> <span class="nc">FlywheelIOInputs</span> <span class="o">{</span>
+    <span class="kd">public</span> <span class="kt">double</span> <span class="n">velocityRPS</span> <span class="o">=</span> <span class="mf">0.0</span><span class="o">;</span>
+    <span class="kd">public</span> <span class="kt">double</span> <span class="n">appliedVolts</span> <span class="o">=</span> <span class="mf">0.0</span><span class="o">;</span>
+    <span class="kd">public</span> <span class="kt">double</span> <span class="n">currentAmps</span> <span class="o">=</span> <span class="mf">0.0</span><span class="o">;</span>
+    <span class="kd">public</span> <span class="kt">double</span> <span class="n">temperatureCelsius</span> <span class="o">=</span> <span class="mf">0.0</span><span class="o">;</span>
+  <span class="o">}</span>
+
+  <span class="k">default</span> <span class="kt">void</span> <span class="nf">updateInputs</span><span class="o">(</span><span class="nc">FlywheelIOInputs</span> <span class="n">inputs</span><span class="o">)</span> <span class="o">{}</span>
+  <span class="k">default</span> <span class="kt">void</span> <span class="nf">setVelocity</span><span class="o">(</span><span class="kt">double</span> <span class="n">rps</span><span class="o">,</span> <span class="kt">double</span> <span class="n">ff</span><span class="o">)</span> <span class="o">{}</span>
+  <span class="k">default</span> <span class="kt">void</span> <span class="nf">setVoltage</span><span class="o">(</span><span class="kt">double</span> <span class="n">volts</span><span class="o">)</span> <span class="o">{}</span>
+  <span class="k">default</span> <span class="kt">void</span> <span class="nf">stop</span><span class="o">()</span> <span class="o">{}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>Three things to notice:</p>
+
+<ol>
+  <li><strong><code class="language-plaintext highlighter-rouge">@AutoLog</code> on the inner class.</strong> The annotation processor
+generates <code class="language-plaintext highlighter-rouge">FlywheelIOInputsAutoLogged</code>, which <code class="language-plaintext highlighter-rouge">Logger.processInputs</code>
+knows how to read/write/replay. You never write that class by hand.</li>
+  <li><strong>Every method is <code class="language-plaintext highlighter-rouge">default</code>-empty.</strong> The stub implementation —
+<code class="language-plaintext highlighter-rouge">new FlywheelIO() {}</code> — is a valid no-op, useful in replay mode
+where inputs come from the log file.</li>
+  <li><strong>No leak of vendor types.</strong> Nothing about <code class="language-plaintext highlighter-rouge">SparkMax</code>, <code class="language-plaintext highlighter-rouge">CANcoder</code>,
+<code class="language-plaintext highlighter-rouge">PhotonCamera</code>, or <code class="language-plaintext highlighter-rouge">LimelightHelpers</code> appears here. Replacing the
+motor controller doesn’t change the interface.</li>
+</ol>
+
+<h2 id="how-a-subsystem-uses-its-io">How a subsystem uses its IO</h2>
+
+<p>The pattern inside the subsystem is always the same:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">Flywheel</span> <span class="kd">extends</span> <span class="nc">StateMachine</span><span class="o">&lt;</span><span class="nc">State</span><span class="o">&gt;</span> <span class="o">{</span>
+  <span class="kd">private</span> <span class="kd">final</span> <span class="nc">FlywheelIO</span> <span class="n">io</span><span class="o">;</span>
+  <span class="kd">private</span> <span class="kd">final</span> <span class="nc">FlywheelIOInputsAutoLogged</span> <span class="n">inputs</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">FlywheelIOInputsAutoLogged</span><span class="o">();</span>
+
+  <span class="kd">public</span> <span class="nf">Flywheel</span><span class="o">(</span><span class="nc">FlywheelIO</span> <span class="n">io</span><span class="o">)</span> <span class="o">{</span>
+    <span class="kd">super</span><span class="o">(</span><span class="nc">State</span><span class="o">.</span><span class="na">UNDETERMINED</span><span class="o">,</span> <span class="err">…</span><span class="o">);</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">io</span> <span class="o">=</span> <span class="n">io</span><span class="o">;</span>
+    <span class="n">registerStateCommands</span><span class="o">();</span>
+  <span class="o">}</span>
+
+  <span class="nd">@Override</span>
+  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">update</span><span class="o">()</span> <span class="o">{</span>
+    <span class="n">io</span><span class="o">.</span><span class="na">updateInputs</span><span class="o">(</span><span class="n">inputs</span><span class="o">);</span>
+    <span class="nc">Logger</span><span class="o">.</span><span class="na">processInputs</span><span class="o">(</span><span class="s">"Flywheel"</span><span class="o">,</span> <span class="n">inputs</span><span class="o">);</span>
+    <span class="kd">super</span><span class="o">.</span><span class="na">update</span><span class="o">();</span>  <span class="c1">// run pending transitions, state commands</span>
+  <span class="o">}</span>
+
+  <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">isReady</span><span class="o">()</span> <span class="o">{</span>
+    <span class="k">return</span> <span class="nc">Math</span><span class="o">.</span><span class="na">abs</span><span class="o">(</span><span class="n">inputs</span><span class="o">.</span><span class="na">velocityRPS</span> <span class="o">-</span> <span class="n">setpointRPS</span><span class="o">)</span> <span class="o">&lt;</span> <span class="n">tolerance</span><span class="o">;</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>Two periodic calls do the heavy lifting:</p>
+
+<ul>
+  <li><strong><code class="language-plaintext highlighter-rouge">io.updateInputs(inputs)</code></strong> — read sensors into the inputs object.</li>
+  <li><strong><code class="language-plaintext highlighter-rouge">Logger.processInputs("Flywheel", inputs)</code></strong> — in <strong>live</strong> mode this
+records the inputs to the log; in <strong>replay</strong> mode it overwrites
+<code class="language-plaintext highlighter-rouge">inputs</code> with the values from the log. Either way, downstream code
+reads the same fields.</li>
+</ul>
+
+<h2 id="how-robotstate-chooses-implementations">How <code class="language-plaintext highlighter-rouge">RobotState</code> chooses implementations</h2>
+
+<p>In <code class="language-plaintext highlighter-rouge">RobotState</code>’s constructor:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">shooter</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">Shooter</span><span class="o">(</span>
+  <span class="k">switch</span> <span class="o">(</span><span class="n">robotState</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="mi">1</span> <span class="o">-&gt;</span> <span class="k">new</span> <span class="nc">TurretIOSpark</span><span class="o">();</span>
+    <span class="k">case</span> <span class="mi">2</span> <span class="o">-&gt;</span> <span class="k">new</span> <span class="nc">TurretIOSim</span><span class="o">();</span>
+    <span class="k">default</span> <span class="o">-&gt;</span> <span class="k">new</span> <span class="nc">TurretIO</span><span class="o">()</span> <span class="o">{};</span>
+  <span class="o">},</span>
+  <span class="k">switch</span> <span class="o">(</span><span class="n">robotState</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="mi">1</span> <span class="o">-&gt;</span> <span class="k">new</span> <span class="nc">HoodIOSpark</span><span class="o">();</span>
+    <span class="k">case</span> <span class="mi">2</span> <span class="o">-&gt;</span> <span class="k">new</span> <span class="nc">HoodIOSim</span><span class="o">();</span>
+    <span class="k">default</span> <span class="o">-&gt;</span> <span class="k">new</span> <span class="nc">HoodIO</span><span class="o">()</span> <span class="o">{};</span>
+  <span class="o">},</span>
+  <span class="k">switch</span> <span class="o">(</span><span class="n">robotState</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="mi">1</span> <span class="o">-&gt;</span> <span class="k">new</span> <span class="nc">FlywheelIOSpark</span><span class="o">();</span>
+    <span class="k">case</span> <span class="mi">2</span> <span class="o">-&gt;</span> <span class="k">new</span> <span class="nc">FlywheelIOSim</span><span class="o">();</span>
+    <span class="k">default</span> <span class="o">-&gt;</span> <span class="k">new</span> <span class="nc">FlywheelIO</span><span class="o">()</span> <span class="o">{};</span>
+  <span class="o">}</span>
+<span class="o">);</span>
+</code></pre></div></div>
+
+<ul>
+  <li><strong><code class="language-plaintext highlighter-rouge">robotState == 1</code></strong> — real robot. Use the Spark/Pigeon/Limelight implementations.</li>
+  <li><strong><code class="language-plaintext highlighter-rouge">robotState == 2</code></strong> — simulator. Use the physics-based sim implementations.</li>
+  <li><strong>anything else</strong> — replay. Use the empty default; <code class="language-plaintext highlighter-rouge">Logger.processInputs</code> will populate from the log.</li>
+</ul>
+
+<h2 id="why-this-pattern-is-worth-the-file-count">Why this pattern is worth the file count</h2>
+
+<p>It costs three files per subsystem instead of one. In return:</p>
+
+<ul>
+  <li><strong>Replay-driven debugging.</strong> Hit a weird bug at competition? Pull the
+WPILog off the USB drive, replay it locally, set breakpoints anywhere
+in the state-machine logic. The IO returns exactly the values it
+returned on the field.</li>
+  <li><strong>Sim parity.</strong> Adding a new mechanism means writing a sim
+implementation too. That sounds like work, but it forces you to
+understand the physics — and now everyone can develop without a
+robot on the bench.</li>
+  <li><strong>Vendor isolation.</strong> When CTRE renames an API or REV ships a
+breaking driver update, the blast radius is one file.</li>
+  <li><strong>Unit testability.</strong> You can construct a subsystem with a mock IO
+and a JUnit test — no WPILib HAL required.</li>
+</ul>
+
+<h2 id="when-to-write-each-implementation">When to write each implementation</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Mode</th>
+      <th>When you need to update which IO</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Adding a sensor</td>
+      <td>Add a field to the <code class="language-plaintext highlighter-rouge">Inputs</code> class. Populate it in Spark + Sim. The default is <code class="language-plaintext highlighter-rouge">0.0</code>, which the replay default also returns.</td>
+    </tr>
+    <tr>
+      <td>Adding a setter</td>
+      <td>Add to the interface as a <code class="language-plaintext highlighter-rouge">default</code> empty method. Override in Spark; usually no-op in Sim unless you need it for physics.</td>
+    </tr>
+    <tr>
+      <td>New mechanism</td>
+      <td>Three files: interface, Spark impl, Sim impl. Then a <code class="language-plaintext highlighter-rouge">Constants</code> file. Then the subsystem class.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="caveats">Caveats</h2>
+
+<ul>
+  <li><strong>Default-empty stub means silent failure.</strong> If you forget to override
+a setter in <code class="language-plaintext highlighter-rouge">FlywheelIOSpark</code>, the motor will just sit there. There’s
+no compile-time check. Convention is to wire every interface method
+in the real impl even if it’s a TODO.</li>
+  <li><strong>AutoLog doesn’t see private fields.</strong> Inputs fields must be
+<code class="language-plaintext highlighter-rouge">public</code> for the annotation processor to find them.</li>
+  <li><strong><code class="language-plaintext highlighter-rouge">@AutoLog</code> only works for primitives + a few WPILib types</strong>
+(<code class="language-plaintext highlighter-rouge">Pose2d</code>, <code class="language-plaintext highlighter-rouge">Translation2d</code>, <code class="language-plaintext highlighter-rouge">Rotation2d</code>, arrays of those, …). For
+custom types you have to log manually with <code class="language-plaintext highlighter-rouge">Logger.recordOutput</code>.</li>
+</ul>
+
+        </div>
+
+        <footer class="article-footer">
+          <hr />
+          <p class="muted">
+            FRC Team 3748 · Robot code for the 2026 season · Built with
+            <a href="https://github.com/wpilibsuite/allwpilib">WPILib</a> and
+            <a href="https://github.com/Mechanical-Advantage/AdvantageKit">AdvantageKit</a>.
+          </p>
+        </footer>
+      </article>
+
+      <aside class="toc-rail" id="toc"></aside>
+    </main>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>

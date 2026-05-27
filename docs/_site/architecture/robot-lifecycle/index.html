@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Robot Lifecycle · Rebuilt 2026</title>
+  <meta name="description" content="How Main, Robot, and RobotState collaborate to start, run, and shut down the robot." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/assets/css/style.css" />
+  <link rel="stylesheet" href="/assets/css/syntax.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <button class="hamburger" id="sidebar-toggle" aria-label="Toggle navigation">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <a class="brand" href="/">
+        <span class="brand-mark">⚙</span>
+        <span class="brand-text">Rebuilt <span class="brand-year">2026</span></span>
+      </a>
+      <nav class="topbar-nav">
+        <a href="/getting-started/">Tutorials</a>
+        <a href="/architecture/robot-lifecycle/">Architecture</a>
+        <a href="/subsystems/drive/">Subsystems</a>
+        <a href="/reference/glossary/">Reference</a>
+      </nav>
+      <div class="topbar-actions">
+        <button id="theme-toggle" class="icon-button" aria-label="Toggle theme" title="Toggle theme">
+          <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <a class="github-link icon-button" href="https://github.com/frc3748/rebuilt2026" target="_blank" rel="noopener" aria-label="GitHub">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.3 1.9 1.3 1.1 1.9 2.9 1.4 3.6 1 .1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.7-5.5 6 .4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-inner">
+        <div class="search-box">
+          <input type="search" id="nav-search" placeholder="Filter pages…" aria-label="Filter pages" />
+        </div>
+        <nav class="sidebar-nav">
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Welcome</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/"
+                   class="nav-link">
+                  Introduction
+                </a>
+              </li>
+              
+              <li>
+                <a href="/getting-started/"
+                   class="nav-link">
+                  Getting Started
+                </a>
+              </li>
+              
+              <li>
+                <a href="/project-layout/"
+                   class="nav-link">
+                  Project Layout
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Architecture</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/architecture/robot-lifecycle/"
+                   class="nav-link active">
+                  Robot Lifecycle
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/io-pattern/"
+                   class="nav-link">
+                  The IO Layer Pattern
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/state-machines/"
+                   class="nav-link">
+                  State Machines
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/subsystem-manager/"
+                   class="nav-link">
+                  Subsystem Manager
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/logging/"
+                   class="nav-link">
+                  Logging & Telemetry
+                </a>
+              </li>
+              
+              <li>
+                <a href="/architecture/robot-state/"
+                   class="nav-link">
+                  RobotState
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Subsystems</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/subsystems/drive/"
+                   class="nav-link">
+                  Drive
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/vision/"
+                   class="nav-link">
+                  Vision
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/shooter/"
+                   class="nav-link">
+                  Shooter
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/intake/"
+                   class="nav-link">
+                  Intake
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/hopper/"
+                   class="nav-link">
+                  Hopper
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/kicker/"
+                   class="nav-link">
+                  Kicker
+                </a>
+              </li>
+              
+              <li>
+                <a href="/subsystems/climb/"
+                   class="nav-link">
+                  Climb
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Commands</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/commands/action-commands/"
+                   class="nav-link">
+                  Action Commands
+                </a>
+              </li>
+              
+              <li>
+                <a href="/commands/drive-commands/"
+                   class="nav-link">
+                  Drive Commands
+                </a>
+              </li>
+              
+              <li>
+                <a href="/commands/auto-commands/"
+                   class="nav-link">
+                  Auto Commands
+                </a>
+              </li>
+              
+              <li>
+                <a href="/commands/auto-align/"
+                   class="nav-link">
+                  AutoAlign
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Utilities</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/utilities/geometry-math/"
+                   class="nav-link">
+                  Geometry & Math
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/get-tuned/"
+                   class="nav-link">
+                  Tuning (GetTuned)
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/time-buffers/"
+                   class="nav-link">
+                  Time Buffers
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/shooter-setpoint/"
+                   class="nav-link">
+                  Shooter Setpoint
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/turret-calculator/"
+                   class="nav-link">
+                  Turret Calculator
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/path-generation/"
+                   class="nav-link">
+                  Path Generation
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/simulation/"
+                   class="nav-link">
+                  Simulation
+                </a>
+              </li>
+              
+              <li>
+                <a href="/utilities/elastic/"
+                   class="nav-link">
+                  Driver Feedback (Elastic)
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+          <div class="nav-section">
+            <h4 class="nav-heading">Reference</h4>
+            <ul class="nav-list">
+              
+              <li>
+                <a href="/reference/vendor-deps/"
+                   class="nav-link">
+                  Vendor Dependencies
+                </a>
+              </li>
+              
+              <li>
+                <a href="/reference/can-ids/"
+                   class="nav-link">
+                  CAN ID Map
+                </a>
+              </li>
+              
+              <li>
+                <a href="/reference/field-constants/"
+                   class="nav-link">
+                  Field Constants
+                </a>
+              </li>
+              
+              <li>
+                <a href="/reference/glossary/"
+                   class="nav-link">
+                  Glossary
+                </a>
+              </li>
+              
+            </ul>
+          </div>
+          
+        </nav>
+      </div>
+    </aside>
+
+    <main class="content" id="main">
+      <article class="article">
+        
+        <header class="article-header">
+          <div class="eyebrow">Architecture</div>
+          <h1>Robot Lifecycle</h1>
+          <p class="lede">How Main, Robot, and RobotState collaborate to start, run, and shut down the robot.</p>
+        </header>
+        
+
+        <div class="article-body">
+          <p>The lifecycle splits across three files:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>File</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/Main.java"><code class="language-plaintext highlighter-rouge">Main.java</code></a></td>
+      <td>JVM entry point — a one-liner.</td>
+    </tr>
+    <tr>
+      <td><a href="https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/Robot.java"><code class="language-plaintext highlighter-rouge">Robot.java</code></a></td>
+      <td>Extends <code class="language-plaintext highlighter-rouge">LoggedRobot</code>. Owns the logger and the lifecycle hooks.</td>
+    </tr>
+    <tr>
+      <td><a href="https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/RobotState.java"><code class="language-plaintext highlighter-rouge">RobotState.java</code></a></td>
+      <td>Owns every subsystem. Wires controller bindings.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="main--the-entry-point"><code class="language-plaintext highlighter-rouge">Main</code> — the entry point</h2>
+
+<p><code class="language-plaintext highlighter-rouge">Main.main(String[])</code> does exactly one thing:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="nc">String</span><span class="o">...</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
+  <span class="nc">RobotBase</span><span class="o">.</span><span class="na">startRobot</span><span class="o">(</span><span class="nl">Robot:</span><span class="o">:</span><span class="k">new</span><span class="o">);</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>WPILib takes over from here. It instantiates a <code class="language-plaintext highlighter-rouge">Robot</code>, calls
+<code class="language-plaintext highlighter-rouge">robotInit()</code>, then drives the periodic loop at ~50 Hz.</p>
+
+<h2 id="robot--logging-and-hooks"><code class="language-plaintext highlighter-rouge">Robot</code> — logging and hooks</h2>
+
+<p><code class="language-plaintext highlighter-rouge">Robot</code> extends <code class="language-plaintext highlighter-rouge">LoggedRobot</code> rather than <code class="language-plaintext highlighter-rouge">TimedRobot</code>. That’s the
+AdvantageKit subclass that wraps the loop with input recording.</p>
+
+<p>The constructor:</p>
+
+<ol>
+  <li>Configures the AdvantageKit <code class="language-plaintext highlighter-rouge">Logger</code> with <code class="language-plaintext highlighter-rouge">WPILOGWriter</code> (writes to USB on the roboRIO) and <code class="language-plaintext highlighter-rouge">NT4Publisher</code> (streams to AdvantageScope).</li>
+  <li>Disables REV’s built-in auto-logging to avoid double-recording.</li>
+  <li>Constructs the <a href="/architecture/robot-state/"><code class="language-plaintext highlighter-rouge">RobotState</code></a> singleton.</li>
+</ol>
+
+<p>Each periodic hook is a one-liner that delegates:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@Override</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">robotPeriodic</span><span class="o">()</span> <span class="o">{</span> <span class="nc">CommandScheduler</span><span class="o">.</span><span class="na">getInstance</span><span class="o">().</span><span class="na">run</span><span class="o">();</span> <span class="o">}</span>
+<span class="nd">@Override</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">autonomousInit</span><span class="o">()</span> <span class="o">{</span> <span class="nc">SubsystemManagerFactory</span><span class="o">.</span><span class="na">getInstance</span><span class="o">().</span><span class="na">notifyAutonomousStart</span><span class="o">();</span> <span class="o">}</span>
+<span class="nd">@Override</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">teleopInit</span><span class="o">()</span>     <span class="o">{</span> <span class="nc">SubsystemManagerFactory</span><span class="o">.</span><span class="na">getInstance</span><span class="o">().</span><span class="na">notifyTeleopStart</span><span class="o">();</span> <span class="o">}</span>
+<span class="nd">@Override</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">disabledInit</span><span class="o">()</span>   <span class="o">{</span> <span class="nc">SubsystemManagerFactory</span><span class="o">.</span><span class="na">getInstance</span><span class="o">().</span><span class="na">disableAllSubsystems</span><span class="o">();</span> <span class="o">}</span>
+</code></pre></div></div>
+
+<p>The pattern: <strong><code class="language-plaintext highlighter-rouge">Robot</code> doesn’t make decisions, it announces transitions</strong>.
+The <a href="/architecture/subsystem-manager/"><code class="language-plaintext highlighter-rouge">SubsystemManager</code></a>
+broadcasts each announcement to every registered subsystem, and each
+subsystem decides what to do.</p>
+
+<h2 id="robotstate--wiring"><code class="language-plaintext highlighter-rouge">RobotState</code> — wiring</h2>
+
+<p><code class="language-plaintext highlighter-rouge">RobotState</code> is constructed once, from <code class="language-plaintext highlighter-rouge">Robot</code>’s constructor. It does
+five things:</p>
+
+<h3 id="1-choose-io-implementations">1. Choose IO implementations</h3>
+
+<p>A single <code class="language-plaintext highlighter-rouge">robotState</code> field — <code class="language-plaintext highlighter-rouge">1</code> for real hardware, <code class="language-plaintext highlighter-rouge">2</code> for sim,
+anything else for replay — decides which IO subclass each subsystem
+gets:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">switch</span> <span class="o">(</span><span class="n">robotState</span><span class="o">)</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="mi">1</span> <span class="o">-&gt;</span> <span class="k">new</span> <span class="nc">Drive</span><span class="o">(</span><span class="k">new</span> <span class="nc">GyroIOPigeon2</span><span class="o">(),</span> <span class="k">new</span> <span class="nc">ModuleIOSpark</span><span class="o">(</span><span class="mi">0</span><span class="o">),</span> <span class="k">new</span> <span class="nc">ModuleIOSpark</span><span class="o">(</span><span class="mi">1</span><span class="o">),</span> <span class="err">…</span><span class="o">);</span>
+  <span class="k">case</span> <span class="mi">2</span> <span class="o">-&gt;</span> <span class="k">new</span> <span class="nc">Drive</span><span class="o">(</span><span class="k">new</span> <span class="nc">GyroIO</span><span class="o">(){},</span>      <span class="k">new</span> <span class="nc">ModuleIOSim</span><span class="o">(),</span>    <span class="k">new</span> <span class="nc">ModuleIOSim</span><span class="o">(),</span>    <span class="err">…</span><span class="o">);</span>
+  <span class="k">default</span> <span class="o">-&gt;</span> <span class="k">new</span> <span class="nc">Drive</span><span class="o">(</span><span class="k">new</span> <span class="nc">GyroIO</span><span class="o">(){},</span>     <span class="k">new</span> <span class="nc">ModuleIO</span><span class="o">(){},</span>     <span class="k">new</span> <span class="nc">ModuleIO</span><span class="o">(){},</span>     <span class="err">…</span><span class="o">);</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>See <a href="/architecture/io-pattern/">The IO Layer Pattern</a> for the full story.</p>
+
+<h3 id="2-register-subsystems">2. Register subsystems</h3>
+
+<p>Every subsystem registers itself with the <a href="/architecture/subsystem-manager/"><code class="language-plaintext highlighter-rouge">SubsystemManager</code></a>
+in its constructor. After <code class="language-plaintext highlighter-rouge">RobotState</code>’s constructor returns, the
+manager knows about all of them.</p>
+
+<h3 id="3-bind-controllers">3. Bind controllers</h3>
+
+<p>Driver and operator Xbox controllers get bound to subsystem transition
+requests:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">controller</span><span class="o">.</span><span class="na">a</span><span class="o">().</span><span class="na">onTrue</span><span class="o">(</span><span class="n">shooter</span><span class="o">.</span><span class="na">transitionCommand</span><span class="o">(</span><span class="nc">Shooter</span><span class="o">.</span><span class="na">State</span><span class="o">.</span><span class="na">HUB_TRACKING</span><span class="o">));</span>
+<span class="n">controller</span><span class="o">.</span><span class="na">b</span><span class="o">().</span><span class="na">onTrue</span><span class="o">(</span><span class="n">shooter</span><span class="o">.</span><span class="na">transitionCommand</span><span class="o">(</span><span class="nc">Shooter</span><span class="o">.</span><span class="na">State</span><span class="o">.</span><span class="na">IDLE</span><span class="o">));</span>
+</code></pre></div></div>
+
+<p>Notice there are no <code class="language-plaintext highlighter-rouge">runOnce(() -&gt; motor.set(...))</code> calls. Driver intent
+is <em>always</em> expressed as a state-machine request.</p>
+
+<h3 id="4-populate-the-auto-chooser">4. Populate the auto chooser</h3>
+
+<p>A <code class="language-plaintext highlighter-rouge">LoggedDashboardChooser&lt;Command&gt;</code> is filled from
+<a href="/commands/auto-commands/"><code class="language-plaintext highlighter-rouge">AutoCommands</code></a>. The
+selected command runs in <code class="language-plaintext highlighter-rouge">autonomousInit()</code>.</p>
+
+<h3 id="5-hold-the-kinematic-buffers">5. Hold the kinematic buffers</h3>
+
+<p><code class="language-plaintext highlighter-rouge">RobotState</code> maintains
+<a href="/utilities/time-buffers/"><code class="language-plaintext highlighter-rouge">ConcurrentTimeInterpolatableBuffer</code></a>
+instances for pose, turret angle, and drive velocity history. These
+buffers let the shooter aim at where the target <em>was</em> when a vision
+frame was taken, not where the camera currently points.</p>
+
+<h2 id="the-20-ms-loop-end-to-end">The 20 ms loop, end to end</h2>
+
+<p>For one tick of <code class="language-plaintext highlighter-rouge">robotPeriodic</code>:</p>
+
+<ol>
+  <li><strong>CommandScheduler</strong> runs.</li>
+  <li>Each registered subsystem’s <code class="language-plaintext highlighter-rouge">periodic()</code> is called.
+    <ol>
+      <li>The IO reads inputs (<code class="language-plaintext highlighter-rouge">io.updateInputs(inputs)</code>).</li>
+      <li><code class="language-plaintext highlighter-rouge">Logger.processInputs(prefix, inputs)</code> records them (and replaces them with logged values in replay mode).</li>
+      <li>The state machine processes pending transitions and runs the current state’s command.</li>
+    </ol>
+  </li>
+  <li>Outputs from any state-machine action propagate back to motors via the IO.</li>
+  <li>The logger flushes the frame.</li>
+</ol>
+
+<p>The whole loop is deterministic and replayable — point AdvantageScope
+at a <code class="language-plaintext highlighter-rouge">wpilog</code> file and you can step through it.</p>
+
+        </div>
+
+        <footer class="article-footer">
+          <hr />
+          <p class="muted">
+            FRC Team 3748 · Robot code for the 2026 season · Built with
+            <a href="https://github.com/wpilibsuite/allwpilib">WPILib</a> and
+            <a href="https://github.com/Mechanical-Advantage/AdvantageKit">AdvantageKit</a>.
+          </p>
+        </footer>
+      </article>
+
+      <aside class="toc-rail" id="toc"></aside>
+    </main>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>
