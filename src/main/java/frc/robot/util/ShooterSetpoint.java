@@ -24,8 +24,8 @@ public class ShooterSetpoint {
 
     private double shooterRPS;
     private double shooterStage1RPS = 14.4;
-    private double turretRadiansFromCenter;
-    private double turretFF;
+    private double turretRadiansFromCenter = 0;
+    private double turretFF = 0;
     private double hoodRadians;
     private double hoodFF;
     private double height;
@@ -62,39 +62,30 @@ public class ShooterSetpoint {
     private static ShooterSetpoint makeSetpoint(RobotState robotState, Rotation2d turretAngle,
             Translation3d turretTarget, double pitchAngleRads, double launchSpeedMetersPerSec) {
 
-        // Compute turret feedforward (retain old logic if desired)
         ChassisSpeeds robotSpeeds = robotState.getLatestMeasuredFieldRelativeChassisSpeeds();
         double distanceToTarget = Math.hypot(turretTarget.getX(), turretTarget.getY());
-        double turretFF = -(robotSpeeds.omegaRadiansPerSecond
-                + (robotSpeeds.vyMetersPerSecond * turretTarget.getY()) / distanceToTarget);
         double hoodFF = -robotSpeeds.vxMetersPerSecond * turretTarget.getZ() /
                 (distanceToTarget * distanceToTarget + turretTarget.getZ() * turretTarget.getZ());
 
-        // Compute shooter RPS
         double shooterRPS = launchSpeedMetersPerSec;
         if (overrideRPS.isPresent())
             shooterRPS = overrideRPS.get();
         boolean validSetpoint = true;
 
         return new ShooterSetpoint(shooterRPS,
-                turretAngle.getRadians(),
-                turretFF,
+                0,
+                0,
                 pitchAngleRads,
                 hoodFF,
                 turretTarget.getZ(),
                 validSetpoint);
     }
 
-    /**
-     * Uses the new TurretCalculator to generate a shooter setpoint for a moving
-     * target.
-     */
     private static ShooterSetpoint fromTarget(Translation3d target, RobotState robotState,
             boolean useMovingPrediction) {
         Pose2d robotPose = robotState.getLatestFieldToRobot().getValue();
         ChassisSpeeds robotSpeeds = robotState.getLatestMeasuredFieldRelativeChassisSpeeds();
 
-        // Calculate shot
         TurretCalculator.ShotData shot;
         if (useMovingPrediction) {
             if (RobotState.robotState == 1) {
@@ -110,7 +101,6 @@ public class ShooterSetpoint {
         double hoodAngle = shot.getHoodAngle().in(Radians);
         Translation3d predictedTarget = shot.getTarget();
 
-        // Compute turret angle
         Rotation2d turretAngle = Rotation2d.fromRadians(
                 TurretCalculator.calculateAzimuthAngle(robotState, robotPose, predictedTarget,
                         Radians.of(0.0)).in(Radians));
@@ -118,7 +108,6 @@ public class ShooterSetpoint {
         return makeSetpoint(robotState, turretAngle, predictedTarget, hoodAngle, launchSpeed);
     }
 
-    // Public suppliers
     public static Supplier<ShooterSetpoint> passSetpointSupplier(RobotState robotState) {
         return () -> fromTarget(PassTargetFactory.generate(robotState), robotState, true);
     }
@@ -159,8 +148,8 @@ public class ShooterSetpoint {
         SetpointLogAutoLogged log = new SetpointLogAutoLogged();
         log.height = setpoint.getHeight();
         log.shooterRPS = setpoint.getShooterRPS();
-        log.turretRadiansFromCenter = setpoint.getTurretRadiansFromCenter();
-        log.turretFF = setpoint.getTurretFF();
+        log.turretRadiansFromCenter = 0;
+        log.turretFF = 0;
         log.hoodRadians = setpoint.getHoodRadians();
         log.hoodFF = setpoint.getHoodFF();
         log.isValid = setpoint.isValid;

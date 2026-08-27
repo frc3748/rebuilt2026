@@ -89,9 +89,6 @@ import frc.robot.subsystems.shooter.flywheel.FlywheelIOSpark;
 import frc.robot.subsystems.shooter.hood.HoodIO;
 import frc.robot.subsystems.shooter.hood.HoodIOSim;
 import frc.robot.subsystems.shooter.hood.HoodIOSpark;
-import frc.robot.subsystems.shooter.turret.TurretIO;
-import frc.robot.subsystems.shooter.turret.TurretIOSim;
-import frc.robot.subsystems.shooter.turret.TurretIOSpark;
 import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.subsystems.vision.VisionConstants.Depot;
 import frc.robot.subsystems.vision.VisionFieldPoseEstimate;
@@ -595,16 +592,6 @@ public class RobotState extends StateMachine<RobotState.State> {
 
     public void clearBuffers() {
         fieldToRobot.clear();
-        robotToTurret.clear();
-        turretAngularVelocity.clear();
-        driveYawAngularVelocity.clear();
-        turretPositionRadians.clear();
-
-        fieldToRobot.addSample(0.0, MathHelpers.kPose2dZero);
-        robotToTurret.addSample(0.0, MathHelpers.kRotation2dZero);
-        turretAngularVelocity.addSample(0.0, 0.0);
-        driveYawAngularVelocity.addSample(0.0, 0.0);
-        turretPositionRadians.addSample(0.0, 0.0);
     }
 
     public void resetBuffersToPose(Pose2d pose) {
@@ -778,7 +765,7 @@ public class RobotState extends StateMachine<RobotState.State> {
                     .onFalse(new InstantCommand(() -> {
                         shooter.getFlywheel().setOverride(null);
                         shooter.getHood().setOverride(null);
-                        shooter.getTurret().setOverride(null);
+                        shooter.getDumper().setOverride(null);
                     }));
 
             controller
@@ -832,8 +819,8 @@ public class RobotState extends StateMachine<RobotState.State> {
                                 shooter.getFlywheel().setOverride(null);
                             if (shooter.getHood() != null)
                                 shooter.getHood().setOverride(null);
-                            if (shooter.getTurret() != null)
-                                shooter.getTurret().setOverride(null);
+                            if (shooter.getDumper() != null)
+                                shooter.getDumper().setOverride(null);
                         }
                     }));
 
@@ -854,8 +841,8 @@ public class RobotState extends StateMachine<RobotState.State> {
                                 shooter.getFlywheel().setOverride(null);
                             if (shooter.getHood() != null)
                                 shooter.getHood().setOverride(null);
-                            if (shooter.getTurret() != null)
-                                shooter.getTurret().setOverride(null);
+                            if (shooter.getDumper() != null)
+                                shooter.getDumper().setOverride(null);
                         }
                     }));
 
@@ -880,8 +867,8 @@ public class RobotState extends StateMachine<RobotState.State> {
                             if (shooter.getHood() != null)
                                 shooter.getHood().setOverride((a) -> shooter.getHood().setPos(setpoint.getHoodRadians(),
                                         setpoint.getHoodFF()));
-                            if (shooter.getTurret() != null)
-                                shooter.getTurret().setOverride((a) -> shooter.getTurret()
+                            if (shooter.getDumper() != null)
+                                shooter.getDumper().setOverride((a) -> shooter.getDumper()
                                         .setPos(setpoint.getTurretRadiansFromCenter(), setpoint.getTurretFF()));
                         }
                     }));
@@ -905,8 +892,8 @@ public class RobotState extends StateMachine<RobotState.State> {
                             if (shooter.getHood() != null)
                                 shooter.getHood().setOverride((a) -> shooter.getHood().setPos(setpoint.getHoodRadians(),
                                         setpoint.getHoodFF()));
-                            if (shooter.getTurret() != null)
-                                shooter.getTurret().setOverride((a) -> shooter.getTurret()
+                            if (shooter.getDumper() != null)
+                                shooter.getDumper().setOverride((a) -> shooter.getDumper()
                                         .setPos(setpoint.getTurretRadiansFromCenter(), setpoint.getTurretFF()));
                         }
                     }));
@@ -930,8 +917,8 @@ public class RobotState extends StateMachine<RobotState.State> {
                             if (shooter.getHood() != null)
                                 shooter.getHood().setOverride((a) -> shooter.getHood().setPos(setpoint.getHoodRadians(),
                                         setpoint.getHoodFF()));
-                            if (shooter.getTurret() != null)
-                                shooter.getTurret().setOverride((a) -> shooter.getTurret()
+                            if (shooter.getDumper() != null)
+                                shooter.getDumper().setOverride((a) -> shooter.getDumper()
                                         .setPos(setpoint.getTurretRadiansFromCenter(), setpoint.getTurretFF()));
                         }
                     }));
@@ -955,8 +942,8 @@ public class RobotState extends StateMachine<RobotState.State> {
                             if (shooter.getHood() != null)
                                 shooter.getHood().setOverride((a) -> shooter.getHood().setPos(setpoint.getHoodRadians(),
                                         setpoint.getHoodFF()));
-                            if (shooter.getTurret() != null)
-                                shooter.getTurret().setOverride((a) -> shooter.getTurret()
+                            if (shooter.getDumper() != null)
+                                shooter.getDumper().setOverride((a) -> shooter.getDumper()
                                         .setPos(setpoint.getTurretRadiansFromCenter(), setpoint.getTurretFF()));
                         }
                     }));
@@ -1179,9 +1166,6 @@ public class RobotState extends StateMachine<RobotState.State> {
             return min;
     }
 
-    public Optional<Double> getMaxAbsTurretYawAngularVelocityInRange(double minTime, double maxTime) {
-        return getMaxAbsValueInRange(turretAngularVelocity, minTime, maxTime);
-    }
 
     public Optional<Double> getMaxAbsDriveYawAngularVelocityInRange(double minTime, double maxTime) {
         // Gyro yaw rate not set in sim.
