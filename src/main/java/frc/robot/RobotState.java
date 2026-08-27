@@ -89,6 +89,10 @@ import frc.robot.subsystems.shooter.flywheel.FlywheelIOSpark;
 import frc.robot.subsystems.shooter.hood.HoodIO;
 import frc.robot.subsystems.shooter.hood.HoodIOSim;
 import frc.robot.subsystems.shooter.hood.HoodIOSpark;
+import frc.robot.subsystems.shooter.dumper.DumperConstants;
+import frc.robot.subsystems.shooter.dumper.DumperIO;
+import frc.robot.subsystems.shooter.dumper.DumperIOSim;
+import frc.robot.subsystems.shooter.dumper.DumperIOSpark;
 import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.subsystems.vision.VisionConstants.Depot;
 import frc.robot.subsystems.vision.VisionFieldPoseEstimate;
@@ -110,6 +114,7 @@ import frc.robot.util.ShooterSetpoint;
 import frc.robot.util.SimulatedRobotState;
 import frc.robot.util.TrenchZone;
 import frc.robot.util.state.StateMachine;
+import frc.robot.subsystems.shooter.dumper.Dumper;
 
 public class RobotState extends StateMachine<RobotState.State> {
     public final static int robotState = 1; // real, sim, replay
@@ -142,6 +147,7 @@ public class RobotState extends StateMachine<RobotState.State> {
     private CommandXboxController controller = new CommandXboxController(0);
     private CommandXboxController operatorController = new CommandXboxController(1);
 
+
     private final LoggedDashboardChooser<Command> autoChooser;
 
     private final Consumer<VisionFieldPoseEstimate> visionEstimateConsumer;
@@ -149,11 +155,6 @@ public class RobotState extends StateMachine<RobotState.State> {
     // kinematic frame
     private final ConcurrentTimeInterpolatableBuffer<Pose2d> fieldToRobot = ConcurrentTimeInterpolatableBuffer
             .createBuffer(LOOKBACK_TIME);
-    private final ConcurrentTimeInterpolatableBuffer<Rotation2d> robotToTurret = ConcurrentTimeInterpolatableBuffer
-            .createBuffer(LOOKBACK_TIME);
-    private static final Transform2d TURRET_TO_CAMERA = new Transform2d(VisionConstants.kTurretToCameraX,
-            VisionConstants.kTurretToCameraY,
-            MathHelpers.kRotation2dZero);
 
     // private static final Transform2d ROBOT_TO_CAMERA_B = new
     // Transform2d(VisionConstants.kTurretToCameraBX,
@@ -171,10 +172,6 @@ public class RobotState extends StateMachine<RobotState.State> {
             new ChassisSpeeds());
 
     private double lastUsedMegatagTimestamp = 0;
-    private ConcurrentTimeInterpolatableBuffer<Double> turretAngularVelocity = ConcurrentTimeInterpolatableBuffer
-            .createDoubleBuffer(LOOKBACK_TIME);
-    private ConcurrentTimeInterpolatableBuffer<Double> turretPositionRadians = ConcurrentTimeInterpolatableBuffer
-            .createDoubleBuffer(LOOKBACK_TIME);
     private ConcurrentTimeInterpolatableBuffer<Double> driveYawAngularVelocity = ConcurrentTimeInterpolatableBuffer
             .createDoubleBuffer(LOOKBACK_TIME);
     private ConcurrentTimeInterpolatableBuffer<Double> driveRollAngularVelocity = ConcurrentTimeInterpolatableBuffer
@@ -271,9 +268,7 @@ public class RobotState extends StateMachine<RobotState.State> {
                             () -> {
                                 Pose2d drivePose = getLatestFieldToRobot().getValue();
                                 return drivePose.transformBy(
-                                        new Transform2d(
-                                                VisionConstants.kTurretToRobotCenter.getTranslation().toTranslation2d(),
-                                                Rotation2d.kZero));
+                                        new Transform2d(Rotation2d.kZero));
                             },
                             this::getLatestDesiredFieldRelativeChassisSpeed);
 
@@ -318,21 +313,21 @@ public class RobotState extends StateMachine<RobotState.State> {
                 case 1:
                     shooter = new Shooter(
                             this,
-                            new TurretIOSim(), // TODO change
+                            new DumperIOSpark(), // TODO change
                             new HoodIOSpark(),
                             new FlywheelIOSpark());
                     break;
                 case 2:
                     shooter = new Shooter(
                             this,
-                            new TurretIOSim(),
+                            new DumperIOSim(),
                             new HoodIOSim(),
                             new FlywheelIOSim());
                     break;
                 default:
                     shooter = new Shooter(
                             this,
-                            new TurretIO() {
+                            new DumperIO() {
                             },
                             new HoodIO() {
                             },
@@ -869,7 +864,7 @@ public class RobotState extends StateMachine<RobotState.State> {
                                         setpoint.getHoodFF()));
                             if (shooter.getDumper() != null)
                                 shooter.getDumper().setOverride((a) -> shooter.getDumper()
-                                        .setPos(setpoint.getTurretRadiansFromCenter(), setpoint.getTurretFF()));
+                                .setPos(DumperConstants.kForwardSoftLimit));
                         }
                     }));
 
@@ -894,7 +889,7 @@ public class RobotState extends StateMachine<RobotState.State> {
                                         setpoint.getHoodFF()));
                             if (shooter.getDumper() != null)
                                 shooter.getDumper().setOverride((a) -> shooter.getDumper()
-                                        .setPos(setpoint.getTurretRadiansFromCenter(), setpoint.getTurretFF()));
+                                        .setPos(DumperConstants.kForwardSoftLimit));
                         }
                     }));
 
@@ -919,7 +914,7 @@ public class RobotState extends StateMachine<RobotState.State> {
                                         setpoint.getHoodFF()));
                             if (shooter.getDumper() != null)
                                 shooter.getDumper().setOverride((a) -> shooter.getDumper()
-                                        .setPos(setpoint.getTurretRadiansFromCenter(), setpoint.getTurretFF()));
+                                    .setPos(DumperConstants.kForwardSoftLimit));  
                         }
                     }));
 
@@ -944,7 +939,7 @@ public class RobotState extends StateMachine<RobotState.State> {
                                         setpoint.getHoodFF()));
                             if (shooter.getDumper() != null)
                                 shooter.getDumper().setOverride((a) -> shooter.getDumper()
-                                        .setPos(setpoint.getTurretRadiansFromCenter(), setpoint.getTurretFF()));
+                                    .setPos(DumperConstants.kForwardSoftLimit));  
                         }
                     }));
         }
@@ -1093,39 +1088,12 @@ public class RobotState extends StateMachine<RobotState.State> {
     }
 
     // This has rotation and radians to allow for wrapping tracking.
-    public void addTurretUpdates(double timestamp,
-            Rotation2d turretRotation,
-            double turretRadians,
-            double angularYawRadsPerS) {
-        // turret frame 180 degrees off from robot frame
-        robotToTurret.addSample(timestamp, turretRotation);
-        this.turretAngularVelocity.addSample(timestamp, angularYawRadsPerS);
-        this.turretPositionRadians.addSample(timestamp, turretRadians);
-    }
 
-    public double getLatestTurretPositionRadians() {
-        return this.turretPositionRadians.getInternalBuffer().lastEntry().getValue();
-    }
-
-    public double getLatestTurretAngularVelocity() {
-        return this.turretAngularVelocity.getInternalBuffer().lastEntry().getValue();
-    }
-
-    public Transform2d getTurretToCamera(boolean isTurretCamera) {
-        return isTurretCamera ? TURRET_TO_CAMERA : ROBOT_TO_CAMERA_B;
-    }
-
-    public Optional<Rotation2d> getRobotToTurret(double timestamp) {
-        return robotToTurret.getSample(timestamp);
-    }
 
     public Optional<Pose2d> getFieldToRobot(double timestamp) {
         return fieldToRobot.getSample(timestamp);
     }
 
-    public Map.Entry<Double, Rotation2d> getLatestRobotToTurret() {
-        return robotToTurret.getLatest();
-    }
 
     public ChassisSpeeds getLatestMeasuredFieldRelativeChassisSpeeds() {
         return measuredFieldRelativeChassisSpeeds.get();
@@ -1149,9 +1117,6 @@ public class RobotState extends StateMachine<RobotState.State> {
         return speeds;
     }
 
-    public Optional<Double> getTurretAngularVelocity(double timestamp) {
-        return turretAngularVelocity.getSample(timestamp);
-    }
 
     private Optional<Double> getMaxAbsValueInRange(ConcurrentTimeInterpolatableBuffer<Double> buffer, double minTime,
             double maxTime) {

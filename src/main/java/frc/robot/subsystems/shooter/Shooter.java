@@ -2,27 +2,31 @@ package frc.robot.subsystems.shooter;
 
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import frc.robot.RobotState;
-import frc.robot.subsystems.shooter.dumper.Dumper;
-import frc.robot.subsystems.shooter.dumper.DumperIO;
 import frc.robot.subsystems.shooter.flywheel.Flywheel;
 import frc.robot.subsystems.shooter.flywheel.FlywheelIO;
 import frc.robot.subsystems.shooter.hood.Hood;
 import frc.robot.subsystems.shooter.hood.HoodIO;
+import frc.robot.subsystems.shooter.turret.Turret;
+import frc.robot.subsystems.shooter.turret.TurretIO;
 import frc.robot.subsystems.hopper.Hopper;
 import frc.robot.subsystems.kicker.Kicker;
+import frc.robot.subsystems.drive.Drive;
 import frc.robot.util.state.StateMachine;
-
+import frc.robot.subsystems.shooter.dumper.Dumper;
+import frc.robot.subsystems.shooter.dumper.DumperIO;
 public class Shooter extends StateMachine<Shooter.State> {
     
-    private Dumper dumper;
+
     private Hood hood;
     private Flywheel flywheel;
     private RobotState state;
+    private Dumper dumper;
 
     public Shooter(RobotState state, DumperIO dumperIO, HoodIO hoodIO, FlywheelIO flywheelIO) {
         super("Shooter", State.UNDETERMINED, State.class);
 
         dumper = new Dumper(dumperIO, state);
+   
         hood = new Hood(hoodIO, state);
         flywheel = new Flywheel(flywheelIO, state);
         this.state = state;
@@ -110,13 +114,17 @@ public class Shooter extends StateMachine<Shooter.State> {
 
     public enum State {
         UNDETERMINED,
+
         IDLE,
         HUB_TRACKING,
         PASS_TRACKING,
         SHOOTING,
         PASSING,
         OUTTAKE,
-        TUNING
+        TUNING,
+
+        // flags
+
     }
 
     @Override
