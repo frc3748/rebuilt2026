@@ -9,23 +9,33 @@ import frc.robot.subsystems.shooter.dumper.DumperIO.DumperIOInputs;
 import frc.robot.subsystems.shooter.dumper.DumperConstants;
 
 public class DumperIOSim implements DumperIO {
+
   private final DCMotorSim motorSim;
+
   private boolean closedLoop = false;
   private final PIDController controller =
-      new PIDController(DumperConstants.kDumperP, 0, DumperConstants.kDumperD);
+      new PIDController(DumperConstants.kDumperSimP, 0, DumperConstants.kDumperSimD);
+
   private double appliedVolts = 0.0;
   private double ffVolts = 0.0;
   private double desiredPos = 0.0;
 
   public DumperIOSim() {
-    motorSim = new DCMotorSim(
-        LinearSystemId.createDCMotorSystem(DCMotor.getNeo550(1), 0.001, 1.0),
-        DCMotor.getNeo550(1));
+    motorSim =
+        new DCMotorSim(
+            LinearSystemId.createDCMotorSystem(
+                DCMotor.getNeo550(1),
+                0.001,
+                1.0),
+            DCMotor.getNeo550(1));
   }
 
   @Override
   public void updateInputs(DumperIOInputs inputs) {
+
     double position = motorSim.getAngularPositionRad();
+
+    // Soft limits (match Spark)
     if (position > DumperConstants.kForwardSoftLimit) {
       motorSim.setState(DumperConstants.kForwardSoftLimit, 0);
       position = DumperConstants.kForwardSoftLimit;
@@ -33,14 +43,22 @@ public class DumperIOSim implements DumperIO {
       motorSim.setState(DumperConstants.kBackwardSoftLimit, 0);
       position = DumperConstants.kBackwardSoftLimit;
     }
+
+    // Closed loop control
     if (closedLoop) {
       double pidOutput = controller.calculate(position);
       appliedVolts = pidOutput + ffVolts;
     }
+
     appliedVolts = MathUtil.clamp(appliedVolts, -12.0, 12.0);
+
     motorSim.setInputVoltage(appliedVolts);
     motorSim.update(0.02);
-    inputs.dumperPos = position;
+
+    // Update inputs (match Spark structure)
+
+
+    inputs.dumperPos = position;                                   
     inputs.dumperVelRadPerSec = motorSim.getAngularVelocityRadPerSec();
     inputs.appliedVolts = appliedVolts;
     inputs.currentAmps = Math.abs(motorSim.getCurrentDrawAmps());
@@ -57,7 +75,14 @@ public class DumperIOSim implements DumperIO {
   @Override
   public void setDumperPosition(double position, double ff) {
     closedLoop = true;
-    position = MathUtil.clamp(position, DumperConstants.kBackwardSoftLimit, DumperConstants.kForwardSoftLimit);
+
+    // Clamp to soft limits like real controller
+    position =
+        MathUtil.clamp(
+            position,
+            DumperConstants.kBackwardSoftLimit,
+            DumperConstants.kForwardSoftLimit);
+
     controller.setSetpoint(position);
     ffVolts = ff;
     desiredPos = position;
@@ -72,6 +97,7 @@ public class DumperIOSim implements DumperIO {
   public double getDumperVelocity() {
     return motorSim.getAngularVelocityRadPerSec();
   }
+
 
   @Override
   public void stopDumper() {
