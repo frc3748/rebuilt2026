@@ -29,7 +29,7 @@ after the display time.
 ## Usage examples
 
 ```java
-// An auto couldn't find its starting pose (CompetitionAuto)
+// An auto couldn't find its starting pose (PathAuto)
 Elastic.sendNotification(new Notification()
     .withTitle("Path Error")
     .withDescription("Unable to set pose")

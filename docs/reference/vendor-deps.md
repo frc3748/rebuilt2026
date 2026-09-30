@@ -28,7 +28,7 @@ build time. Here's the full set.
 | Lib | Why |
 | --- | --- |
 | **REVLib** | Spark Max / Spark Flex API. Used for every NEO on the robot. |
-| **Phoenix 6** (`v26.1.1`) | Pigeon 2 gyro and swerve CANcoders on the competition robot. |
+| **Phoenix 6** (`v26.1.1`) | Pigeon 2 gyro and swerve CANcoders on the comp and secondary robots, and `MotorIOTalonFX` for any `TALON_FX` motor (Kraken, Falcon). |
 | **Phoenix 5** (`v5.36.0`) | Legacy CTRE devices, kept for backward compatibility. |
 
 ## Vision

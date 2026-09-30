@@ -35,11 +35,11 @@ description: The 2026 robot code for FRC Team 3748 — a state-machine driven, h
   </a>
   <a class="card" href="{{ '/architecture/robots/' | relative_url }}">
     <h3>Multiple Robots</h3>
-    <p>One codebase for the competition and practice robots, and how to add another.</p>
+    <p>One codebase for the comp, secondary and practice robots, and how to add another.</p>
   </a>
   <a class="card" href="{{ '/architecture/io-pattern/' | relative_url }}">
     <h3>The IO Layer Pattern</h3>
-    <p>Why every subsystem has an interface, a Spark impl, and a Sim impl.</p>
+    <p>Why every subsystem talks to hardware through an interface with real and sim impls.</p>
   </a>
   <a class="card" href="{{ '/architecture/state-machines/' | relative_url }}">
     <h3>State Machines</h3>
@@ -51,7 +51,7 @@ description: The 2026 robot code for FRC Team 3748 — a state-machine driven, h
   </a>
   <a class="card" href="{{ '/subsystems/shooter/' | relative_url }}">
     <h3>Shooter</h3>
-    <p>Hood and flywheel — a child-subsystem composite.</p>
+    <p>Flywheel, hood, hopper and kicker — a child-subsystem composite.</p>
   </a>
   <a class="card" href="{{ '/subsystems/vision/' | relative_url }}">
     <h3>Vision</h3>
@@ -104,21 +104,22 @@ Three patterns shape almost every file:
 <p>
 The same code runs three robots, picked by <code>Constants.kRobot</code>
 (see <a href="{{ '/architecture/robots/' | relative_url }}">Multiple Robots</a>).
-The <strong>competition robot</strong> has six subsystems, the
-<strong>Competition V2</strong> robot is the same robot on new swerve modules, and the
-<strong>practice robot</strong> is a drivetrain with no cameras.
+The <strong>comp</strong> robot is the new chassis and future main robot,
+the <strong>secondary</strong> robot is the current robot and shares
+comp's mechanisms and cameras, and the
+<strong>practice</strong> robot is a drivetrain with no cameras.
 </p>
 
-<p>The competition robot's subsystems:</p>
+<p>The comp and secondary robots' subsystems:</p>
 
 <table>
 <thead><tr><th>Subsystem</th><th>What it does</th></tr></thead>
 <tbody>
 <tr><td><a href="{{ '/subsystems/drive/' | relative_url }}">Drive</a></td><td>Four swerve modules, 28″×28″, max ~5.27 m/s.</td></tr>
 <tr><td><a href="{{ '/subsystems/vision/' | relative_url }}">Vision</a></td><td>Any number of cameras, each a config plus an IO.</td></tr>
-<tr><td><a href="{{ '/subsystems/shooter/' | relative_url }}">Shooter</a></td><td>Composite of hood and flywheel; the drive aims the robot.</td></tr>
+<tr><td><a href="{{ '/subsystems/shooter/' | relative_url }}">Shooter</a></td><td>Owns the flywheel, hood, hopper and kicker; the drive aims the robot.</td></tr>
 <tr><td><a href="{{ '/subsystems/intake/' | relative_url }}">Intake</a></td><td>Pivoting arm that pulls game pieces from the floor.</td></tr>
-<tr><td><a href="{{ '/subsystems/hopper/' | relative_url }}">Hopper</a></td><td>Carries pieces from intake to shooter; jam-aware.</td></tr>
+<tr><td><a href="{{ '/subsystems/hopper/' | relative_url }}">Hopper</a></td><td>Carries pieces from intake to shooter.</td></tr>
 <tr><td><a href="{{ '/subsystems/kicker/' | relative_url }}">Kicker</a></td><td>Pushes the piece the final inch into the flywheel.</td></tr>
 </tbody>
 </table>

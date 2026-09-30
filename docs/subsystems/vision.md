@@ -83,15 +83,19 @@ In simulation every camera uses `CameraIOPhotonSim`, whatever its type.
 ## Adding a camera
 
 Cameras belong to a robot. Each `RobotDefinition` returns its own list
-from `cameras()`; the competition cameras are constants in
-`CompetitionRobot`.
+from `cameras()`, which is empty by default. `CompRobot` builds its
+cameras in protected methods, `chassisCamera()` and `shooterCamera()`,
+so a robot that extends it can replace one. A new camera is one more
+method:
 
 ```java
-public static final CameraConfig kIntakeCamera = new CameraConfig("Intake Camera", "photon-intake", CameraConfig.Type.PHOTON)
-        .robotToCamera(new Transform3d(...))
-        .pipelines(0, 1)
-        .objectHeight(Units.inchesToMeters(2.25))
-        .stdDevFactor(1.5);
+protected CameraConfig intakeCamera() {
+    return new CameraConfig("Intake Camera", "photon-intake", CameraConfig.Type.PHOTON)
+            .robotToCamera(new Transform3d(...))
+            .pipelines(0, 1)
+            .objectHeight(Units.inchesToMeters(2.25))
+            .stdDevFactor(1.5);
+}
 ```
 
 Then return it from the robot's `cameras()`:
@@ -99,14 +103,13 @@ Then return it from the robot's `cameras()`:
 ```java
 @Override
 public CameraConfig[] cameras() {
-    return new CameraConfig[] { kChassisCamera, kShooterCamera, kIntakeCamera };
+    return new CameraConfig[] { chassisCamera(), shooterCamera(), intakeCamera() };
 }
 ```
 
 A camera on a moving mechanism passes a supplier instead:
-`.robotToCamera(() -> turretToCamera(turret.getAngle()))`. A robot with
-no cameras returns `new CameraConfig[0]`, and `Vision` simply has
-nothing to do.
+`.robotToCamera(() -> turretToCamera(turret.getAngle()))`. On a robot
+with no cameras, `Vision` simply has nothing to do.
 
 ## Adding a vendor
 
@@ -119,11 +122,12 @@ QUEST(CameraIOQuest::new)
 
 Nothing else changes.
 
-## Cameras on the competition robot
+## Cameras on the comp and secondary robots
 
-Defined in `CompetitionRobot`. The practice robot has none.
+Defined in `CompRobot`; `SecondaryRobot` inherits them. The practice
+robot has none.
 
-| Config | Network name | Type | Notes |
+| Method | Network name | Type | Notes |
 | --- | --- | --- | --- |
-| `kShooterCamera` | `limelight-turret` | `LIMELIGHT_4` | Fixed to the shooter. Applies the same in-code offset to its reported pose as the turret-era code did. |
-| `kChassisCamera` | `limelight` | `LIMELIGHT_4` | Rear of chassis. Offsets live in the Limelight web UI. |
+| `shooterCamera()` | `limelight-turret` | `LIMELIGHT_4` | Fixed to the shooter; its transform starts from `shooter().shooterToRobotCenter`. Shifts its reported pose by an in-code `reportedPoseOffset`. |
+| `chassisCamera()` | `limelight` | `LIMELIGHT_4` | Rear of chassis. Offsets live in the Limelight web UI. |

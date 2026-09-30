@@ -10,45 +10,38 @@ permalink: /subsystems/kicker/
 | --- | --- |
 | **Source** | `src/main/java/frc/robot/subsystems/kicker/` |
 | **Public class** | [`Kicker`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/subsystems/kicker/Kicker.java) extends `StateMachine<Kicker.State>` |
-| **Constants** | `KickerConstants` |
-| **Built by** | `CompetitionSuperstructure` |
+| **Constants** | `KickerConstants`, from `CompRobot.kicker()` |
+| **Built by** | `ShooterComp`, as a child subsystem |
 
-The kicker is the simplest powered mechanism on the robot: one motor,
-three states, no PID. Its purpose is to decouple "piece ready" from
-"piece launched" so the shooter can wait for spin-up without
-prematurely feeding the flywheel.
+The kicker is the simplest powered mechanism on the robot: one motor
+that is off, feeding or reversing. It holds the piece between the
+hopper and the flywheel, so the shooter can spin up without feeding
+early.
 
 ## States
 
 ```java
-enum State { IDLE, SHOOT, OUTAKE }
+enum State { UNDETERMINED, IDLE, SHOOT, OUTAKE }
 ```
 
-- `IDLE` — motor off. Piece sits at the kicker, ready.
-- `SHOOT` — motor at full forward voltage; piece transfers into the flywheel.
-- `OUTAKE` — motor reversed; piece backs out into the hopper or out the intake.
+| State | Behavior |
+| --- | --- |
+| `IDLE` | Motor off. The piece waits at the kicker. |
+| `SHOOT` | Runs at `Kicker/Shot Speed` while the flywheel is ready, pushing the piece into it. Otherwise off. |
+| `OUTAKE` | Runs at `Kicker/Outtake Speed`, backing the piece out. |
 
-## Why it exists as a separate subsystem
-
-You could absorb this into the hopper. It's separate because:
-
-- **Timing.** The shooter needs to launch the piece on a specific
-  frame, not "when the conveyor reaches it." Holding the piece at the
-  kicker means launch latency is bounded by motor inertia, not
-  conveyor travel time.
-- **State clarity.** Logs show exactly when launch happened (`SHOOT`
-  entered).
-- **Independent testing.** The mechanism can be characterized and
-  tuned without spinning the rest of the indexing chain.
+Like the hopper, it gets `Flywheel#isReady` from `ShooterComp`, and
+`Kicker#feed()` runs at the shot speed without waiting, for the
+operator's `forceFeed()` override.
 
 ## Mechanism
 
-A single NEO 550 driving a short roller. Open-loop voltage in all
-states.
+Spark MAX on CAN 42, velocity control. `KickerConstants` holds the
+`MotorConfig` and the two speeds, which become `TunableNumber`s when the
+kicker is built.
 
 ## Pitfalls
 
-- **Piece won't transfer.** Increase `KickerConstants.kShootVolts`.
-  Check the roller isn't slipping on the piece.
-- **Double-feeds.** `SHOOT` is held too long. The shooter should
-  return the kicker to `IDLE` as soon as the shoot timeout fires. Verify the shooter's `SHOOTING` state command exits.
+- **Piece won't transfer.** Raise the magnitude of `Kicker/Shot Speed`
+  (the default is -40), and check the roller isn't slipping on the
+  piece.

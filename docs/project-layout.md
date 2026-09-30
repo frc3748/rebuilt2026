@@ -20,7 +20,7 @@ rebuilt2026/
 │   ├── main/
 │   │   ├── deploy/             ← Static files copied to /home/lvuser/deploy (PathPlanner paths)
 │   │   └── java/frc/robot/     ← All robot code (see below)
-│   └── test/java/frc/robot/    ← CompetitionRobotTest, PracticeRobotTest
+│   └── test/java/frc/robot/    ← CompRobotTest, SecondaryRobotTest, PracticeRobotTest
 ├── .wpilib/                    ← WPILib team-number / language preferences
 └── docs/                       ← This documentation site
 ```
@@ -30,20 +30,18 @@ rebuilt2026/
 ```
 frc/robot/
 ├── Main.java                   ← JVM entry point; calls RobotBase.startRobot(Robot::new)
-├── Robot.java                  ← Extends LoggedRobot; detects the robot, sets up logging and lifecycle hooks
-├── RobotState.java             ← Top-level state machine; builds drive, vision and superstructure, holds pose history
-├── Controls.java               ← Driver/operator controllers, shared drive bindings, rumble
+├── Robot.java                  ← Extends LoggedRobot; builds RobotState for Constants.kRobot, sets up logging and lifecycle hooks
+├── RobotState.java             ← Top-level state machine; builds the robot from its definition, holds pose history
+├── Superstructure.java         ← Holds the robot's shooter and intake (if it has them); runs the fuel sim
+├── Controls.java               ← Driver/operator controllers, every binding (protected, overridable), rumble
 ├── Constants.java              ← Mode (REAL / SIM / REPLAY) and kRobot
 │
-├── robots/                     ← Everything robot-specific (see Multiple Robots)
-│   ├── RobotType.java                ← COMPETITION, COMPETITION_V2, PRACTICE
-│   ├── RobotDefinition.java          ← name(), drive(), cameras(), createSuperstructure()
-│   ├── Superstructure.java           ← subsystems(), autos(), bindControls(), simulationPeriodic()
-│   ├── competition/                  ← CompetitionRobot, CompetitionDrive, CompetitionSuperstructure,
-│   │   │                               ActionCommands
-│   │   └── autos/                    ← CompetitionAuto, one file per auto, CustomAuto
-│   ├── competitionv2/                ← CompetitionV2Robot, CompetitionV2Drive
-│   └── practice/                     ← PracticeRobot, PracticeDrive
+├── robots/                     ← One definition per robot (see Multiple Robots)
+│   ├── RobotType.java                ← COMP, SECONDARY, PRACTICE
+│   ├── RobotDefinition.java          ← Abstract: name(), drive(); defaults for shooter(), cameras(), createSuperstructure(), createControls(), autos()
+│   ├── comp/                         ← CompRobot, CompDrive (the new chassis, future main robot)
+│   ├── secondary/                    ← SecondaryRobot, SecondaryDrive (the current robot, built on comp)
+│   └── practice/                     ← PracticeRobot, PracticeDrive (drivetrain only)
 │
 ├── game/                       ← 2026-game code
 │   ├── FieldConstants.java           ← Tag layout, hub, funnel and trench geometry
@@ -51,7 +49,7 @@ frc/robot/
 │   ├── GameState.java                ← Match phase, hub active, won auto
 │   ├── DashboardManager.java         ← Auto chooser, auto path preview, Game/* values
 │   ├── ShooterSetpoint.java          ← Distance-aware shooter solutions
-│   ├── ShotCalculator.java           ← Projectile-motion shot math
+│   ├── ShotCalculator.java           ← Projectile-motion shot math, built from a robot's ShooterConstants
 │   ├── ShotVisualizer.java           ← 3D trajectory logging
 │   ├── BallTargetFactory.java, PassTargetFactory.java  ← Hub and pass targets
 │   ├── TrenchZone.java               ← Trench proximity checks
@@ -72,19 +70,21 @@ frc/robot/
 │   │   ├── CameraIOPhoton.java       ← PhotonVision multi-tag + heading-seeded solve
 │   │   ├── CameraIOPhotonSim.java    ← PhotonVision simulation on top of CameraIOPhoton
 │   │   └── VisionConstants.java      ← Std-dev baselines and rejection thresholds
-│   ├── shooter/                ← Composite: hood + flywheel (the shooter is fixed to the chassis)
-│   │   ├── Shooter.java              ← Orchestrates hood, flywheel, hopper, kicker
-│   │   ├── ShooterConstants.java     ← Distance → shot map and time-of-flight map
+│   ├── shooter/                ← Composite (the shooter is fixed to the chassis)
+│   │   ├── Shooter.java              ← Abstract base: states and the calls shared code makes
+│   │   ├── ShooterComp.java          ← Comp shooter; owns hood, flywheel, hopper, kicker
+│   │   ├── ShooterConstants.java     ← Shooter position, shot map and time-of-flight map
 │   │   ├── hood/                     ← {Hood, HoodConstants}
 │   │   └── flywheel/                 ← {Flywheel, FlywheelConstants}
-│   ├── intake/                 ← {Intake, IntakeConstants}
+│   ├── intake/                 ← {Intake (abstract base), IntakeComp, IntakeConstants}
 │   ├── hopper/                 ← {Hopper, HopperConstants}
 │   └── kicker/                 ← {Kicker, KickerConstants}
 │
-├── commands/
+├── commands/                   ← Shared by every robot
 │   ├── DriveCommands.java            ← Default drive command + characterization
 │   ├── AutoAlignToPoseCommand.java   ← Profiled-PID pose alignment
-│   └── autos/AutoRoutine.java        ← Base class for every auto
+│   ├── ActionCommands.java           ← Composite commands for buttons and autos
+│   └── autos/                        ← AutoRoutine, PathAuto, Autos.all, one file per auto
 │
 └── util/                       ← Generic, not tied to a robot or a game
     ├── motor/                  ← One motor abstraction shared by every mechanism
@@ -95,6 +95,7 @@ frc/robot/
     │   ├── Motor.java                ← Shared base: picks the IO for the current Mode, logs, sends once per loop
     │   ├── MotorIO.java              ← Interface (@AutoLog inputs)
     │   ├── MotorIOSpark.java         ← Spark MAX / Spark Flex
+    │   ├── MotorIOTalonFX.java       ← TalonFX (Kraken, Falcon) through Phoenix 6
     │   └── MotorIOSim.java           ← Kinematic sim (tracks setpoints)
     ├── state/                  ← The state-machine framework
     ├── TunableNumber.java            ← Dashboard-tunable constant (DogLog)
@@ -114,24 +115,25 @@ Three boxes nest inside each other:
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │  RobotState   (built from a RobotDefinition)          │  │
 │  │  ┌─────────────────────────────────────────────────┐  │  │
-│  │  │  Drive, Vision + the Superstructure's machines │  │  │
-│  │  │  ─ each extends StateMachine<E>                │  │  │
-│  │  │  ─ each owns Motors (Spark, Sim, or Stub IO)   │  │  │
+│  │  │  Drive, Vision + the Superstructure's machines  │  │  │
+│  │  │  ─ each extends StateMachine<E>                 │  │  │
+│  │  │  ─ each owns Motors (Spark, TalonFX, Sim, Stub) │  │  │
 │  │  └─────────────────────────────────────────────────┘  │  │
 │  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 - `Robot` runs the WPILib loop and the AdvantageKit `Logger`.
-- `RobotState` builds the shared drive and vision and asks the robot's `Superstructure` for the rest.
-- Code that only one robot uses lives in `robots/<robot>/`; 2026-game code lives in `game/`; `util/` stays generic.
+- `RobotState` builds the shared drive and vision and gets the robot's `Superstructure`, which holds its mechanisms, from its definition.
+- A robot's definition lives in `robots/<robot>/`, and mechanism logic that differs between robots lives in a subsystem variant such as `ShooterComp`; 2026-game code lives in `game/`; `util/` stays generic.
 - A subsystem only knows about its own state, its own IO, and (sometimes) its child subsystems.
 
 ## File conventions
 
 - **`<Thing>.java`** — the `StateMachine` subclass. Holds a `SpinMotor` or `PosMotor` per physical motor and says what each state does in `applyState()`.
-- **`<Thing>Constants.java`** — a `MotorConfig` per motor, `TunableNumber` setpoints, and geometry.
-- **`util/motor/`** — the only place mechanisms talk to REV hardware or the simulator (the drive has its own `ModuleIO`).
+- **`<Thing><Robot>.java`** — one robot's variant of an abstract `<Thing>`, named subsystem first (`IntakeComp`, `ShooterComp`). The base holds the states; the variant holds the motors.
+- **`<Thing>Constants.java`** — a plain class of public fields: a `MotorConfig` per motor, setpoint defaults, and geometry. Defaults are the comp values; a robot changes fields [per robot]({{ '/architecture/robots/' | relative_url }}#per-robot-constants).
+- **`util/motor/`** — the only place mechanisms talk to REV or CTRE hardware or the simulator (the drive has its own `ModuleIO`).
 - **`Camera*.java`** — the vision equivalent: a `CameraConfig` per camera and one `CameraIO` per vendor.
 
-Adding a mechanism is two files: a constants file with its motors, and a state machine that says what each state does. Then build it in a robot's `Superstructure` and return it from `subsystems()`.
+Adding a mechanism is two files: a constants class with its motors, and a state machine that takes it in its constructor and says what each state does. Then add it as a child of the machine that drives it, as `ShooterComp` does with the hopper and kicker, and give `CompRobot` a protected method that returns its constants, like `hopper()`, so another robot can override it. `Superstructure` only takes a shooter and an intake, so a new top-level mechanism also needs its own `with…` method there.

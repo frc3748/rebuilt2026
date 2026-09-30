@@ -13,8 +13,8 @@ holds the pose and speed history everyone reads, and hands controller,
 game and dashboard work to three small helpers.
 
 > **Pattern.** `RobotState` doesn't know which mechanisms a robot has.
-> It asks the definition for a `Superstructure` and adds whatever that
-> returns.
+> It asks the definition for a `Superstructure` and adds whatever
+> subsystems that holds.
 
 ## States
 
@@ -39,9 +39,11 @@ beats auto-aim.
 | `Drive` | `definition.drive()` |
 | `Vision` | `definition.cameras()` |
 | `Superstructure` | `definition.createSuperstructure(this)` |
-| `Controls` | The two Xbox controllers. |
+| `Controls` | `definition.createControls()` |
+| `ShooterConstants` | `definition.shooter()` |
+| `ShotCalculator` | `new ShotCalculator(shooterConstants)` |
 | `GameState` | Match phase and hub status. |
-| `DashboardManager` | Auto chooser and `Game/*` values. |
+| `DashboardManager` | Auto chooser (`definition.autos(this)`) and `Game/*` values. |
 | `SimulatedRobotState` | Ground-truth pose, simulation only. |
 
 `vision`, `drive` and `superstructure.subsystems()` are added as child
@@ -54,6 +56,8 @@ subsystems.
 | `getDefinition()` | The `RobotDefinition` this robot was built from. |
 | `getDrive()` / `getVision()` | `Drive` / `Vision` |
 | `getSuperstructure()` | The robot's `Superstructure`. |
+| `getShooterConstants()` | The robot's [`ShooterConstants`]({{ '/architecture/robots/' | relative_url }}#per-robot-constants). |
+| `getShotCalculator()` | The [`ShotCalculator`]({{ '/utilities/shot-calculator/' | relative_url }}) built from them. |
 | `getControls()` | `Controls` |
 | `getGameState()` | `GameState` |
 | `getSimRobot()` | `SimulatedRobotState` (`null` on a real robot). |
@@ -64,9 +68,10 @@ subsystems.
 | `getCurrentHubSetpoint()` / `getCurrentPassSetpoint()` | A fresh [`ShooterSetpoint`]({{ '/utilities/shooter-setpoint/' | relative_url }}) on every call. |
 | `shouldShootHub()` | `true` when the robot is on its own side of the hub. |
 
-Mechanisms are not on `RobotState`. Competition code receives the
-`CompetitionSuperstructure` directly and calls `getShooter()`,
-`getIntake()`, and so on.
+Mechanisms are not on `RobotState`. Shared code gets them from
+`getSuperstructure()`: `getShooter()` and `getIntake()` return
+`Optional`s, and `shooterCommand` and `intakeCommand` return
+`Commands.none()` when the robot doesn't have that mechanism.
 
 ## Kinematic buffers
 
@@ -82,8 +87,14 @@ pose estimator on the real robot only.
 ## Controls
 
 [`Controls`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/Controls.java)
-owns the driver (port 0) and operator (port 1) `CommandXboxController`s
-and the bindings every robot shares:
+owns the driver (port 0) and operator (port 1) `CommandXboxController`s.
+Its constructor calls `DriverStation.silenceJoystickConnectionWarning(true)`.
+`RobotState` gets it from `definition.createControls()` and calls
+`controls.bind(this)` once to bind every button. `bind` calls the
+protected `bindDrive`, `bindIntake`, `bindShooter` and `bindOperator`,
+so a robot can
+[change one binding]({{ '/architecture/robots/' | relative_url }}#adding-a-robot)
+in a subclass. The drive bindings are bound on every robot:
 
 | Driver input | Action |
 | --- | --- |
@@ -91,11 +102,17 @@ and the bindings every robot shares:
 | Right bumper (hold) | Drive `SLOW`. |
 | D-pad left | Drive `TRAVERSING_AT_ANGLE` (auto-aim heading). |
 | D-pad right | Drive `TRAVERSING`. |
+| D-pad up (hold) | `ActionCommands.turnToHub`. |
 | D-pad down | Reset heading to zero. Only bound when not in a match. |
 
+Intake buttons are bound only if the robot has an intake, and shooter
+buttons only if it has a shooter. The operator's override chords are
+always bound and call `Superstructure.intakeAction` and
+`shooterAction`, which do nothing without that mechanism. Both are
+listed on [Action Commands]({{ '/commands/action-commands/' | relative_url }}#where-these-get-bound).
+
 `controls.rumble(seconds)` rumbles both controllers. `RobotState` uses
-it for half a second whenever the hub turns on or off. Mechanism
-bindings are added by the superstructure's `bindControls(controls)`.
+it for half a second whenever the hub turns on or off.
 
 ## Game state and dashboard
 
@@ -106,7 +123,7 @@ Both live in `frc.robot.game`.
   `Shift 1`–`Shift 4`, `End Game`), the seconds until the next shift,
   whether our hub is active, and whether we won auto.
 - **`DashboardManager`** builds the **Auto Choices** chooser (`None`,
-  every PathPlanner auto, then the superstructure's autos), previews the
+  every PathPlanner auto, then the robot's `autos(state)`), previews the
   selected auto's paths on the field while the Driver Station is in
   autonomous mode, and publishes `Game/HubActivated`, `Game/WonAuto`,
   `Game/GameState`, `Game/ShiftCountdown`, `Robot/AutoChoosed` and
@@ -114,17 +131,17 @@ Both live in `frc.robot.game`.
 
 ## The hand-off, end to end
 
-On the competition robot, a right-trigger press becomes a shot in
-roughly this sequence:
+On the comp and secondary robots, a right-trigger press becomes a shot
+in roughly this sequence:
 
 1. **Trigger** runs `drive.stopWithX()`, then
-   `ActionCommands.shootOrPassBasedOnPos(robot)`.
+   `ActionCommands.shootOrPassBasedOnPos(state)`.
 2. That asks `RobotState.shouldShootHub()` and requests
    `Shooter.State.SHOOTING` (or `PASSING`).
-3. `Shooter` requests its children's states: flywheel `SHOOT`, hood
-   `HUB_TRACKING`, hopper and kicker `SHOOT`.
+3. `ShooterComp` requests its children's states: flywheel
+   `SHOOT`, hood `HUB_TRACKING`, hopper and kicker `SHOOT`.
 4. The hood and flywheel read their targets from
    `getCurrentHubSetpoint()` every loop.
 5. The hopper and kicker only feed while the flywheel reports ready.
-6. Releasing the trigger runs `ActionCommands.trackBasedOnPos(robot)`,
+6. Releasing the trigger runs `ActionCommands.trackBasedOnPos(state)`,
    which drops the shooter back to `HUB_TRACKING` or `PASS_TRACKING`.

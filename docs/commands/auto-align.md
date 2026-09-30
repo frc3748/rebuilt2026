@@ -14,7 +14,7 @@ It's the underlying primitive behind:
 
 - `ActionCommands.aimAtHub` and `turnToHub`.
 - `ActionCommands.goToFixedPosAndShoot`.
-- `CompetitionAuto.nudge(meters)`.
+- `PathAuto.nudge(meters)`.
 
 ## Constructor signature
 

@@ -61,7 +61,7 @@ for both alliances. Every method takes the `RobotState`:
 
 | Method | Used by |
 | --- | --- |
-| `intakeLowerRequired(state)` | `Intake.applyConstraints` — within 1.0 m of a trench. |
+| `intakeLowerRequired(state)` | `IntakeComp.applyConstraints` — within 1.0 m of a trench. |
 | `hoodLowerRequired(state)` | The hood's trench clamp — within 0.8 m. |
 | `driveRotationOverrideRequired(state)` | `Drive#getAimRotationForHub` in `SLOW`: square up to 0° or 180°. |
 | `getDistanceToClosestShootingPose(state)` | Logged as `Distance to Hub`. |

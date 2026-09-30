@@ -36,7 +36,7 @@ The constructor:
 
 1. Reads `Constants.kRobot` to know which robot it is running on. See [Multiple Robots]({{ '/architecture/robots/' | relative_url }}).
 2. Records `ROBOT`, `MODE` and `ROBOT_TYPE` metadata, adds `WPILOGWriter` (writes to USB on the roboRIO) and `NT4Publisher` (streams to AdvantageScope), disables REV's `StatusLogger` auto-logging, and starts the `Logger`.
-3. Constructs `new RobotState(robotType.create())` and registers it with the [`SubsystemManager`]({{ '/architecture/subsystem-manager/' | relative_url }}).
+3. Constructs `new RobotState(Constants.kRobot.create())` and registers it with the [`SubsystemManager`]({{ '/architecture/subsystem-manager/' | relative_url }}).
 
 Each periodic hook is a one-liner that delegates:
 
@@ -58,15 +58,19 @@ subsystem decides what to do.
 ## `RobotState` — wiring
 
 `RobotState` is constructed once, from `Robot`'s constructor, with the
-detected robot's `RobotDefinition`. It does five things.
+`RobotDefinition` of the robot `Constants.kRobot` picks. It does five
+things.
 
 ### 1. Build the robot
 
 ```java
+controls = definition.createControls();
+shooterConstants = definition.shooter();
+shotCalculator = new ShotCalculator(shooterConstants);
 drive = new Drive(definition.drive(), this);
 vision = new Vision(this, definition.cameras());
 superstructure = definition.createSuperstructure(this);
-dashboard = new DashboardManager(this, gameState, definition.name(), superstructure.autos());
+dashboard = new DashboardManager(this, gameState, definition.name(), definition.autos(this));
 ```
 
 Each piece picks its own IO from `Constants.kMode`. `Drive` does it for
@@ -92,19 +96,21 @@ every machine receives the lifecycle broadcasts.
 ### 3. Bind controllers
 
 ```java
-controls.bindDrive(drive);
-superstructure.bindControls(controls);
+controls.bind(this);
 ```
 
-The shared drive bindings live in `Controls`; mechanism bindings live
-in the robot's superstructure. Every binding is a state-machine request,
-never a raw motor write.
+`Controls` holds every binding, shared by every robot unless its
+definition returns a subclass from `createControls()`. Driver buttons
+for the intake or shooter are bound only if the robot has one. Each
+binding is a state-machine request, never a raw motor write.
 
 ### 4. Pick the auto
 
-`DashboardManager` fills the **Auto Choices** chooser. When autonomous
-starts, `RobotState` registers the selected auto's `build()` command as
-the `AUTO` state's command and switches to `AUTO`. See
+`DashboardManager` fills the **Auto Choices** chooser, including the
+robot's `autos(state)`, which is `Autos.all(state)` unless the robot
+overrides it. When autonomous starts, `RobotState`
+registers the selected auto's `build()` command as the `AUTO` state's
+command and switches to `AUTO`. See
 [Autos]({{ '/commands/autos/' | relative_url }}).
 
 ### 5. Hold the kinematic buffers

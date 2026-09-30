@@ -2,7 +2,7 @@
 layout: default
 title: Hopper
 eyebrow: Subsystem
-description: Internal conveyor that carries pieces from intake to shooter. Jam-aware.
+description: Internal conveyor that carries pieces from intake to shooter.
 permalink: /subsystems/hopper/
 ---
 
@@ -10,62 +10,39 @@ permalink: /subsystems/hopper/
 | --- | --- |
 | **Source** | `src/main/java/frc/robot/subsystems/hopper/` |
 | **Public class** | [`Hopper`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/subsystems/hopper/Hopper.java) extends `StateMachine<Hopper.State>` |
-| **Constants** | `HopperConstants` |
-| **Built by** | `CompetitionSuperstructure` |
+| **Constants** | `HopperConstants`, from `CompRobot.hopper()` |
+| **Built by** | `ShooterComp`, as a child subsystem |
 
 ## States
 
 ```java
-enum State { UNDETERMINED, IDLE, SHOOT, OUTAKE }
+enum State { UNDETERMINED, IDLE, OUTAKE, SHOOT }
 ```
 
-- `IDLE` — motor off, just holds the piece.
-- `SHOOT` — runs forward, feeding the kicker.
-- `OUTAKE` — runs in reverse to eject.
+| State | Behavior |
+| --- | --- |
+| `IDLE` | Motor off. |
+| `SHOOT` | Runs at `Hopper/Shoot Speed`, feeding the kicker, but only while the flywheel is ready. Otherwise off. |
+| `OUTAKE` | Runs at `Hopper/Outtake Speed`, the other way, to eject. |
 
-## Jam detection
-
-The hopper watches its motor current. If current stays above
-`HopperConstants.kJamCurrentAmps` for longer than
-`kJamPersistenceSeconds`, the subsystem briefly transitions to
-`OUTAKE` to clear, then back to `SHOOT`.
-
-This logic lives in `Hopper#periodic()`:
-
-```java
-if (state == State.SHOOT &&
-    inputs.currentAmps > kJamCurrentAmps &&
-    jamTimer.hasElapsed(kJamPersistenceSeconds)) {
-  requestTransition(State.OUTAKE);
-  recoveryTimer.reset();
-}
-```
-
-The auto-recovery means the operator usually doesn't need to think
-about jams — they just hear the motor stutter and the piece comes
-through.
+`Hopper#feed()` runs at the shoot speed without waiting for the
+flywheel. The operator's `forceFeed()` override uses it.
 
 ## Coordination with the shooter
 
-`Hopper` doesn't decide when to shoot — it just exposes the `SHOOT`
-state. The `Shooter` parent enters `SHOOTING` only once hood
-and flywheel report ready, *then* requests `Hopper.SHOOT`. The two
-machines run independently and the parent orchestrates the timing.
+`Hopper` doesn't decide when to shoot. Its parent, `ShooterComp`,
+requests `SHOOT` when the shooter enters `SHOOTING` or `PASSING`, and
+passes in `Flywheel#isReady` as a `BooleanSupplier`, so the hopper only
+feeds once the flywheel is within tolerance of its setpoint.
 
 ## Mechanism
 
-- Single NEO 550 driving a polycord conveyor.
-- No sensor on the piece itself — jam detection relies on current.
+Spark Flex on CAN 15, velocity control. `HopperConstants` holds the
+`MotorConfig`, the two speeds (turned into `TunableNumber`s when the
+hopper is built), the roller radius and the pose origin.
 
 ## Logging
 
-The hopper publishes its conveyor angle (cumulative spin) for
-mechanism visualization in AdvantageScope.
-
-## Pitfalls
-
-- **`SHOOT` reverses for no reason.** Jam detection threshold is too
-  low. Bump `HopperConstants.kJamCurrentAmps`.
-- **Real jams don't recover.** Threshold is too high or persistence
-  too long. Watch the `Hopper/current` plot in AdvantageScope during a
-  real jam to find the right number.
+`update()` integrates the roller's velocity over `rollerRadiusMeters`
+and publishes the spin as `Hopper/Pose` for mechanism visualization in
+AdvantageScope.

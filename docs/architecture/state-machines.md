@@ -62,15 +62,29 @@ Because motors only send in step 5, a constraint can replace a state's command w
 
 ## A whole subsystem
 
+The intake is split in two. The abstract `Intake` holds the states:
+
 ```java
-public class Intake extends StateMachine<Intake.State> {
+public abstract class Intake extends StateMachine<Intake.State> {
     public enum State { UNDETERMINED, STOW, IDLE, INTAKE, OUTAKE, SHAKE }
 
-    private final SpinMotor rollers = new SpinMotor(kRollers);
-    private final PosMotor extension = new PosMotor(kExtension);
-
-    public Intake(RobotState robotState) {
+    protected Intake() {
         super("Intake", State.UNDETERMINED, State.class);
+    }
+    ...
+}
+```
+
+`IntakeComp` holds the motors and says what each state does:
+
+```java
+public class IntakeComp extends Intake {
+    public IntakeComp(RobotState robotState, IntakeConstants constants) {
+        this.robotState = robotState;
+        rollers = new SpinMotor(constants.rollers);
+        extension = new PosMotor(constants.extension);
+        stowSetpoint = new TunableNumber("Intake/Extension Stow Setpoint", constants.stowSetpoint);
+        ...
         addHardware(rollers, extension);
         allowAllTransitions();
         enable();
@@ -79,9 +93,9 @@ public class Intake extends StateMachine<Intake.State> {
     @Override
     protected void applyState(State state) {
         switch (state) {
-            case STOW -> goTo(kStowSetpoint.get(), 0);
-            case IDLE -> goTo(kIntakeSetpoint.get(), 0);
-            case INTAKE -> goTo(kIntakeSetpoint.get(), kIntakeRollerSpeed.get());
+            case STOW -> goTo(stowSetpoint.get(), 0);
+            case IDLE -> goTo(intakeSetpoint.get(), 0);
+            case INTAKE -> goTo(intakeSetpoint.get(), intakeRollerSpeed.get());
             ...
         }
     }
@@ -89,7 +103,7 @@ public class Intake extends StateMachine<Intake.State> {
     @Override
     protected void applyConstraints() {
         if (TrenchZone.intakeLowerRequired(robotState)) {
-            extension.set(kIntakeSetpoint.get());
+            extension.set(intakeSetpoint.get());
         }
     }
 }
@@ -158,11 +172,13 @@ just doesn't happen. You'll see the rejected request in the log.
 
 ## Hierarchical composition
 
-The shooter is the showcase example. `Shooter` extends `StateMachine<Shooter.State>`
-and owns two child machines: `Hood` and `Flywheel`. Each
-child is added with `addChildSubsystem()`. When `Shooter` enters
-`HUB_TRACKING`, its state command requests `HUB_TRACKING` on each
-child. Each child runs its own state command independently.
+The shooter is the showcase example. `ShooterComp` extends
+`Shooter`, a `StateMachine<Shooter.State>`, and owns four child
+machines: `Hood`, `Flywheel`, `Hopper` and `Kicker`. Each child is
+added with `addChildSubsystem()`. When the shooter enters
+`HUB_TRACKING`, its state command requests `TRACKING` on the flywheel,
+`HUB_TRACKING` on the hood and `IDLE` on the hopper and kicker. Each
+child runs its own state command independently.
 
 This means the shooter's state machine doesn't have to know about
 hood PID — it just orchestrates intent.

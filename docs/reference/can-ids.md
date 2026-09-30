@@ -7,16 +7,17 @@ permalink: /reference/can-ids/
 ---
 
 Drive IDs live in each robot's `DriveConfig` subclass; mechanism IDs
-live in the `*Constants` files. This page is the cross-reference.
+live in the `*Constants` classes, whose defaults are the comp robot's.
+This page is the cross-reference.
 
 > **Authoritative source** is the file in the "Defined in" column.
 > If a number here disagrees with the source, the source wins.
 
-## Competition robot
+## Comp robot
 
 ### Drive
 
-Defined in `robots/competition/CompetitionDrive.java`.
+Defined in `robots/comp/CompDrive.java`.
 
 | Module | Drive (Spark Flex) | Turn (Spark MAX) | CANcoder |
 | --- | --- | --- | --- |
@@ -45,11 +46,12 @@ different vendors can share an ID.
 | Hopper | Spark Flex | 15 | `HopperConstants` |
 | Kicker | Spark MAX | 42 | `KickerConstants` |
 
-## Competition V2 robot
+## Secondary robot
 
-Defined in `robots/competitionv2/CompetitionV2Drive.java`. It keeps the
-competition robot's electronics, so every CAN ID above is the same. Only
-the module zero rotations change (they start at `0` until calibrated).
+Every CAN ID is the same as the comp robot's. `SecondaryDrive`
+(`robots/secondary/SecondaryDrive.java`) extends `CompDrive` and
+repeats the module CAN IDs with its own calibrated zero rotations, and
+`SecondaryRobot` uses comp's mechanism constants unchanged.
 
 ## Practice robot
 

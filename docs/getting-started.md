@@ -120,8 +120,8 @@ For sim-only development you don't need a robot:
 5. Click OK. Two windows open: the Sim GUI (joystick mappings, field, modules) and the Driver Station.
 
 The simulator runs the robot named by `Constants.kRobot`
-(`COMPETITION` by default). Change it to `RobotType.PRACTICE` to
-simulate the practice drivetrain. See
+(`SECONDARY` by default). Change it to `RobotType.COMP` or
+`RobotType.PRACTICE` to simulate another robot. See
 [Multiple Robots]({{ '/architecture/robots/' | relative_url }}).
 
 > **If you're asked "do you want A or B"** during sim launch, that's
@@ -209,7 +209,7 @@ mapping for our asset bundle:
 | Shot trajectory | `NT/AdvantageKit/RealOutputs/Shooter/Trajectory` | Simulation only. |
 | Game pieces (fuel) | `NT/Fuel Simulation/Fuels` | Array of `Translation3d`, published by `FuelSim` in simulation. |
 
-These are the competition robot's keys; the practice robot only logs the chassis.
+These are the comp and secondary robots' keys; the practice robot only logs the chassis.
 
 ### Wiring a new component pose
 
@@ -217,7 +217,7 @@ The pattern in the subsystem's `update()` looks like this:
 
 ```java
 Logger.recordOutput("Intake/Pose", new Pose3d()
-        .plus(kOrigin)
+        .plus(constants.origin)
         .plus(new Transform3d(new Translation3d(),
                 new Rotation3d(0, -Units.degreesToRadians(extension.getPosition() + 90), 0))));
 ```

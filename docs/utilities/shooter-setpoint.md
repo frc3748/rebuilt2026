@@ -21,6 +21,8 @@ lives in `frc.robot.game`. Each instance is one solved shot:
 recompute on every call; `RobotState` exposes them as
 `getCurrentHubSetpoint()` and `getCurrentPassSetpoint()`.
 
-On the real robot the shot map in `ShooterConstants` is interpolated and
-the target is led using the time-of-flight map (tunable live under
-`TOF Tuning/<distance>`). In simulation the funnel-clearance solve is used.
+Each solve goes through `state.getShotCalculator()`. On the real robot
+the robot's shot map in `ShooterConstants` is interpolated and the
+target is led using its time-of-flight map (tunable live under
+`TOF Tuning/<distance>`). In simulation the funnel-clearance solve is
+used. See [Shot Calculator]({{ '/utilities/shot-calculator/' | relative_url }}).

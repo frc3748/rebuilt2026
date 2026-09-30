@@ -2,24 +2,36 @@
 layout: default
 title: Shooter
 eyebrow: Subsystem
-description: A fixed shooter, hood plus flywheel, orchestrated by one parent state machine that also drives the hopper and kicker.
+description: A fixed shooter, hood plus flywheel, orchestrated by one parent state machine that also owns the hopper and kicker.
 permalink: /subsystems/shooter/
 ---
 
 The shooter is fixed to the chassis: the drive rotates the robot to aim
 (`Drive#getAimRotationForHub`), the hood sets the launch angle, and the
-flywheel sets the exit speed. `Shooter` owns the hood and flywheel as
-child state machines and requests hopper and kicker states so that the
-whole shot is one transition.
+flywheel sets the exit speed. `ShooterComp` builds and owns the
+hood, flywheel, hopper and kicker as child state machines, so the whole
+shot is one transition.
 
 | | |
 | --- | --- |
 | **Source** | `src/main/java/frc/robot/subsystems/shooter/` |
-| **Built by** | `CompetitionSuperstructure` |
-| **Children** | `Hood`, `Flywheel` |
-| **Constants** | `ShooterConstants` (shot map, time-of-flight map), `HoodConstants`, `FlywheelConstants` |
+| **Classes** | `Shooter` (abstract base), `ShooterComp` |
+| **Built by** | `CompRobot.createSuperstructure` |
+| **Children** | `Hood`, `Flywheel`, `Hopper`, `Kicker` |
+| **Constants** | `FlywheelConstants`, `HoodConstants`, `HopperConstants`, `KickerConstants` from `CompRobot`; `ShooterConstants` from `RobotDefinition.shooter()`. See [Per-robot constants]({{ '/architecture/robots/' | relative_url }}#per-robot-constants). |
+
+`Shooter` is the abstract base. It holds the `State` enum and the calls
+that shared code (autos, `ActionCommands`, `Controls`) makes:
+`spinUp()`, both `holdShot` overloads, `releaseShot()`, `stopFeed()`,
+`reverseFeed()`, `forceFeed()` and `releaseFeed()`. `isFiring()`
+(`SHOOTING` or `PASSING`) and `isPassing()` (`PASSING` or
+`PASS_TRACKING`) come from the state. A robot with a different shooter
+adds its own subclass; see
+[Adding a subsystem variant]({{ '/architecture/robots/' | relative_url }}#adding-a-subsystem-variant).
 
 ## States
+
+`ShooterComp` maps each state to its children in `registerStateCommands()`:
 
 | Shooter | Flywheel | Hood | Hopper | Kicker |
 | --- | --- | --- | --- | --- |
@@ -31,34 +43,44 @@ whole shot is one transition.
 | `OUTTAKE` | `IDLE` | `IDLE` | `OUTAKE` | `OUTAKE` |
 | `TUNING` | `TUNING` | `TUNING` | `IDLE` | `IDLE` |
 
-Hopper and kicker only feed while `Shooter#isReady()` is true, which is
-the flywheel being within tolerance of its setpoint.
+In `SHOOT`, the hopper and kicker only feed while `Flywheel#isReady()`
+is true, which is the flywheel being within tolerance of its setpoint.
 
 ## Hood
 
-Spark MAX, MAXMotion position, gravity feedforward, soft limits. Near a
-trench every hood command is clamped to `kMaxSetpointUnderTrench`.
+Spark MAX, MAXMotion position, gravity feedforward. `Hood` applies the
+conversion from `radiansPerRotation`, the soft limits from `minLimit` and
+`maxLimit` (25° to 50°), and a starting position of `minLimit` when it
+is built; "Hood Zero" on the dashboard resets it to `minLimit`. Near a
+trench every hood command is clamped to `maxSetpointUnderTrench`.
 
 ## Flywheel
 
 Two Spark Flex, leader plus follower, coast, velocity control in meters
-per second of surface speed. A dashboard multiplier scales the hub shot.
+per second of surface speed. `Flywheel` works out the conversion from
+`FlywheelConstants.radius` when it is built. A dashboard multiplier
+scales the hub shot.
 
 ## Shot map
 
-`ShooterConstants` holds distance → (exit velocity, hood angle) and
-distance → time-of-flight maps. On the real robot `ShooterSetpoint`
-interpolates these; in simulation it uses the funnel-clearance solve in
-[`ShotCalculator`]({{ '/utilities/shot-calculator/' | relative_url }}).
+`ShooterConstants` holds distance → (exit velocity in m/s, hood angle)
+and distance → time-of-flight maps, filled by `addShot` in its
+constructor. `RobotState` creates one per robot. On the real robot
+[`ShotCalculator`]({{ '/utilities/shot-calculator/' | relative_url }})
+interpolates these; in simulation it uses its funnel-clearance solve.
+`ShooterComp` publishes each time of flight as a live tunable under
+`TOF Tuning/<distance>`.
 
 ## Operator override
 
-`Shooter#holdShot(setpoint, spinFlywheel)` freezes the hood and
-flywheel on a captured setpoint until `releaseShot()`.
+`holdShot(setpoint, spinFlywheel)` freezes the hood and flywheel on a
+captured setpoint, and `holdShot(speed, hoodPosition, hoodFeedforward)`
+on fixed values, until `releaseShot()`. `stopFeed()`, `forceFeed()` and
+`reverseFeed()` override the hopper and kicker until `releaseFeed()`.
 
 ## Simulation
 
-In simulation `Shooter` launches game pieces through the
-[`FuelSimulation`]({{ '/utilities/simulation/' | relative_url }}) that
-`CompetitionSuperstructure` hands it, while in `SHOOTING` or `PASSING`.
-`ShotVisualizer` logs the trajectory under `Shooter/Trajectory`.
+In simulation the `Superstructure` launches game pieces through the
+[`FuelSimulation`]({{ '/utilities/simulation/' | relative_url }})
+while the shooter `isFiring()`, and `ShotVisualizer` logs the
+trajectory under `Shooter/Trajectory`.

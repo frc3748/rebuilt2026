@@ -16,7 +16,7 @@ feeds. Every robot has one; its constants come from the robot's
 | **Source** | `src/main/java/frc/robot/subsystems/drive/` |
 | **Public class** | [`Drive`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/subsystems/drive/Drive.java) extends `StateMachine<Drive.State>` |
 | **Children** | Four `Module` wrappers (FL, FR, BL, BR) |
-| **Constants** | A [`DriveConfig`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/subsystems/drive/DriveConfig.java) subclass per robot: `CompetitionDrive`, `PracticeDrive` |
+| **Constants** | A [`DriveConfig`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/subsystems/drive/DriveConfig.java) subclass per robot: `CompDrive`, `SecondaryDrive` (extends `CompDrive`), `PracticeDrive` |
 
 ## States
 
@@ -44,7 +44,7 @@ subclasses it and overwrites fields in the constructor. `Drive`,
 
 | Group | Fields |
 | --- | --- |
-| Hardware | `gyro` (`PIGEON2` or `NAVX`), `pigeonCanId`, `navXPort`, `navXUpdateRateHz`, `driveController` (`SPARK_FLEX` or `SPARK_MAX`), `turnSensor` (`CANCODER` or `SPARK_ABSOLUTE_ENCODER`) |
+| Hardware | `gyro` (`PIGEON2` or `NAVX`), `pigeonCanId`, `navXPort`, `navXUpdateRateHz`, `driveController` (`SPARK_FLEX` or `SPARK_MAX`; `TALON_FX` is refused), `turnSensor` (`CANCODER` or `SPARK_ABSOLUTE_ENCODER`) |
 | Modules | `frontLeft`, `frontRight`, `backLeft`, `backRight`: `ModuleConstants(driveCanId, turnCanId, canCoderId, zeroRotation, driveInverted)` |
 | Geometry | `trackWidth`, `wheelBase`, `bumperHeight`, `wheelRadiusMeters`, `driveReduction`, `turnReduction` |
 | Gains | `driveKp`…`driveKv`, `driveSparkKv`, `turnKp`…`turnKv`, and the `…Sim…` gains for `ModuleIOSim` |
@@ -55,9 +55,15 @@ subclasses it and overwrites fields in the constructor. `Drive`,
 Helpers compute the rest: `moduleTranslations()`, `driveBaseRadius()`,
 `maxAngularSpeed()`, `pathPlannerConfig()`, and so on.
 
-## The two drivetrains
+## The drivetrains
 
-| | Competition (`CompetitionDrive`) | Practice (`PracticeDrive`) |
+`SecondaryDrive` extends `CompDrive`. It overrides the four
+`ModuleConstants` with its calibrated zero rotations (comp's are `0`
+until calibrated) and sets the same 6.48 : 1 `driveReduction` itself,
+so the comp column covers both. See
+[Multiple Robots]({{ '/architecture/robots/' | relative_url }}).
+
+| | Comp and secondary (`CompDrive`) | Practice (`PracticeDrive`) |
 | --- | --- | --- |
 | Gyro | Pigeon 2, CAN 50 | NavX, USB1, 50 Hz |
 | Drive motors | NEO on Spark Flex, 6.48 : 1 | NEO on Spark MAX, 7.31 : 1 |
@@ -68,7 +74,7 @@ Helpers compute the rest: `moduleTranslations()`, `driveBaseRadius()`,
 | Max speed | 5.27 m/s | 3.5 m/s |
 | Slow-mode max | 0.5 m/s | 0.5 m/s (default) |
 
-Module CAN IDs for both are on the [CAN ID Map]({{ '/reference/can-ids/' | relative_url }}).
+Module CAN IDs for each are on the [CAN ID Map]({{ '/reference/can-ids/' | relative_url }}).
 
 ## Hardware abstraction
 
@@ -77,7 +83,8 @@ Module CAN IDs for both are on the [CAN ID Map]({{ '/reference/can-ids/' | relat
 - **`DriveIO`** — chassis-level logged inputs (module states, pose, aim goal).
 
 `ModuleIOSpark` builds a Spark Flex or Spark MAX for the drive motor
-from `driveController`. For turning, `CANCODER` writes `zeroRotation` as
+from `driveController`, and throws if it is `TALON_FX` (Kraken swerve
+needs its own `ModuleIO`). For turning, `CANCODER` writes `zeroRotation` as
 the CANcoder's magnet offset and seeds the Spark's relative encoder
 from it; `SPARK_ABSOLUTE_ENCODER` reads the Spark's absolute encoder and
 subtracts `zeroRotation` in code. Drive and turn PID are tunable live as

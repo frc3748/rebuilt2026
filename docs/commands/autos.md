@@ -2,14 +2,17 @@
 layout: default
 title: Autos
 eyebrow: Commands
-description: How autonomous routines are written, registered with a robot, and picked from the dashboard.
+description: How autonomous routines are written, shared by every robot, and picked from the dashboard.
 permalink: /commands/autos/
 ---
 
 Every autonomous routine is an
 [`AutoRoutine`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/commands/autos/AutoRoutine.java).
-A robot's `Superstructure.autos()` returns its routines, and
-`DashboardManager` puts them in the **Auto Choices** chooser.
+[`Autos.all(state)`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/commands/autos/Autos.java)
+lists the shared routines. Every robot gets them through
+`RobotDefinition.autos(state)`, which returns `Autos.all(state)` unless
+the robot overrides it, and `DashboardManager` puts them in the
+**Auto Choices** chooser.
 
 ## `AutoRoutine`
 
@@ -35,7 +38,7 @@ The **Auto Choices** chooser holds, in order:
 
 1. `None` (the default).
 2. Every `.auto` file in `src/main/deploy/pathplanner/autos/`, wrapped with `AutoRoutine.pathPlanner`.
-3. The robot's own routines from `superstructure.autos()`.
+3. The robot's `autos(state)`.
 
 While the Driver Station is in autonomous mode, the selected routine's
 `previewPaths()` are drawn on the dashboard field (alliance-flipped) and
@@ -45,15 +48,14 @@ selected name contains "GAME", so drivers can see a real auto is picked.
 When autonomous starts, `RobotState` calls `build()` on the selection,
 registers the result as the `AUTO` state's command, and enters `AUTO`.
 
-## Competition autos
+## `PathAuto`
 
-Each competition auto is one file in `robots/competition/autos/` that
-extends `CompetitionAuto`:
+Each auto is one file in `commands/autos/` that extends `PathAuto`:
 
 ```java
-public class DepotSideQuickShoot extends CompetitionAuto {
-    public DepotSideQuickShoot(CompetitionSuperstructure robot) {
-        super(robot, "Depot Side Quick Shoot (GAME)",
+public class DepotSideQuickShoot extends PathAuto {
+    public DepotSideQuickShoot(RobotState state) {
+        super(state, "Depot Side Quick Shoot (GAME)",
                 "Start Depot Side to Mid Intake",
                 "Mid Intake to Start Depot Side",
                 ...);
@@ -70,7 +72,7 @@ public class DepotSideQuickShoot extends CompetitionAuto {
 }
 ```
 
-`CompetitionAuto.build()` loads every path, resets the pose to the first
+`PathAuto.build()` loads every path, resets the pose to the first
 path's start (flipped for red), then runs `routine()`. If a path fails
 to load, it returns a print command named `<name> (FAILED)` instead.
 
@@ -79,16 +81,23 @@ Helpers available inside `routine()`:
 | Helper | What it does |
 | --- | --- |
 | `follow(path)` | `AutoBuilder.followPath` on a preloaded path. |
-| `intake(state)` / `shooter(state)` / `flywheel(state)` | Transition and wait for it to land. |
+| `intake(state)` / `shooter(state)` | Transition and wait for it to land. |
 | `requestIntake(state)` / `requestShooter(state)` | Transition without waiting. |
-| `shake(seconds)` | `ActionCommands.shakeIntake` for a fixed time. |
+| `spinUp()` | The shooter's `spinUp()` command. |
+| `shake(seconds)` | Waits `seconds` while running `ActionCommands.shakeIntake`. |
 | `aim()` / `turn()` | `ActionCommands.aimAtHub` / `turnToHub`. |
 | `nudge(meters)` | Auto-align straight forward by a distance. |
 | `shootFromStart(path, shakeSeconds)` | Follow the path while tracking, aim, shoot, shake. |
 
-## The competition catalog
+The mechanism helpers go through the robot's
+[`Superstructure`]({{ '/architecture/robots/' | relative_url }}#superstructure),
+so on a robot without that mechanism they do nothing. `shake(seconds)`
+still waits its time, so a drivetrain-only robot drives every auto's
+paths.
 
-`CompetitionSuperstructure.autos()` registers 15 routines:
+## The catalog
+
+`Autos.all(state)` returns 14 routines:
 
 | Name | What it does |
 | --- | --- |
@@ -106,35 +115,17 @@ Helpers available inside `routine()`:
 | **Depot Side Blair (GAME)** | Two intake runs from the depot side, shooting after each. |
 | **HP Side Blair (GAME)** | Same, from the HP side. |
 | **Depot Side Bump (GAME)** | Like Depot Side Blair, coming back over the bump. |
-| **CUSTOM AUTO (GAME)** | Built on the dashboard; see below. |
 
 The source file is authoritative; the paths each auto uses are listed
 in its constructor.
 
-## `CustomAuto`
-
-`CustomAuto` builds an auto from the dashboard, with no deploy. It
-publishes 100 choosers, `Auto Parallel 0` to `Auto Parallel 99`, in
-10 lanes of 10 steps: lane *n* is choosers *10n* to *10n + 9*. Each
-chooser offers `None` plus every public static method in
-[`ActionCommands`]({{ '/commands/action-commands/' | relative_url }})
-that takes a `CompetitionSuperstructure` and returns a `Command`, found
-by reflection.
-
-When the auto starts, each lane runs its chosen steps in sequence and
-all lanes run in parallel. The choosers are read at that moment, so
-they can change until the match starts.
-
 ## Adding a new auto
 
 1. Draw the path(s) in the PathPlanner GUI; they save to `src/main/deploy/pathplanner/paths/`.
-2. Add a class in `robots/competition/autos/` that extends `CompetitionAuto`. Pass the name and every path name to `super`; the first path sets the starting pose.
+2. Add a class in `commands/autos/` that extends `PathAuto`. Pass the name and every path name to `super`; the first path sets the starting pose.
 3. Write `routine()` with the helpers above.
-4. Add `new MyAuto(this)` to `CompetitionSuperstructure.autos()`.
-5. Bump the count in `CompetitionRobotTest.everyAutoFindsItsPaths` and run the tests; the test fails if any auto can't load its paths or a path name's case doesn't match its file.
-
-A robot without mechanisms can still return `AutoRoutine.pathPlanner("…")`
-or its own `AutoRoutine` subclass from its superstructure.
+4. Add `new MyAuto(state)` to `Autos.all`.
+5. Bump the count in `CompRobotTest.everyAutoFindsItsPaths` and run the tests; the test fails if any auto can't load its paths or a path name's case doesn't match its file. `PracticeRobotTest` also builds every auto on the practice robot.
 
 ## Pitfalls
 

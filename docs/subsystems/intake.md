@@ -9,9 +9,17 @@ permalink: /subsystems/intake/
 | | |
 | --- | --- |
 | **Source** | `src/main/java/frc/robot/subsystems/intake/` |
-| **Public class** | [`Intake`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/subsystems/intake/Intake.java) extends `StateMachine<Intake.State>` |
-| **Constants** | `IntakeConstants` |
-| **Built by** | `CompetitionSuperstructure` |
+| **Public class** | [`Intake`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/subsystems/intake/Intake.java) (abstract) extends `StateMachine<Intake.State>`; `IntakeComp` extends it |
+| **Constants** | `IntakeConstants`, from `CompRobot.intake()` |
+| **Built by** | `CompRobot.createSuperstructure` |
+
+`Intake` holds the `State` enum and `rollIn()` / `rollOut()`, the calls
+shared code makes. `IntakeComp` holds the logic below. It takes an
+`IntakeConstants` and builds its motors and its `Intake/…` tunables
+from it, so a robot can change a setpoint by overriding `intake()`; see
+[Per-robot constants]({{ '/architecture/robots/' | relative_url }}#per-robot-constants).
+A robot with a different intake adds its own subclass; see
+[Adding a subsystem variant]({{ '/architecture/robots/' | relative_url }}#adding-a-subsystem-variant).
 
 ## States
 
@@ -21,6 +29,8 @@ enum State {
 }
 ```
 
+What `IntakeComp` does in each:
+
 | State | Behavior |
 | --- | --- |
 | `STOW` | Extension to the stow setpoint, rollers off. |
@@ -29,22 +39,22 @@ enum State {
 | `OUTAKE` | Extension to the outtake setpoint, rollers reversed. |
 | `SHAKE` | Extension to the shake setpoint, rollers in. |
 
-`ActionCommands.shakeIntake(robot)` alternates `SHAKE` and `IDLE` every
-0.6 s to knock stuck pieces loose. On the competition robot it runs
-while the driver holds **B**.
+`ActionCommands.shakeIntake(state)` alternates `SHAKE` and `IDLE` every
+0.6 s to knock stuck pieces loose. It runs while the driver holds **B**,
+and in autos through `shake(seconds)`.
 
 ## Trench constraint
 
 When the robot is near a trench (see [`TrenchZone`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/game/TrenchZone.java)),
 the intake extension is forced to the intake setpoint so it fits under.
-This lives in `applyConstraints()`, so it wins over every state and every
-operator override:
+This lives in `IntakeComp.applyConstraints()`, so it wins over
+every state and every operator override:
 
 ```java
 @Override
 protected void applyConstraints() {
     if (TrenchZone.intakeLowerRequired(robotState)) {
-        extension.set(kIntakeSetpoint.get());
+        extension.set(intakeSetpoint.get());
     }
 }
 ```

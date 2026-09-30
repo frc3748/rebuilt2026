@@ -24,18 +24,29 @@ public TunableNumber(String key, double defaultValue);
 public double get();
 ```
 
-Declare it once as a constant, and call `get()` where the value is used:
+Mechanism defaults live in the robot's constants object as plain
+fields. The subsystem builds the `TunableNumber` from that default in
+its constructor, and calls `get()` where the value is used:
 
 ```java
 // IntakeConstants
-public static final TunableNumber kStowSetpoint = new TunableNumber("Intake/Extension Stow Setpoint", -93);
+public double stowSetpoint = -93;
 
-// Intake.applyState
-case STOW -> goTo(kStowSetpoint.get(), 0);
+// IntakeComp constructor
+stowSetpoint = new TunableNumber("Intake/Extension Stow Setpoint", constants.stowSetpoint);
+
+// IntakeComp.applyState
+case STOW -> goTo(stowSetpoint.get(), 0);
 ```
 
+The key is fixed in the subsystem, so it's the same on every robot;
+only the default can differ. See
+[Per-robot constants]({{ '/architecture/robots/' | relative_url }}#per-robot-constants).
+Code that isn't per robot, such as `ActionCommands`' `FixedPos/…`
+values, declares a `static final TunableNumber` instead.
+
 Calling `get()` every loop is what picks up dashboard edits; don't copy
-the value into a field at construction.
+the value into a plain `double` at construction.
 
 For code that needs a callback instead of polling, call DogLog
 directly, as `AutoAlignToPoseCommand` does:
@@ -66,13 +77,17 @@ You rarely call it directly. A `MotorConfig` opts in with
 [`Gains`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/util/motor/Gains.java):
 
 ```java
-public static final MotorConfig kExtension = new MotorConfig("Intake Extension", 46, Controller.SPARK_MAX)
+public MotorConfig extension = new MotorConfig("Intake Extension", 46, Controller.SPARK_MAX)
         ...
         .tunable(true, true);   // Intake Extension/kP … kDeviationErr
 ```
 
 `ModuleIOSpark` does the same for the swerve modules as `Drive PID/…`
 and `Turn PID/…`.
+
+A `TALON_FX` motor gets the same `<name>/…` keys from `MotorIOTalonFX`,
+except `kDeviationErr`. Each edit is applied to the Talon's slot 0 or
+Motion Magic config.
 
 ## Key naming
 

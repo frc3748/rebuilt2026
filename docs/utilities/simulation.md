@@ -8,9 +8,9 @@ permalink: /utilities/simulation/
 
 The simulator can do more than run motors. Mechanisms simulate through
 `MotorIOSim`, the drive through `ModuleIOSim`, cameras through
-`CameraIOPhotonSim`, and on the competition robot the fuel itself is
-simulated: pieces sit on the field, get picked up by the intake, and fly
-when the shooter fires.
+`CameraIOPhotonSim`, and on a robot with a shooter or intake the fuel
+itself is simulated: pieces sit on the field, get picked up by the
+intake, and fly when the shooter fires.
 
 ## Which robot?
 
@@ -28,15 +28,17 @@ simulation, and `CameraIOPhotonSim` renders AprilTags from it.
 ## `FuelSimulation`
 
 [`FuelSimulation`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/game/FuelSimulation.java)
-is the robot-facing wrapper. `CompetitionSuperstructure` creates one
-only in `SIM` mode, from the drive's `DriveConfig` (frame size and
-bumper height), the shooter height, and an intake box in front of the
-robot. The field starts with its usual fuel and the robot starts
-holding 8 pieces.
+is the robot-facing wrapper. The
+[`Superstructure`]({{ '/architecture/robots/' | relative_url }}#superstructure)
+creates one in `SIM` mode when the first shooter or intake is added,
+from the drive's `DriveConfig` (frame size and bumper height), the
+shooter position in the robot's `ShooterConstants`, and an intake box in
+front of the robot. The field starts with its usual fuel and the robot
+starts holding 8 pieces.
 
 - **Pickup** — while the intake is in `INTAKE`, pieces inside the intake box are counted as held.
-- **Launch** — while `SHOOTING` or `PASSING`, `Shooter` calls `fuel.launch(exitVelocity, launchAngle)` every `kSimSecondsBetweenShots`. It returns `false` when the robot holds no fuel.
-- **Update** — `CompetitionSuperstructure.simulationPeriodic()` calls `fuel.update()`, reached through `Robot.simulationPeriodic()` → `RobotState.updateSimulation()`.
+- **Launch** — while the shooter `isFiring()` (`SHOOTING` or `PASSING`), the `Superstructure` calls `fuel.launch(exitVelocity, launchAngle)` every `ShooterConstants.simSecondsBetweenShots`, from the pass setpoint if `isPassing()` and the hub setpoint otherwise. It returns `false` when the robot holds no fuel.
+- **Update** — `Superstructure.simulationPeriodic()` runs the sim shots and the `ShotVisualizer`, then `fuel.update()`. It is reached through `Robot.simulationPeriodic()` → `RobotState.updateSimulation()`.
 
 A **Reset Fuel** dashboard button clears the field and respawns the
 starting fuel.
@@ -75,6 +77,6 @@ ever touching a real ball.
 - **Shooter never launches.** The robot holds no fuel. Drive over
   pieces with the intake in `INTAKE`, or press **Reset Fuel**.
 - **Intake never picks up.** Check the intake box built in
-  `CompetitionSuperstructure.createFuelSimulation()`.
-- **Shots always miss.** Check `ShooterConstants.kShooterToRobotCenter`;
-  the sim launches from there.
+  `Superstructure.createFuelSimulation()`.
+- **Shots always miss.** Check `shooterToRobotCenter` in the robot's
+  `ShooterConstants`; the sim launches from there.

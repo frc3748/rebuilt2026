@@ -7,27 +7,28 @@ permalink: /architecture/io-pattern/
 ---
 
 The codebase follows the **AdvantageKit IO pattern**, but instead of an
-IO interface, a Spark implementation, and a sim implementation for every
-mechanism, there is exactly one of each for motors and one of each for
-cameras. Subsystems compose those.
+IO interface, a real implementation, and a sim implementation for every
+mechanism, there is one set for motors and one for cameras. Subsystems
+compose those.
 
 ## Motors
 
 | File | What it is |
 | --- | --- |
-| `util/motor/MotorConfig.java` | Fluent description of one motor: CAN ID, Spark MAX or Flex, followers, gains, MAXMotion, soft limits, tunables. |
+| `util/motor/MotorConfig.java` | Fluent description of one motor: CAN ID, controller (`SPARK_MAX`, `SPARK_FLEX` or `TALON_FX`), followers, gains, MAXMotion, soft limits, tunables. |
 | `util/motor/Gains.java` | PID, feedforward, gravity and MAXMotion values. `MotorConfig` holds one per closed-loop slot. |
 | `util/motor/MotorIO.java` | The interface. `@AutoLog` inputs and setters. |
-| `util/motor/MotorIOSpark.java` | Real hardware. Configures the Spark from the `MotorConfig`, reads inputs with `ifOk`, wires [`SparkUtil.tune`]({{ '/utilities/tunable-number/' | relative_url }}#motor-gains). |
+| `util/motor/MotorIOSpark.java` | Real hardware for `SPARK_MAX` and `SPARK_FLEX`. Configures the Spark from the `MotorConfig`, reads inputs with `ifOk`, wires [`SparkUtil.tune`]({{ '/utilities/tunable-number/' | relative_url }}#motor-gains). |
+| `util/motor/MotorIOTalonFX.java` | Real hardware for `TALON_FX` (a Kraken or Falcon) through Phoenix 6. See below. |
 | `util/motor/MotorIOSim.java` | Kinematic simulation. Velocity goals are reached with a short lag, position goals move at the MAXMotion cruise velocity. |
 | `util/motor/SpinMotor.java` | A velocity-controlled motor: `set(speed)`, `isAtGoal(tolerance)`. |
 | `util/motor/PosMotor.java` | A position-controlled motor: `set(position)`, `set(position, ff, slot)`, `resetPosition(position)`. |
-| `util/motor/Motor.java` | Shared base: picks the IO for `Constants.kMode`, logs inputs, buffers the command and sends it once per loop. |
+| `util/motor/Motor.java` | Shared base: picks the IO for `Constants.kMode` (and, on the real robot, the config's controller), logs inputs, buffers the command and sends it once per loop. |
 
-A constants file declares the motors:
+A constants class declares the motors as public fields:
 
 ```java
-public static final MotorConfig kExtension = new MotorConfig("Intake Extension", 46, Controller.SPARK_MAX)
+public MotorConfig extension = new MotorConfig("Intake Extension", 46, Controller.SPARK_MAX)
         .follower(47, true)
         .currentLimit(60)
         .conversion(360.0 / 23.0, 360.0 / 23.0 / 60.0)
@@ -38,25 +39,42 @@ public static final MotorConfig kExtension = new MotorConfig("Intake Extension",
         .tunable(true, true);
 ```
 
-And the subsystem holds them and says what each state does:
+And the subsystem builds them from the constants object it's given and
+says what each state does:
 
 ```java
-private final SpinMotor rollers = new SpinMotor(kRollers);
-private final PosMotor extension = new PosMotor(kExtension);
+rollers = new SpinMotor(constants.rollers);
+extension = new PosMotor(constants.extension);
 
 @Override
 protected void applyState(State state) {
     switch (state) {
-        case STOW -> goTo(kStowSetpoint.get(), 0);
-        case INTAKE -> goTo(kIntakeSetpoint.get(), kIntakeRollerSpeed.get());
+        case STOW -> goTo(stowSetpoint.get(), 0);
+        case INTAKE -> goTo(intakeSetpoint.get(), intakeRollerSpeed.get());
         ...
     }
 }
 ```
 
+Each robot can hand its subsystems different constants; see
+[Per-robot constants]({{ '/architecture/robots/' | relative_url }}#per-robot-constants).
+
 The state machine reads every registered motor before `applyState` and
 writes every motor after `applyConstraints`, so each motor is logged and
 sent exactly once per loop.
+
+Any `MotorConfig` can run a Kraken by passing `Controller.TALON_FX`.
+`MotorIOTalonFX` keeps the same units as `MotorIOSpark`:
+
+- Positions are in the `conversion()` position units, applied as the
+  Talon's `SensorToMechanismRatio`.
+- Velocities are scaled to match the Spark convention (motor RPM times
+  the velocity factor).
+- `maxMotion(...)` becomes Motion Magic.
+- Followers run with `MotorAlignmentValue.Aligned`, or `Opposed` when
+  inverted.
+- `tunable(...)` publishes the same keys as `SparkUtil.tune`, without
+  `kDeviationErr`.
 
 ## Cameras
 
@@ -89,7 +107,9 @@ The swerve drive keeps the AdvantageKit template's own interfaces:
 
 `Drive` picks them from `Constants.kMode` and the robot's `DriveConfig`
 (`gyro`, `driveController`, `turnSensor`), and passes the same config to
-each one. See [Drive]({{ '/subsystems/drive/' | relative_url }}).
+each one. `ModuleIOSpark` only drives Sparks and throws if
+`driveController` is `TALON_FX`; Kraken swerve needs its own `ModuleIO`.
+See [Drive]({{ '/subsystems/drive/' | relative_url }}).
 
 ## How the mode is chosen
 

@@ -59,9 +59,9 @@ The codebase uses it through
 [`TunableNumber`]({{ '/utilities/tunable-number/' | relative_url }}):
 
 ```java
-public static final TunableNumber kStowSetpoint = new TunableNumber("Intake/Extension Stow Setpoint", -93);
+stowSetpoint = new TunableNumber("Intake/Extension Stow Setpoint", constants.stowSetpoint);
 ...
-extension.set(kStowSetpoint.get());
+case STOW -> goTo(stowSetpoint.get(), 0);
 ```
 
 The value shows up under `/Tunable` in NetworkTables and is editable
