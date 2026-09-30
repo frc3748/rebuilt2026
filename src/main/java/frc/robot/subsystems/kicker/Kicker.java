@@ -1,9 +1,8 @@
 package frc.robot.subsystems.kicker;
 
-import static frc.robot.subsystems.kicker.KickerConstants.*;
-
 import java.util.function.BooleanSupplier;
 
+import frc.robot.util.TunableNumber;
 import frc.robot.util.motor.SpinMotor;
 import frc.robot.util.state.StateMachine;
 
@@ -16,11 +15,16 @@ public class Kicker extends StateMachine<Kicker.State> {
     }
 
     private final BooleanSupplier shooterReady;
-    private final SpinMotor kicker = new SpinMotor(kKicker);
+    private final SpinMotor kicker;
+    private final TunableNumber shootSpeed;
+    private final TunableNumber outtakeSpeed;
 
-    public Kicker(BooleanSupplier shooterReady) {
+    public Kicker(KickerConstants constants, BooleanSupplier shooterReady) {
         super("Kicker", State.UNDETERMINED, State.class);
         this.shooterReady = shooterReady;
+        kicker = new SpinMotor(constants.motor);
+        shootSpeed = new TunableNumber("Kicker/Shot Speed", constants.shootSpeed);
+        outtakeSpeed = new TunableNumber("Kicker/Outtake Speed", constants.outtakeSpeed);
         addHardware(kicker);
         allowAllTransitions();
         enable();
@@ -29,14 +33,14 @@ public class Kicker extends StateMachine<Kicker.State> {
     @Override
     protected void applyState(State state) {
         switch (state) {
-            case SHOOT -> kicker.set(shooterReady.getAsBoolean() ? kShootSpeed.get() : 0);
-            case OUTAKE -> kicker.set(kOuttakeSpeed.get());
+            case SHOOT -> kicker.set(shooterReady.getAsBoolean() ? shootSpeed.get() : 0);
+            case OUTAKE -> kicker.set(outtakeSpeed.get());
             case IDLE, UNDETERMINED -> kicker.set(0);
         }
     }
 
     public void feed() {
-        kicker.set(kShootSpeed.get());
+        kicker.set(shootSpeed.get());
     }
 
     @Override

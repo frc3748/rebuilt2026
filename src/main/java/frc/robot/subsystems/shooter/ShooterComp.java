@@ -5,9 +5,13 @@ import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.RobotState;
 import frc.robot.game.ShooterSetpoint;
 import frc.robot.subsystems.hopper.Hopper;
+import frc.robot.subsystems.hopper.HopperConstants;
 import frc.robot.subsystems.kicker.Kicker;
+import frc.robot.subsystems.kicker.KickerConstants;
 import frc.robot.subsystems.shooter.flywheel.Flywheel;
+import frc.robot.subsystems.shooter.flywheel.FlywheelConstants;
 import frc.robot.subsystems.shooter.hood.Hood;
+import frc.robot.subsystems.shooter.hood.HoodConstants;
 
 public class ShooterComp extends Shooter {
     protected final Flywheel flywheel;
@@ -15,11 +19,12 @@ public class ShooterComp extends Shooter {
     protected final Hopper hopper;
     protected final Kicker kicker;
 
-    public ShooterComp(RobotState state) {
-        flywheel = new Flywheel(state);
-        hood = new Hood(state);
-        hopper = new Hopper(flywheel::isReady);
-        kicker = new Kicker(flywheel::isReady);
+    public ShooterComp(RobotState state, FlywheelConstants flywheelConstants, HoodConstants hoodConstants,
+            HopperConstants hopperConstants, KickerConstants kickerConstants) {
+        flywheel = new Flywheel(state, flywheelConstants);
+        hood = new Hood(state, hoodConstants);
+        hopper = new Hopper(hopperConstants, flywheel::isReady);
+        kicker = new Kicker(kickerConstants, flywheel::isReady);
 
         addChildSubsystem(hood);
         addChildSubsystem(flywheel);
@@ -29,9 +34,10 @@ public class ShooterComp extends Shooter {
         allowAllTransitions();
         registerStateCommands();
 
-        for (double distance : ShooterConstants.kShotDistances) {
-            DogLog.tunable("TOF Tuning/" + distance, ShooterConstants.kTimeOfFlightMap.get(distance),
-                    tof -> ShooterConstants.kTimeOfFlightMap.put(distance, tof));
+        ShooterConstants shooter = state.getShooterConstants();
+        for (double distance : shooter.shotDistances) {
+            DogLog.tunable("TOF Tuning/" + distance, shooter.timeOfFlightMap.get(distance),
+                    tof -> shooter.timeOfFlightMap.put(distance, tof));
         }
 
         enable();

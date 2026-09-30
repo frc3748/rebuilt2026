@@ -12,6 +12,7 @@ import java.util.function.Function;
 
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
+import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.LinearVelocity;
@@ -25,7 +26,6 @@ import frc.robot.game.ShotVisualizer;
 import frc.robot.subsystems.drive.DriveConfig;
 import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.shooter.Shooter;
-import frc.robot.subsystems.shooter.ShooterConstants;
 import frc.robot.util.state.StateMachine;
 
 public class Superstructure {
@@ -67,13 +67,14 @@ public class Superstructure {
 
     private FuelSimulation createFuelSimulation() {
         DriveConfig drive = state.getDrive().getConfig();
+        Transform3d shooterToRobotCenter = state.getShooterConstants().shooterToRobotCenter;
         double halfWidth = (drive.trackWidth + Units.inchesToMeters(6)) / 2.0;
         return new FuelSimulation(
-                new FuelSimulation.Robot(drive.trackWidth, drive.wheelBase, drive.bumperHeight, ShooterConstants.kShooterToRobotCenter.getZ()),
+                new FuelSimulation.Robot(drive.trackWidth, drive.wheelBase, drive.bumperHeight, shooterToRobotCenter.getZ()),
                 new FuelSimulation.Intake(halfWidth, halfWidth + Units.inchesToMeters(8.5), -halfWidth, halfWidth),
                 kStartingSimFuel,
                 () -> state.getLatestFieldToRobot().getValue().transformBy(new Transform2d(
-                        ShooterConstants.kShooterToRobotCenter.getTranslation().toTranslation2d(), Rotation2d.kZero)),
+                        shooterToRobotCenter.getTranslation().toTranslation2d(), Rotation2d.kZero)),
                 state::getLatestDesiredFieldRelativeChassisSpeed,
                 () -> intake.map(intake -> intake.getState() == Intake.State.INTAKE).orElse(false));
     }
@@ -128,7 +129,7 @@ public class Superstructure {
         Angle launchAngle = Degrees.of(90).minus(Radians.of(setpoint.getHoodRadians()));
         shotVisualizer.update(exitVelocity, launchAngle);
 
-        if (shooter.isFiring() && shotTimer.hasElapsed(ShooterConstants.kSimSecondsBetweenShots)
+        if (shooter.isFiring() && shotTimer.hasElapsed(state.getShooterConstants().simSecondsBetweenShots)
                 && fuel.launch(exitVelocity, launchAngle)) {
             shotTimer.reset();
         }

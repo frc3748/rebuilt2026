@@ -1,7 +1,5 @@
 package frc.robot.subsystems.shooter.hood;
 
-import static frc.robot.subsystems.shooter.hood.HoodConstants.*;
-
 import org.littletonrobotics.junction.Logger;
 
 import edu.wpi.first.math.geometry.Pose3d;
@@ -14,7 +12,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.RobotState;
 import frc.robot.game.ShooterSetpoint;
 import frc.robot.game.TrenchZone;
-import frc.robot.subsystems.shooter.ShooterConstants;
+import frc.robot.util.TunableNumber;
 import frc.robot.util.motor.PosMotor;
 import frc.robot.util.state.StateMachine;
 
@@ -28,15 +26,23 @@ public class Hood extends StateMachine<Hood.State> {
     }
 
     private final RobotState robotState;
-    private final PosMotor hood = new PosMotor(kHood);
+    private final HoodConstants constants;
+    private final PosMotor hood;
+    private final TunableNumber customSetpoint;
 
-    public Hood(RobotState robotState) {
+    public Hood(RobotState robotState, HoodConstants constants) {
         super("Hood", State.UNDETERMINED, State.class);
         this.robotState = robotState;
+        this.constants = constants;
+        hood = new PosMotor(constants.motor
+                .conversion(constants.radiansPerRotation, constants.radiansPerRotation / 60.0)
+                .softLimits(constants.minLimit, constants.maxLimit)
+                .startingPosition(constants.minLimit));
+        customSetpoint = new TunableNumber("Hood/Custom Setpoint", constants.customSetpoint);
         addHardware(hood);
         allowAllTransitions();
 
-        SmartDashboard.putData("Hood Zero", Commands.runOnce(() -> hood.resetPosition(kMinLimit))
+        SmartDashboard.putData("Hood Zero", Commands.runOnce(() -> hood.resetPosition(constants.minLimit))
                 .ignoringDisable(true)
                 .withName("Hood Zero"));
         enable();
@@ -47,7 +53,7 @@ public class Hood extends StateMachine<Hood.State> {
         switch (state) {
             case HUB_TRACKING -> aim(robotState.getCurrentHubSetpoint());
             case PASS_TRACKING -> aim(robotState.getCurrentPassSetpoint());
-            case TUNING -> setPos(kCustomSetpoint.get(), 0);
+            case TUNING -> setPos(customSetpoint.get(), 0);
             case IDLE, UNDETERMINED -> hood.stop();
         }
     }
@@ -55,8 +61,8 @@ public class Hood extends StateMachine<Hood.State> {
     @Override
     protected void update() {
         Logger.recordOutput("Hood/Pose", new Pose3d()
-                .plus(ShooterConstants.kShooterToRobotCenter)
-                .plus(kShooterToHood)
+                .plus(robotState.getShooterConstants().shooterToRobotCenter)
+                .plus(constants.shooterToHood)
                 .plus(new Transform3d(
                         new Translation3d(),
                         new Rotation3d(0, Units.degreesToRadians(-120) + hood.getPosition(), 0))));
@@ -68,7 +74,7 @@ public class Hood extends StateMachine<Hood.State> {
 
     public void setPos(double position, double feedforward) {
         boolean underTrench = TrenchZone.hoodLowerRequired(robotState);
-        hood.set(underTrench ? Math.min(position, kMaxSetpointUnderTrench) : position, feedforward);
+        hood.set(underTrench ? Math.min(position, constants.maxSetpointUnderTrench) : position, feedforward);
     }
 
     @Override

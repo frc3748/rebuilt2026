@@ -8,13 +8,13 @@ import org.littletonrobotics.junction.Logger;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
+import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.LinearVelocity;
 import frc.robot.RobotState;
-import frc.robot.subsystems.shooter.ShooterConstants;
 
 public class ShotVisualizer {
     private static final int kPoints = 50;
@@ -30,9 +30,10 @@ public class ShotVisualizer {
     public void update(LinearVelocity exitVelocity, Angle launchAngle) {
         Pose2d robot = state.getLatestFieldToRobot().getValue();
         ChassisSpeeds fieldSpeeds = state.getLatestMeasuredFieldRelativeChassisSpeeds();
+        Transform3d shooterToRobotCenter = state.getShooterConstants().shooterToRobotCenter;
         Translation2d shooter = robot
                 .transformBy(new Transform2d(
-                        ShooterConstants.kShooterToRobotCenter.getTranslation().toTranslation2d(),
+                        shooterToRobotCenter.getTranslation().toTranslation2d(),
                         new Rotation2d()))
                 .getTranslation();
 
@@ -40,7 +41,7 @@ public class ShotVisualizer {
         double vertical = Math.sin(launchAngle.in(Radians)) * exitVelocity.in(MetersPerSecond);
         double xVel = horizontal * robot.getRotation().getCos() + fieldSpeeds.vxMetersPerSecond;
         double yVel = horizontal * robot.getRotation().getSin() + fieldSpeeds.vyMetersPerSecond;
-        double z0 = ShooterConstants.kShooterToRobotCenter.getZ();
+        double z0 = shooterToRobotCenter.getZ();
 
         for (int i = 0; i < kPoints; i++) {
             double t = i * kStepSeconds;

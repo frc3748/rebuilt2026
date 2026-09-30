@@ -39,12 +39,13 @@ public class ShooterSetpoint {
         Pose2d robot = state.getLatestFieldToRobot().getValue();
         ChassisSpeeds robotSpeeds = state.getLatestMeasuredFieldRelativeChassisSpeeds();
 
+        ShotCalculator calculator = state.getShotCalculator();
         ShotCalculator.ShotData shot = Constants.kMode == Mode.REAL
-                ? ShotCalculator.iterativeMovingShotFromMap(robot, robotSpeeds, target)
-                : ShotCalculator.iterativeMovingShotFromFunnelClearance(robot, robotSpeeds, target);
+                ? calculator.iterativeMovingShotFromMap(robot, robotSpeeds, target)
+                : calculator.iterativeMovingShotFromFunnelClearance(robot, robotSpeeds, target);
 
         Translation3d predictedTarget = shot.getTarget();
-        double azimuth = ShotCalculator.calculateAzimuthAngle(robot, predictedTarget).in(Radians);
+        double azimuth = calculator.calculateAzimuthAngle(robot, predictedTarget).in(Radians);
 
         double distance = Math.hypot(predictedTarget.getX(), predictedTarget.getY());
         double hoodFF = -robotSpeeds.vxMetersPerSecond * predictedTarget.getZ()

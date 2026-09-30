@@ -4,7 +4,6 @@ import static edu.wpi.first.units.Units.Meters;
 
 import edu.wpi.first.math.geometry.Translation2d;
 import frc.robot.RobotState;
-import frc.robot.subsystems.shooter.ShooterConstants;
 
 public class TrenchZone {
     private static final double kHoodLowerRadius = 0.8;
@@ -34,7 +33,7 @@ public class TrenchZone {
 
     public static double getDistanceToClosestShootingPose(RobotState state) {
         Translation2d shooter = state.getLatestFieldToRobot().getValue().getTranslation()
-                .plus(ShooterConstants.kShooterToRobotCenter.getTranslation().toTranslation2d());
+                .plus(state.getShooterConstants().shooterToRobotCenter.getTranslation().toTranslation2d());
         double blueHub = FieldConstants.HUB_BLUE.toTranslation2d().getDistance(shooter);
         double redHub = FieldConstants.HUB_RED.toTranslation2d().getDistance(shooter);
         return Math.min(blueHub, redHub);

@@ -1,7 +1,5 @@
 package frc.robot.subsystems.intake;
 
-import static frc.robot.subsystems.intake.IntakeConstants.*;
-
 import org.littletonrobotics.junction.Logger;
 
 import edu.wpi.first.math.geometry.Pose3d;
@@ -13,16 +11,34 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.RobotState;
 import frc.robot.game.TrenchZone;
+import frc.robot.util.TunableNumber;
 import frc.robot.util.motor.PosMotor;
 import frc.robot.util.motor.SpinMotor;
 
 public class IntakeComp extends Intake {
     protected final RobotState robotState;
-    protected final SpinMotor rollers = new SpinMotor(kRollers);
-    protected final PosMotor extension = new PosMotor(kExtension);
+    protected final IntakeConstants constants;
+    protected final SpinMotor rollers;
+    protected final PosMotor extension;
+    protected final TunableNumber stowSetpoint;
+    protected final TunableNumber intakeSetpoint;
+    protected final TunableNumber outtakeSetpoint;
+    protected final TunableNumber shakeSetpoint;
+    protected final TunableNumber intakeRollerSpeed;
+    protected final TunableNumber outtakeRollerSpeed;
 
-    public IntakeComp(RobotState robotState) {
+    public IntakeComp(RobotState robotState, IntakeConstants constants) {
         this.robotState = robotState;
+        this.constants = constants;
+        rollers = new SpinMotor(constants.rollers);
+        extension = new PosMotor(constants.extension);
+        stowSetpoint = new TunableNumber("Intake/Extension Stow Setpoint", constants.stowSetpoint);
+        intakeSetpoint = new TunableNumber("Intake/Extension Intake Setpoint", constants.intakeSetpoint);
+        outtakeSetpoint = new TunableNumber("Intake/Extension Outtake Setpoint", constants.outtakeSetpoint);
+        shakeSetpoint = new TunableNumber("Intake/Extension Shake Setpoint", constants.shakeSetpoint);
+        intakeRollerSpeed = new TunableNumber("Intake/Roller Intake Speed", constants.intakeRollerSpeed);
+        outtakeRollerSpeed = new TunableNumber("Intake/Roller Outtake Speed", constants.outtakeRollerSpeed);
+
         addHardware(rollers, extension);
         allowAllTransitions();
 
@@ -35,11 +51,11 @@ public class IntakeComp extends Intake {
     @Override
     protected void applyState(State state) {
         switch (state) {
-            case STOW -> goTo(kStowSetpoint.get(), 0);
-            case IDLE -> goTo(kIntakeSetpoint.get(), 0);
-            case INTAKE -> goTo(kIntakeSetpoint.get(), kIntakeRollerSpeed.get());
-            case OUTAKE -> goTo(kOuttakeSetpoint.get(), kOuttakeRollerSpeed.get());
-            case SHAKE -> goTo(kShakeSetpoint.get(), kIntakeRollerSpeed.get());
+            case STOW -> goTo(stowSetpoint.get(), 0);
+            case IDLE -> goTo(intakeSetpoint.get(), 0);
+            case INTAKE -> goTo(intakeSetpoint.get(), intakeRollerSpeed.get());
+            case OUTAKE -> goTo(outtakeSetpoint.get(), outtakeRollerSpeed.get());
+            case SHAKE -> goTo(shakeSetpoint.get(), intakeRollerSpeed.get());
             case UNDETERMINED -> {
                 extension.stop();
                 rollers.set(0);
@@ -50,14 +66,14 @@ public class IntakeComp extends Intake {
     @Override
     protected void applyConstraints() {
         if (TrenchZone.intakeLowerRequired(robotState)) {
-            extension.set(kIntakeSetpoint.get());
+            extension.set(intakeSetpoint.get());
         }
     }
 
     @Override
     protected void update() {
         Logger.recordOutput("Intake/Pose", new Pose3d()
-                .plus(kOrigin)
+                .plus(constants.origin)
                 .plus(new Transform3d(
                         new Translation3d(),
                         new Rotation3d(0, -Units.degreesToRadians(extension.getPosition() + 90), 0))));
@@ -73,12 +89,12 @@ public class IntakeComp extends Intake {
 
     @Override
     public void rollIn() {
-        rollers.set(kIntakeRollerSpeed.get());
+        rollers.set(intakeRollerSpeed.get());
     }
 
     @Override
     public void rollOut() {
-        rollers.set(kOuttakeRollerSpeed.get());
+        rollers.set(outtakeRollerSpeed.get());
     }
 
     @Override

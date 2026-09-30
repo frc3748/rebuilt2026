@@ -15,24 +15,22 @@ import edu.wpi.first.math.interpolation.InterpolatingTreeMap;
 import edu.wpi.first.math.interpolation.InverseInterpolator;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.Distance;
-import frc.robot.game.ShotCalculator;
 import frc.robot.game.ShotCalculator.ShotData;
-import frc.robot.subsystems.shooter.flywheel.FlywheelConstants;
 
-public final class ShooterConstants {
-    public static final Transform3d kShooterToRobotCenter = new Transform3d(
+public class ShooterConstants {
+    public Transform3d shooterToRobotCenter = new Transform3d(
             new Translation3d(Units.inchesToMeters(-3.290), Units.inchesToMeters(-4.750), Units.inchesToMeters(13.735 - 0.45)),
             Rotation3d.kZero);
-    public static final Distance kDistanceAboveFunnel = Inches.of(20);
-    public static final double kTimeOfFlightOffsetSeconds = 0.15;
-    public static final double kSimSecondsBetweenShots = 0.08;
+    public Distance distanceAboveFunnel = Inches.of(20);
+    public double timeOfFlightOffsetSeconds = 0.15;
+    public double simSecondsBetweenShots = 0.08;
 
-    public static final InterpolatingTreeMap<Double, ShotData> kShotMap =
+    public final InterpolatingTreeMap<Double, ShotData> shotMap =
             new InterpolatingTreeMap<>(InverseInterpolator.forDouble(), ShotData::interpolate);
-    public static final InterpolatingDoubleTreeMap kTimeOfFlightMap = new InterpolatingDoubleTreeMap();
-    public static final List<Double> kShotDistances = new ArrayList<>();
+    public final InterpolatingDoubleTreeMap timeOfFlightMap = new InterpolatingDoubleTreeMap();
+    public final List<Double> shotDistances = new ArrayList<>();
 
-    static {
+    public ShooterConstants() {
         addShot(1.409409, 8.7, 0.0, 0.162001034483);
         addShot(1.822781, 9.8, 0.0, 0.185998061224);
         addShot(2.088259, 9.96, 0.0, 0.209664558233);
@@ -50,15 +48,16 @@ public final class ShooterConstants {
         addShot(6.546274, 13.55, 0.78, 0.679576103937);
     }
 
-    private static void addShot(double distanceMeters, double exitVelocityMetersPerSec, double hoodRadians,
+    public void addShot(double distanceMeters, double exitVelocityMetersPerSec, double hoodRadians,
             double timeOfFlightSeconds) {
-        kShotMap.put(distanceMeters, new ShotData(
-                ShotCalculator.linearToAngularVelocity(
-                        MetersPerSecond.of(exitVelocityMetersPerSec), FlywheelConstants.kFlywheelRadius),
-                Radians.of(hoodRadians)));
-        kTimeOfFlightMap.put(distanceMeters, timeOfFlightSeconds + kTimeOfFlightOffsetSeconds);
-        kShotDistances.add(distanceMeters);
+        shotMap.put(distanceMeters, new ShotData(MetersPerSecond.of(exitVelocityMetersPerSec), Radians.of(hoodRadians)));
+        timeOfFlightMap.put(distanceMeters, timeOfFlightSeconds + timeOfFlightOffsetSeconds);
+        shotDistances.add(distanceMeters);
     }
 
-    private ShooterConstants() {}
+    public void clearShots() {
+        shotMap.clear();
+        timeOfFlightMap.clear();
+        shotDistances.clear();
+    }
 }

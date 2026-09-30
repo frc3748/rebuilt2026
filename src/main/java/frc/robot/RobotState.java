@@ -25,8 +25,10 @@ import frc.robot.game.FieldConstants;
 import frc.robot.game.GameState;
 import frc.robot.game.PassTargetFactory;
 import frc.robot.game.ShooterSetpoint;
+import frc.robot.game.ShotCalculator;
 import frc.robot.robots.RobotDefinition;
 import frc.robot.subsystems.drive.Drive;
+import frc.robot.subsystems.shooter.ShooterConstants;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.subsystems.vision.VisionMeasurement;
 import frc.robot.util.ConcurrentTimeInterpolatableBuffer;
@@ -47,6 +49,8 @@ public class RobotState extends StateMachine<RobotState.State> {
     private final RobotDefinition definition;
     private final SimulatedRobotState simulatedRobotState = Robot.isSimulation() ? new SimulatedRobotState() : null;
     private final Controls controls;
+    private final ShooterConstants shooterConstants;
+    private final ShotCalculator shotCalculator;
     private final GameState gameState = new GameState();
     private final Supplier<ShooterSetpoint> hubSupplier = ShooterSetpoint.hubSetpointSupplier(this);
     private final Supplier<ShooterSetpoint> passSupplier = ShooterSetpoint.passSetpointSupplier(this);
@@ -83,6 +87,8 @@ public class RobotState extends StateMachine<RobotState.State> {
         clearBuffers();
 
         controls = definition.createControls();
+        shooterConstants = definition.shooter();
+        shotCalculator = new ShotCalculator(shooterConstants);
         drive = new Drive(definition.drive(), this);
         vision = new Vision(this, definition.cameras());
         superstructure = definition.createSuperstructure(this);
@@ -255,6 +261,14 @@ public class RobotState extends StateMachine<RobotState.State> {
 
     public RobotDefinition getDefinition() {
         return definition;
+    }
+
+    public ShooterConstants getShooterConstants() {
+        return shooterConstants;
+    }
+
+    public ShotCalculator getShotCalculator() {
+        return shotCalculator;
     }
 
     public Drive getDrive() {

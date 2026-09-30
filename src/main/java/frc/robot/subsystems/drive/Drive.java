@@ -46,7 +46,6 @@ import frc.robot.util.Elastic;
 import frc.robot.util.RobotTime;
 import frc.robot.game.ShotCalculator;
 import frc.robot.game.TrenchZone;
-import frc.robot.subsystems.shooter.ShooterConstants;
 import frc.robot.util.Elastic.Notification;
 import frc.robot.util.state.StateMachine;
 
@@ -220,7 +219,7 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
     }
 
     Pose2d currentPose = getPose().plus(
-      new Transform2d(ShooterConstants.kShooterToRobotCenter.getTranslation().toTranslation2d(), Rotation2d.kZero)
+      new Transform2d(robotState.getShooterConstants().shooterToRobotCenter.getTranslation().toTranslation2d(), Rotation2d.kZero)
     );
     Translation2d targetTrans = robotState.getDriveAnglePos().getTranslation();
     double distance = currentPose.getTranslation().getDistance(targetTrans);
