@@ -9,17 +9,19 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.Timer;
+import frc.robot.game.FieldConstants;
 import frc.robot.util.LimelightHelpers;
 import frc.robot.util.LimelightHelpers.PoseEstimate;
 import frc.robot.util.LimelightHelpers.RawDetection;
-import frc.robot.util.LimelightHelpers.RawFiducial;
 
 public class CameraIOLimelight implements CameraIO {
     private final String name;
+    private final boolean hasImu;
     private final NetworkTable table;
 
-    public CameraIOLimelight(CameraConfig config) {
+    public CameraIOLimelight(CameraConfig config, boolean hasImu) {
         name = config.networkName();
+        this.hasImu = hasImu;
         table = NetworkTableInstance.getDefault().getTable(name);
     }
 
@@ -35,9 +37,11 @@ public class CameraIOLimelight implements CameraIO {
 
     @Override
     public void updateInputs(CameraInputs inputs) {
-        LimelightHelpers.SetIMUMode(name, 1);
-        LimelightHelpers.SetIMUAssistAlpha(name, 0.01);
-        LimelightHelpers.SetFiducialIDFiltersOverride(name, VisionConstants.kValidTagIds);
+        if (hasImu) {
+            LimelightHelpers.SetIMUMode(name, 1);
+            LimelightHelpers.SetIMUAssistAlpha(name, 0.01);
+        }
+        LimelightHelpers.SetFiducialIDFiltersOverride(name, FieldConstants.TAG_IDS);
 
         inputs.connected = table.containsKey("tv");
         inputs.pipeline = (int) LimelightHelpers.getCurrentPipelineIndex(name);
@@ -78,7 +82,7 @@ public class CameraIOLimelight implements CameraIO {
         return estimate != null
                 && estimate.pose != null
                 && estimate.tagCount > 0
-                && !estimate.pose.getTranslation().equals(VisionConstants.kErrorPoseRed.getTranslation());
+                && !estimate.pose.getTranslation().equals(VisionConstants.kLimelightErrorPose.getTranslation());
     }
 
     private static ObjectObservation toObject(RawDetection detection, double timestamp) {

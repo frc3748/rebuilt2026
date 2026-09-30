@@ -1,23 +1,26 @@
 package frc.robot.subsystems.drive;
-import edu.wpi.first.math.geometry.Rotation2d;
 
 import org.littletonrobotics.junction.AutoLog;
 
-import com.ctre.phoenix6.hardware.Pigeon2;
+import edu.wpi.first.math.geometry.Rotation2d;
 
 public interface GyroIO {
-  @AutoLog
-  public static class GyroIOInputs {
-    public boolean connected = false;
-    public Rotation2d yawPosition = Rotation2d.kZero;
-    public double yawVelocityRadPerSec = 0.0;
-    public double[] odometryYawTimestamps = new double[] {};
-    public Rotation2d[] odometryYawPositions = new Rotation2d[] {};
+    @AutoLog
+    class GyroIOInputs {
+        public boolean connected = false;
+        public Rotation2d yawPosition = Rotation2d.kZero;
+        public double yawVelocityRadPerSec = 0.0;
+        public double[] odometryYawTimestamps = new double[] {};
+        public Rotation2d[] odometryYawPositions = new Rotation2d[] {};
 
-    public double yawDouble = 0;
-  }
+        public double rollRadians = 0.0;
+        public double pitchRadians = 0.0;
+        public double rollRateRadPerSec = 0.0;
+        public double pitchRateRadPerSec = 0.0;
+        public double yawRateRadPerSec = 0.0;
+        public double accelXGs = 0.0;
+        public double accelYGs = 0.0;
+    }
 
-  public default void updateInputs(GyroIOInputs inputs) {}
-
-  public default Pigeon2 getPiegon() {return null;};;
+    default void updateInputs(GyroIOInputs inputs) {}
 }

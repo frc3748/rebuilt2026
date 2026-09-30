@@ -80,6 +80,7 @@ dependencies {
 
 test {
     useJUnitPlatform()
+    forkEvery = 1
     systemProperty 'junit.jupiter.extensions.autodetection.enabled', 'true'
 }
 

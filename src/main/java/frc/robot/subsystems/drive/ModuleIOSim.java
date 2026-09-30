@@ -1,7 +1,5 @@
 package frc.robot.subsystems.drive;
 
-import static frc.robot.subsystems.drive.DriveConstants.*;
-
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -15,21 +13,23 @@ public class ModuleIOSim implements ModuleIO {
 
   private boolean driveClosedLoop = false;
   private boolean turnClosedLoop = false;
-  private PIDController driveController = new PIDController(driveSimP, 0, driveSimD);
-  private PIDController turnController = new PIDController(turnSimP, 0, turnSimD);
+  private final DriveConfig config;
+  private final PIDController driveController;
+  private final PIDController turnController;
   private double driveFFVolts = 0.0;
   private double driveAppliedVolts = 0.0;
   private double turnAppliedVolts = 0.0;
 
-  public ModuleIOSim() {
-    driveSim =
-        new DCMotorSim(
-            LinearSystemId.createDCMotorSystem(driveGearbox, 0.001, driveMotorReduction),
-            driveGearbox);
-    turnSim =
-        new DCMotorSim(
-            LinearSystemId.createDCMotorSystem(turnGearbox, 0.001, turnMotorReduction),
-            turnGearbox);
+  public ModuleIOSim(DriveConfig config) {
+    this.config = config;
+    driveController = new PIDController(config.driveSimP, 0, config.driveSimD);
+    turnController = new PIDController(config.turnSimP, 0, config.turnSimD);
+    driveSim = new DCMotorSim(
+        LinearSystemId.createDCMotorSystem(config.driveGearbox, 0.001, config.driveReduction),
+        config.driveGearbox);
+    turnSim = new DCMotorSim(
+        LinearSystemId.createDCMotorSystem(config.turnGearbox, 0.001, config.turnReduction),
+        config.turnGearbox);
 
     turnController.enableContinuousInput(-Math.PI, Math.PI);
   }
@@ -85,7 +85,7 @@ public class ModuleIOSim implements ModuleIO {
   @Override
   public void setDriveVelocity(double velocityRadPerSec) {
     driveClosedLoop = true;
-    driveFFVolts = driveSimKs * Math.signum(velocityRadPerSec) + driveSimKv * velocityRadPerSec;
+    driveFFVolts = config.driveSimKs * Math.signum(velocityRadPerSec) + config.driveSimKv * velocityRadPerSec;
     driveController.setSetpoint(velocityRadPerSec);
   }
 

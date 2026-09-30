@@ -7,15 +7,22 @@ import static edu.wpi.first.units.Units.Radians;
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.interpolation.InterpolatingDoubleTreeMap;
 import edu.wpi.first.math.interpolation.InterpolatingTreeMap;
 import edu.wpi.first.math.interpolation.InverseInterpolator;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.Distance;
+import frc.robot.game.ShotCalculator;
+import frc.robot.game.ShotCalculator.ShotData;
 import frc.robot.subsystems.shooter.flywheel.FlywheelConstants;
-import frc.robot.util.ShotCalculator;
-import frc.robot.util.ShotCalculator.ShotData;
 
 public final class ShooterConstants {
+    public static final Transform3d kShooterToRobotCenter = new Transform3d(
+            new Translation3d(Units.inchesToMeters(-3.290), Units.inchesToMeters(-4.750), Units.inchesToMeters(13.735 - 0.45)),
+            Rotation3d.kZero);
     public static final Distance kDistanceAboveFunnel = Inches.of(20);
     public static final double kTimeOfFlightOffsetSeconds = 0.15;
     public static final double kSimSecondsBetweenShots = 0.08;

@@ -12,36 +12,6 @@ public class MotorConfig {
 
     public record Follower(int canId, boolean inverted) {}
 
-    public static class Gains {
-        public double kP;
-        public double kI;
-        public double kD;
-        public double kS;
-        public double kV;
-        public double kA;
-        public double kG;
-        public boolean gravityIsCosine;
-        public double maxAccel;
-        public double cruiseVel;
-        public double allowedError;
-
-        Gains copy() {
-            Gains copy = new Gains();
-            copy.kP = kP;
-            copy.kI = kI;
-            copy.kD = kD;
-            copy.kS = kS;
-            copy.kV = kV;
-            copy.kA = kA;
-            copy.kG = kG;
-            copy.gravityIsCosine = gravityIsCosine;
-            copy.maxAccel = maxAccel;
-            copy.cruiseVel = cruiseVel;
-            copy.allowedError = allowedError;
-            return copy;
-        }
-    }
-
     final String name;
     final int canId;
     final Controller controller;

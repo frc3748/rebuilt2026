@@ -2,26 +2,18 @@ package frc.robot.util;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.interpolation.TimeInterpolatableBuffer;
-import frc.robot.RobotState;
 
 public class SimulatedRobotState {
-  RobotState state;
-  TimeInterpolatableBuffer<Pose2d> fieldToRobotSimulatedTruth = TimeInterpolatableBuffer
-      .createBuffer(RobotState.LOOKBACK_TIME);
+    private static final double kLookbackSeconds = 1.0;
 
-  public SimulatedRobotState(RobotState state) {
-    this.state = state;
-  }
+    private final TimeInterpolatableBuffer<Pose2d> fieldToRobotTruth = TimeInterpolatableBuffer.createBuffer(kLookbackSeconds);
 
-  synchronized public void addFieldToRobot(Pose2d pose) {
-    fieldToRobotSimulatedTruth.addSample(RobotTime.getTimestampSeconds(), pose);
-  }
-
-  synchronized public Pose2d getLatestFieldToRobot() {
-    var entry = fieldToRobotSimulatedTruth.getInternalBuffer().lastEntry();
-    if (entry == null) {
-      return null;
+    public synchronized void addFieldToRobot(Pose2d pose) {
+        fieldToRobotTruth.addSample(RobotTime.getTimestampSeconds(), pose);
     }
-    return entry.getValue();
-  }
+
+    public synchronized Pose2d getLatestFieldToRobot() {
+        var entry = fieldToRobotTruth.getInternalBuffer().lastEntry();
+        return entry == null ? null : entry.getValue();
+    }
 }

@@ -24,7 +24,6 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 import frc.robot.util.SparkUtil;
 import frc.robot.util.motor.MotorConfig.Controller;
 import frc.robot.util.motor.MotorConfig.Follower;
-import frc.robot.util.motor.MotorConfig.Gains;
 
 public class MotorIOSpark implements MotorIO {
     private final MotorConfig config;
@@ -100,17 +99,7 @@ public class MotorIOSpark implements MotorIO {
         }
 
         if (config.tunable) {
-            Gains g = config.gains;
-            SparkUtil.tunePID(
-                    config.name,
-                    motor,
-                    sparkConfig,
-                    new double[] { g.kP, g.kI, g.kD, g.kS, g.kV, g.kA, g.kG, g.maxAccel, g.cruiseVel, g.allowedError },
-                    ResetMode.kResetSafeParameters,
-                    PersistMode.kPersistParameters,
-                    config.tuneFeedforward,
-                    config.tuneMaxMotion,
-                    g.gravityIsCosine);
+            SparkUtil.tune(config.name, motor, sparkConfig, config.gains, config.tuneFeedforward, config.tuneMaxMotion);
         }
     }
 

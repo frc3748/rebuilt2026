@@ -12,7 +12,7 @@ import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.RobotState;
-import frc.robot.util.TrenchZone;
+import frc.robot.game.TrenchZone;
 import frc.robot.util.motor.PosMotor;
 import frc.robot.util.motor.SpinMotor;
 import frc.robot.util.state.StateMachine;
@@ -24,7 +24,6 @@ public class Intake extends StateMachine<Intake.State> {
         IDLE,
         INTAKE,
         OUTAKE,
-        CLIMB_TOW,
         SHAKE
     }
 
@@ -51,7 +50,6 @@ public class Intake extends StateMachine<Intake.State> {
             case IDLE -> goTo(kIntakeSetpoint.get(), 0);
             case INTAKE -> goTo(kIntakeSetpoint.get(), kIntakeRollerSpeed.get());
             case OUTAKE -> goTo(kOuttakeSetpoint.get(), kOuttakeRollerSpeed.get());
-            case CLIMB_TOW -> goTo(kClimbTowSetpoint.get(), 0);
             case SHAKE -> goTo(kShakeSetpoint.get(), kIntakeRollerSpeed.get());
             case UNDETERMINED -> {
                 extension.stop();

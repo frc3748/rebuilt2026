@@ -21,6 +21,7 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.util.Units;
 import frc.robot.Constants;
 import frc.robot.RobotState;
+import frc.robot.game.FieldConstants;
 import frc.robot.subsystems.vision.CameraIO.ObjectObservation;
 import frc.robot.subsystems.vision.CameraIO.PoseObservation;
 import frc.robot.subsystems.vision.CameraIO.PoseSource;
@@ -87,7 +88,7 @@ public class Camera {
         Logger.recordOutput(logKey + "/AcceptedPoses", accepted.toArray(Pose2d[]::new));
         Logger.recordOutput(logKey + "/RejectedPoses", rejected.toArray(Pose2d[]::new));
         Logger.recordOutput(logKey + "/Tags", Arrays.stream(inputs.tagIds)
-                .mapToObj(kAprilTagLayout::getTagPose)
+                .mapToObj(FieldConstants.TAG_LAYOUT::getTagPose)
                 .flatMap(Optional::stream)
                 .toArray(Pose3d[]::new));
         Logger.recordOutput(logKey + "/Objects", objects.stream()
@@ -99,7 +100,8 @@ public class Camera {
         boolean ambiguous = observation.source().rejectAmbiguous
                 && observation.tagCount() == 1
                 && observation.ambiguity() > kMaxAmbiguity;
-        boolean offField = pose.getX() < 0 || pose.getX() > fieldLength || pose.getY() < 0 || pose.getY() > fieldWidth;
+        boolean offField = pose.getX() < 0 || pose.getX() > FieldConstants.LAYOUT_LENGTH_METERS
+                || pose.getY() < 0 || pose.getY() > FieldConstants.LAYOUT_WIDTH_METERS;
         boolean repeated = observation.timestamp() == lastTimestamps.getOrDefault(observation.source(), -1.0);
 
         if (observation.tagCount() == 0

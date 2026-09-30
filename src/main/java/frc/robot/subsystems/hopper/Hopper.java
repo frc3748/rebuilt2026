@@ -2,13 +2,14 @@ package frc.robot.subsystems.hopper;
 
 import static frc.robot.subsystems.hopper.HopperConstants.*;
 
+import java.util.function.BooleanSupplier;
+
 import org.littletonrobotics.junction.Logger;
 
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
-import frc.robot.RobotState;
 import frc.robot.util.motor.SpinMotor;
 import frc.robot.util.state.StateMachine;
 
@@ -20,13 +21,13 @@ public class Hopper extends StateMachine<Hopper.State> {
         SHOOT
     }
 
-    private final RobotState robotState;
+    private final BooleanSupplier shooterReady;
     private final SpinMotor hopper = new SpinMotor(kHopper);
     private double spinRadians;
 
-    public Hopper(RobotState robotState) {
+    public Hopper(BooleanSupplier shooterReady) {
         super("Hopper", State.UNDETERMINED, State.class);
-        this.robotState = robotState;
+        this.shooterReady = shooterReady;
         addHardware(hopper);
         allowAllTransitions();
         enable();
@@ -35,7 +36,7 @@ public class Hopper extends StateMachine<Hopper.State> {
     @Override
     protected void applyState(State state) {
         switch (state) {
-            case SHOOT -> hopper.set(robotState.getShooter().isReady() ? kShootSpeed.get() : 0);
+            case SHOOT -> hopper.set(shooterReady.getAsBoolean() ? kShootSpeed.get() : 0);
             case OUTAKE -> hopper.set(kOuttakeSpeed.get());
             case IDLE, UNDETERMINED -> hopper.set(0);
         }

@@ -14,7 +14,7 @@ import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.RobotState;
 import frc.robot.subsystems.drive.Drive;
-import frc.robot.subsystems.drive.DriveConstants;
+import frc.robot.subsystems.drive.DriveConfig;
 
 public class AutoAlignToPoseCommand extends Command {
     public enum AlignType {
@@ -31,17 +31,12 @@ public class AutoAlignToPoseCommand extends Command {
     private final Pose2d target;
     private final AlignType alignType;
     private final ProfiledPIDController driveController;
-    private final ProfiledPIDController thetaController = new ProfiledPIDController(
-            DriveConstants.kDriveToPointHeadingP,
-            0.0,
-            0.0,
-            new TrapezoidProfile.Constraints(DriveConstants.kMaxAngularSpeed, DriveConstants.kMaxAngularAcceleration),
-            0.02);
+    private final ProfiledPIDController thetaController;
 
-    private double metersTolerance = DriveConstants.metersTolerance;
-    private double radiansTolerance = DriveConstants.radiansTolerance;
-    private double metersAccelTolerance = DriveConstants.metersAccelTolerance;
-    private double radAccelTolerance = DriveConstants.radAccelTolerance;
+    private double metersTolerance;
+    private double radiansTolerance;
+    private double metersAccelTolerance;
+    private double radAccelTolerance;
 
     public AutoAlignToPoseCommand(Drive drive, RobotState state, Pose2d target, double constraintFactor) {
         this(drive, state, target, constraintFactor, AlignType.DEFAULT);
@@ -53,19 +48,31 @@ public class AutoAlignToPoseCommand extends Command {
         this.state = state;
         this.target = target;
         this.alignType = alignType;
+
+        DriveConfig config = drive.getConfig();
+        metersTolerance = config.metersTolerance;
+        radiansTolerance = config.radiansTolerance;
+        metersAccelTolerance = config.metersAccelTolerance;
+        radAccelTolerance = config.radAccelTolerance;
         driveController = new ProfiledPIDController(
-                DriveConstants.kDriveToPointP,
+                config.driveToPointP,
                 0.0,
                 0.0,
                 new TrapezoidProfile.Constraints(
-                        DriveConstants.maxSpeedMetersPerSec * constraintFactor,
-                        DriveConstants.kMaxLinearAcceleration * constraintFactor),
+                        config.maxSpeedMetersPerSec * constraintFactor,
+                        config.maxLinearAcceleration * constraintFactor),
+                0.02);
+        thetaController = new ProfiledPIDController(
+                config.driveToPointHeadingP,
+                0.0,
+                0.0,
+                new TrapezoidProfile.Constraints(config.maxAngularSpeed(), config.maxAngularAcceleration()),
                 0.02);
         thetaController.enableContinuousInput(-Math.PI, Math.PI);
         addRequirements(drive);
 
-        DogLog.tunable("Auto Align/Drive kP", DriveConstants.kDriveToPointP, driveController::setP);
-        DogLog.tunable("Auto Align/Turn kP", DriveConstants.kDriveToPointHeadingP, thetaController::setP);
+        DogLog.tunable("Auto Align/Drive kP", config.driveToPointP, driveController::setP);
+        DogLog.tunable("Auto Align/Turn kP", config.driveToPointHeadingP, thetaController::setP);
         DogLog.tunable("Auto Align/Meters Tolerance", metersTolerance, value -> {
             metersTolerance = value;
             applyTolerances();

@@ -8,20 +8,23 @@ import org.littletonrobotics.junction.wpilog.WPILOGWriter;
 import com.revrobotics.util.StatusLogger;
 
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import frc.robot.robots.RobotType;
 import frc.robot.util.state.SubsystemManagerFactory;
 
 public class Robot extends LoggedRobot {
     private final RobotState robotState;
 
     public Robot() {
+        RobotType robotType = RobotType.detect();
         Logger.recordMetadata("ROBOT", "2026 Recharge");
         Logger.recordMetadata("MODE", Constants.kMode.name());
+        Logger.recordMetadata("ROBOT_TYPE", robotType.name());
         Logger.addDataReceiver(new WPILOGWriter());
         Logger.addDataReceiver(new NT4Publisher());
         StatusLogger.disableAutoLogging();
         Logger.start();
 
-        robotState = new RobotState();
+        robotState = new RobotState(robotType.create());
         SubsystemManagerFactory.getInstance().registerSubsystem(robotState);
     }
 

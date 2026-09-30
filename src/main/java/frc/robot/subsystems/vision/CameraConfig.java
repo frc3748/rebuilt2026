@@ -8,7 +8,9 @@ import edu.wpi.first.math.geometry.Transform3d;
 
 public class CameraConfig {
     public enum Type {
-        LIMELIGHT(CameraIOLimelight::new),
+        LIMELIGHT_3(config -> new CameraIOLimelight(config, false)),
+        LIMELIGHT_3G(config -> new CameraIOLimelight(config, false)),
+        LIMELIGHT_4(config -> new CameraIOLimelight(config, true)),
         PHOTON(CameraIOPhoton::new);
 
         private final Function<CameraConfig, CameraIO> factory;

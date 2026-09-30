@@ -10,6 +10,7 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.wpilibj.Timer;
+import frc.robot.game.FieldConstants;
 
 public class CameraIOPhotonSim extends CameraIOPhoton {
     private static VisionSystemSim visionSim;
@@ -24,7 +25,7 @@ public class CameraIOPhotonSim extends CameraIOPhoton {
 
         if (visionSim == null) {
             visionSim = new VisionSystemSim("main");
-            visionSim.addAprilTags(VisionConstants.kAprilTagLayout);
+            visionSim.addAprilTags(FieldConstants.TAG_LAYOUT);
         }
 
         SimCameraProperties properties = new SimCameraProperties();

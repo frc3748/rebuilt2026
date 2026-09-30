@@ -28,7 +28,6 @@ public final class IntakeConstants {
     public static final TunableNumber kStowSetpoint = new TunableNumber("Intake/Extension Stow Setpoint", -93);
     public static final TunableNumber kIntakeSetpoint = new TunableNumber("Intake/Extension Intake Setpoint", 0);
     public static final TunableNumber kOuttakeSetpoint = new TunableNumber("Intake/Extension Outtake Setpoint", 0);
-    public static final TunableNumber kClimbTowSetpoint = new TunableNumber("Intake/Extension Tow Setpoint", -30);
     public static final TunableNumber kShakeSetpoint = new TunableNumber("Intake/Extension Shake Setpoint", -30);
 
     public static final TunableNumber kIntakeRollerSpeed = new TunableNumber("Intake/Roller Intake Speed", -40);

@@ -25,7 +25,6 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.subsystems.drive.Drive;
-import frc.robot.subsystems.drive.DriveConstants;
 
 public class DriveCommands {
     private static final double kDeadband = 0.1;
@@ -60,7 +59,7 @@ public class DriveCommands {
             Supplier<Drive.State> stateSupplier) {
         ProfiledPIDController angleController = new ProfiledPIDController(
                 kAngleP, 0, kAngleD,
-                new TrapezoidProfile.Constraints(DriveConstants.kMaxAngularSpeed, DriveConstants.kMaxAngularAcceleration));
+                new TrapezoidProfile.Constraints(drive.getConfig().maxAngularSpeed(), drive.getConfig().maxAngularAcceleration()));
         angleController.enableContinuousInput(-Math.PI, Math.PI);
         DogLog.tunable("Auto Turn", kAngleP, angleController::setP);
 
@@ -151,7 +150,7 @@ public class DriveCommands {
                             for (int i = 0; i < 4; i++) {
                                 wheelDelta += Math.abs(positions[i] - state.positions[i]) / 4.0;
                             }
-                            double wheelRadius = (state.gyroDelta * DriveConstants.driveBaseRadius) / wheelDelta;
+                            double wheelRadius = (state.gyroDelta * drive.getConfig().driveBaseRadius()) / wheelDelta;
 
                             NumberFormat formatter = new DecimalFormat("#0.000");
                             System.out.println("********** Wheel Radius Characterization Results **********");

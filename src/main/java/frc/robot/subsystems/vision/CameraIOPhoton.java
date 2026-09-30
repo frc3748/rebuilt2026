@@ -13,6 +13,7 @@ import org.photonvision.targeting.PhotonTrackedTarget;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.wpilibj.Timer;
+import frc.robot.game.FieldConstants;
 
 public class CameraIOPhoton implements CameraIO {
     protected final PhotonCamera camera;
@@ -20,7 +21,7 @@ public class CameraIOPhoton implements CameraIO {
 
     public CameraIOPhoton(CameraConfig config) {
         camera = new PhotonCamera(config.networkName());
-        estimator = new PhotonPoseEstimator(VisionConstants.kAprilTagLayout, config.robotToCamera());
+        estimator = new PhotonPoseEstimator(FieldConstants.TAG_LAYOUT, config.robotToCamera());
     }
 
     @Override

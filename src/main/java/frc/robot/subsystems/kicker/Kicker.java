@@ -2,7 +2,8 @@ package frc.robot.subsystems.kicker;
 
 import static frc.robot.subsystems.kicker.KickerConstants.*;
 
-import frc.robot.RobotState;
+import java.util.function.BooleanSupplier;
+
 import frc.robot.util.motor.SpinMotor;
 import frc.robot.util.state.StateMachine;
 
@@ -14,12 +15,12 @@ public class Kicker extends StateMachine<Kicker.State> {
         OUTAKE
     }
 
-    private final RobotState robotState;
+    private final BooleanSupplier shooterReady;
     private final SpinMotor kicker = new SpinMotor(kKicker);
 
-    public Kicker(RobotState robotState) {
+    public Kicker(BooleanSupplier shooterReady) {
         super("Kicker", State.UNDETERMINED, State.class);
-        this.robotState = robotState;
+        this.shooterReady = shooterReady;
         addHardware(kicker);
         allowAllTransitions();
         enable();
@@ -28,7 +29,7 @@ public class Kicker extends StateMachine<Kicker.State> {
     @Override
     protected void applyState(State state) {
         switch (state) {
-            case SHOOT -> kicker.set(robotState.getShooter().isReady() ? kShootSpeed.get() : 0);
+            case SHOOT -> kicker.set(shooterReady.getAsBoolean() ? kShootSpeed.get() : 0);
             case OUTAKE -> kicker.set(kOuttakeSpeed.get());
             case IDLE, UNDETERMINED -> kicker.set(0);
         }

@@ -1,7 +1,6 @@
 package frc.robot.subsystems.shooter;
 
 import static edu.wpi.first.units.Units.Degrees;
-import static edu.wpi.first.units.Units.Meters;
 import static edu.wpi.first.units.Units.MetersPerSecond;
 import static edu.wpi.first.units.Units.Radians;
 
@@ -16,23 +15,29 @@ import frc.robot.subsystems.hopper.Hopper;
 import frc.robot.subsystems.kicker.Kicker;
 import frc.robot.subsystems.shooter.flywheel.Flywheel;
 import frc.robot.subsystems.shooter.hood.Hood;
-import frc.robot.subsystems.vision.VisionConstants;
-import frc.robot.util.ShooterSetpoint;
-import frc.robot.util.ShotVisualizer;
+import frc.robot.game.FuelSimulation;
+import frc.robot.game.ShooterSetpoint;
+import frc.robot.game.ShotVisualizer;
 import frc.robot.util.state.StateMachine;
 
 public class Shooter extends StateMachine<Shooter.State> {
     private final RobotState state;
-    private final Hood hood;
     private final Flywheel flywheel;
+    private final Hood hood;
+    private final Hopper hopper;
+    private final Kicker kicker;
+    private final FuelSimulation fuel;
     private final ShotVisualizer visualizer;
     private final Timer simShotTimer = new Timer();
 
-    public Shooter(RobotState state) {
+    public Shooter(RobotState state, Flywheel flywheel, Hood hood, Hopper hopper, Kicker kicker, FuelSimulation fuel) {
         super("Shooter", State.UNDETERMINED, State.class);
         this.state = state;
-        hood = new Hood(state);
-        flywheel = new Flywheel(state);
+        this.flywheel = flywheel;
+        this.hood = hood;
+        this.hopper = hopper;
+        this.kicker = kicker;
+        this.fuel = fuel;
         visualizer = new ShotVisualizer(state);
 
         addChildSubsystem(hood);
@@ -71,13 +76,13 @@ public class Shooter extends StateMachine<Shooter.State> {
             Kicker.State kickerState) {
         flywheel.requestTransition(flywheelState);
         hood.requestTransition(hoodState);
-        state.getHopper().requestTransition(hopperState);
-        state.getKicker().requestTransition(kickerState);
+        hopper.requestTransition(hopperState);
+        kicker.requestTransition(kickerState);
     }
 
     @Override
     protected void update() {
-        if (Constants.kMode == Mode.SIM) {
+        if (Constants.kMode == Mode.SIM && fuel != null) {
             simulateShots();
         }
     }
@@ -89,23 +94,13 @@ public class Shooter extends StateMachine<Shooter.State> {
         visualizer.update(exitVelocity, launchAngle);
 
         boolean firing = getState() == State.SHOOTING || getState() == State.PASSING;
-        if (firing && state.getSimFuelCount() > 0 && simShotTimer.hasElapsed(ShooterConstants.kSimSecondsBetweenShots)) {
-            state.setSimFuelCount(state.getSimFuelCount() - 1);
+        if (firing && simShotTimer.hasElapsed(ShooterConstants.kSimSecondsBetweenShots) && fuel.launch(exitVelocity, launchAngle)) {
             simShotTimer.reset();
-            state.getFuelSim().launchFuel(
-                    exitVelocity,
-                    launchAngle,
-                    Radians.zero(),
-                    Meters.of(VisionConstants.kShooterToRobotCenter.getZ()));
         }
     }
 
     private boolean isPassing() {
         return getState() == State.PASSING || getState() == State.PASS_TRACKING;
-    }
-
-    public boolean isReady() {
-        return flywheel.isReady();
     }
 
     public void holdShot(ShooterSetpoint setpoint, boolean spinFlywheel) {
@@ -116,14 +111,6 @@ public class Shooter extends StateMachine<Shooter.State> {
     public void releaseShot() {
         flywheel.clearOverride();
         hood.clearOverride();
-    }
-
-    public Hood getHood() {
-        return hood;
-    }
-
-    public Flywheel getFlywheel() {
-        return flywheel;
     }
 
     @Override
