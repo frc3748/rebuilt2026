@@ -45,6 +45,12 @@ different vendors can share an ID.
 | Hopper | Spark Flex | 15 | `HopperConstants` |
 | Kicker | Spark MAX | 42 | `KickerConstants` |
 
+## Competition V2 robot
+
+Defined in `robots/competitionv2/CompetitionV2Drive.java`. It keeps the
+competition robot's electronics, so every CAN ID above is the same. Only
+the module zero rotations change (they start at `0` until calibrated).
+
 ## Practice robot
 
 Defined in `robots/practice/PracticeDrive.java`. The practice robot has

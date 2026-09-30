@@ -6,7 +6,8 @@ description: One codebase runs several robots. How the code picks a robot at boo
 permalink: /architecture/robots/
 ---
 
-The same code runs the competition robot and the practice robot.
+The same code runs the competition robot, the new competition chassis
+(V2), and the practice robot.
 Everything robot-specific lives in `frc.robot.robots`. Everything else
 (drive, vision, the state-machine framework, the game code in
 `frc.robot.game`) is shared.
@@ -24,6 +25,9 @@ robots/
 │   ├── CompetitionSuperstructure.java  ← Builds the mechanisms and owns the driver/operator bindings
 │   ├── ActionCommands.java             ← Composite commands for this robot
 │   └── autos/                          ← CompetitionAuto base, one file per auto, CustomAuto
+├── competitionv2/
+│   ├── CompetitionV2Robot.java         ← Extends CompetitionRobot; only the drivetrain changes
+│   └── CompetitionV2Drive.java         ← Extends CompetitionDrive; WCP Swerve X2t modules
 └── practice/
     ├── PracticeRobot.java              ← RobotDefinition; no cameras, no mechanisms
     └── PracticeDrive.java              ← DriveConfig: NavX, Spark MAX drive, Spark absolute-encoder turn
@@ -47,6 +51,7 @@ serial numbers it runs on:
 ```java
 public enum RobotType {
     COMPETITION(CompetitionRobot::new),
+    COMPETITION_V2(CompetitionV2Robot::new),
     PRACTICE(PracticeRobot::new);
     ...
 }
@@ -58,7 +63,7 @@ public enum RobotType {
 - On a roboRIO, reads `RobotController.getSerialNumber()` and returns the entry that lists that serial.
 - If no entry matches, raises a warning `Alert` (`Unknown roboRIO serial …`) and returns `Constants.kDefaultRobot`.
 
-> **Serials aren't filled in yet.** Neither entry lists a serial, so
+> **Serials aren't filled in yet.** No entry lists a serial, so
 > every roboRIO currently runs `kDefaultRobot` and shows the alert. Add
 > the practice roboRIO's serial to `PRACTICE` before deploying there.
 
@@ -116,6 +121,35 @@ Drive bindings are the same on every robot and live in
   `CompetitionSuperstructure`. See [Action Commands]({{ '/commands/action-commands/' | relative_url }}).
 - **`autos/`** — see [Autos]({{ '/commands/autos/' | relative_url }}).
 
+## The competition V2 robot
+
+The new chassis keeps the competition robot's electronics and frame
+size (28″ × 28″) but moves from WCP Swerve X2 to WCP Swerve X2t
+(corner mount) modules with the X1/X2 ratio set (8 mm key bore, for
+NEO/Vortex). It is not the main robot yet.
+
+- **`CompetitionV2Robot`** extends `CompetitionRobot` and overrides only
+  `name()` (`Competition V2`) and `drive()`. It gets the same cameras,
+  mechanisms, bindings and autos.
+- **`CompetitionV2Drive`** extends `CompetitionDrive` and overrides only
+  the module-specific values: the four `ModuleConstants` (same CAN IDs,
+  zero rotations reset to `0` for calibration), wheel radius, drive and
+  turn reductions, turn inversions, and max speed. The X2t shares the
+  X2's 12.1 : 1 steering, 4″ wheel and ratio sets, so these start at the
+  current robot's values (6.48 : 1 drive). If the new modules use a
+  different pinion (10/11/12t) or X1/X2 gear, look up the drive ratio in
+  WCP's [Swerve X2 ratio table](https://docs.wcproducts.com/welcome/gearboxes/wcp-swerve-x2/general-info/ratio-options)
+  and update `driveReduction` and `maxSpeedMetersPerSec`. Check the
+  drive and turn directions on first boot.
+
+When the new chassis becomes the main robot:
+
+1. Calibrate the module zero rotations and set them in `CompetitionV2Drive`.
+2. Add its roboRIO serial to `COMPETITION_V2` in `RobotType`.
+3. Set `Constants.kDefaultRobot = RobotType.COMPETITION_V2` so the
+   simulator and unknown roboRIOs run it.
+4. If the Limelights move, override `cameras()` in `CompetitionV2Robot`.
+
 ## The practice robot
 
 `PracticeRobot` is a drivetrain: name `Practice`, no cameras, and the
@@ -168,6 +202,9 @@ The mechanism classes in `subsystems/` can be reused, but their
   wins until cleared, that camera inputs survive a log round trip, that
   `Camera` turns observations into weighted measurements and object
   positions, and that all 15 autos load their paths by their exact file names.
+- **`CompetitionV2RobotTest`** checks that the V2 robot reuses the
+  competition superstructure, autos and cameras, and drives on
+  `CompetitionV2Drive`.
 - **`PracticeRobotTest`** checks that the practice robot boots with only
   a drivetrain, uses its own `DriveConfig`, and that `RobotType.detect()`
   returns `kDefaultRobot` in simulation.
