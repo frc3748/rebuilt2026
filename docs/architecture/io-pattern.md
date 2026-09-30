@@ -17,13 +17,13 @@ compose those.
 | --- | --- |
 | `util/motor/MotorConfig.java` | Fluent description of one motor: CAN ID, controller (`SPARK_MAX`, `SPARK_FLEX` or `TALON_FX`), followers, gains, MAXMotion, soft limits, tunables. |
 | `util/motor/Gains.java` | PID, feedforward, gravity and MAXMotion values. `MotorConfig` holds one per closed-loop slot. |
-| `util/motor/MotorIO.java` | The interface. `@AutoLog` inputs and setters. |
+| `util/motor/MotorIO.java` | The interface. `@AutoLog` inputs (position, velocity, volts, current, temperature, follower volts and current) and setters. |
 | `util/motor/MotorIOSpark.java` | Real hardware for `SPARK_MAX` and `SPARK_FLEX`. Configures the Spark from the `MotorConfig`, reads inputs with `ifOk`, wires [`SparkUtil.tune`]({{ '/utilities/tunable-number/' | relative_url }}#motor-gains). |
 | `util/motor/MotorIOTalonFX.java` | Real hardware for `TALON_FX` (a Kraken or Falcon) through Phoenix 6. See below. |
 | `util/motor/MotorIOSim.java` | Kinematic simulation. Velocity goals are reached with a short lag, position goals move at the MAXMotion cruise velocity. |
 | `util/motor/SpinMotor.java` | A velocity-controlled motor: `set(speed)`, `isAtGoal(tolerance)`. |
 | `util/motor/PosMotor.java` | A position-controlled motor: `set(position)`, `set(position, ff, slot)`, `resetPosition(position)`. |
-| `util/motor/Motor.java` | Shared base: picks the IO for `Constants.kMode` (and, on the real robot, the config's controller), logs inputs, buffers the command and sends it once per loop. |
+| `util/motor/Motor.java` | Shared base: picks the IO for `Constants.kMode` (and, on the real robot, the config's controller), logs inputs under `Motors/<name>`, buffers the command, sends it once per loop and logs its `Goal` and `Mode`. |
 
 A constants class declares the motors as public fields:
 

@@ -41,8 +41,9 @@ The **Auto Choices** chooser holds, in order:
 3. The robot's `autos(state)`.
 
 While the Driver Station is in autonomous mode, the selected routine's
-`previewPaths()` are drawn on the dashboard field (alliance-flipped) and
-logged as `Auto Trajectory 3D`. `Robot/AutoChoosed` turns true when the
+`previewPaths()` are drawn on the dashboard field (alliance-flipped).
+While a path runs, PathPlanner's active path is logged as
+`Odometry/Trajectory`. `Robot/AutoChoosed` turns true when the
 selected name contains "GAME", so drivers can see a real auto is picked.
 
 When autonomous starts, `RobotState` calls `build()` on the selection,

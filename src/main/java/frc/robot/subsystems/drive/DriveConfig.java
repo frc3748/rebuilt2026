@@ -93,10 +93,8 @@ public class DriveConfig {
 
     public double driveToPointP = 4.0;
     public double driveToPointHeadingP = 3.0;
-    public double metersTolerance = Units.inchesToMeters(1);
-    public double radiansTolerance = Units.degreesToRadians(1);
-    public double metersAccelTolerance = 0.075;
-    public double radAccelTolerance = Math.PI / 16;
+    public double metersTolerance = 0.04;
+    public double radiansTolerance = Units.degreesToRadians(2.0);
 
     public ModuleConstants module(int index) {
         return switch (index) {

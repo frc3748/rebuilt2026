@@ -12,6 +12,7 @@
     - { title: "State Machines", url: "/architecture/state-machines/" }
     - { title: "Subsystem Manager", url: "/architecture/subsystem-manager/" }
     - { title: "Logging & Telemetry", url: "/architecture/logging/" }
+    - { title: "Logging & robotTools", url: "/architecture/logging-and-robottools/" }
     - { title: "RobotState", url: "/architecture/robot-state/" }
 
 - title: Subsystems

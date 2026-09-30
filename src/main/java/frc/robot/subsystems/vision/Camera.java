@@ -22,6 +22,7 @@ import edu.wpi.first.math.util.Units;
 import frc.robot.Constants;
 import frc.robot.RobotState;
 import frc.robot.game.FieldConstants;
+import frc.robot.util.Visuals;
 import frc.robot.subsystems.vision.CameraIO.ObjectObservation;
 import frc.robot.subsystems.vision.CameraIO.PoseObservation;
 import frc.robot.subsystems.vision.CameraIO.PoseSource;
@@ -84,13 +85,15 @@ public class Camera {
             locate(observation, state).ifPresent(objects::add);
         }
 
-        Logger.recordOutput(logKey + "/CameraPose", new Pose3d(robot).plus(config.robotToCamera()));
         Logger.recordOutput(logKey + "/AcceptedPoses", accepted.toArray(Pose2d[]::new));
         Logger.recordOutput(logKey + "/RejectedPoses", rejected.toArray(Pose2d[]::new));
-        Logger.recordOutput(logKey + "/Tags", Arrays.stream(inputs.tagIds)
-                .mapToObj(FieldConstants.TAG_LAYOUT::getTagPose)
-                .flatMap(Optional::stream)
-                .toArray(Pose3d[]::new));
+        if (Visuals.enabled()) {
+            Visuals.record(logKey + "/CameraPose", new Pose3d(robot).plus(config.robotToCamera()));
+            Visuals.record(logKey + "/Tags", Arrays.stream(inputs.tagIds)
+                    .mapToObj(FieldConstants.TAG_LAYOUT::getTagPose)
+                    .flatMap(Optional::stream)
+                    .toArray(Pose3d[]::new));
+        }
         Logger.recordOutput(logKey + "/Objects", objects.stream()
                 .map(DetectedObject::fieldPosition)
                 .toArray(Translation2d[]::new));

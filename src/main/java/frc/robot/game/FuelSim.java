@@ -492,7 +492,6 @@ public class FuelSim {
             handleFuelCollisions(fuels);
 
             if (robotPoseSupplier != null) {
-                Logger.recordOutput("Fuel Pose", robotPoseSupplier.get());
                 handleRobotCollisions(fuels);
                 handleIntakes(fuels);
             }

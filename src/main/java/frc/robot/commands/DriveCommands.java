@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
-import dev.doglog.DogLog;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.filter.SlewRateLimiter;
@@ -27,6 +26,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.DriveConfig;
 import frc.robot.subsystems.drive.HeadingLock;
+import frc.robot.util.TunableNumber;
 
 public class DriveCommands {
     private static final double kDeadband = 0.1;
@@ -62,7 +62,7 @@ public class DriveCommands {
                 config.aimP, 0, config.aimD,
                 new TrapezoidProfile.Constraints(config.maxAngularSpeed(), config.maxAngularAcceleration()));
         angleController.enableContinuousInput(-Math.PI, Math.PI);
-        DogLog.tunable("Auto Turn", config.aimP, angleController::setP);
+        new TunableNumber("Auto Turn", config.aimP).onChange(angleController::setP);
         HeadingLock headingLock = new HeadingLock(
                 config, drive::getGyroRotation, () -> drive.getChassisSpeeds().omegaRadiansPerSecond);
 

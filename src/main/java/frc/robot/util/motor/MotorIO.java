@@ -9,6 +9,7 @@ public interface MotorIO {
         public double velocity = 0.0;
         public double appliedVolts = 0.0;
         public double currentAmps = 0.0;
+        public double tempCelsius = 0.0;
         public double[] followerAppliedVolts = new double[0];
         public double[] followerCurrentAmps = new double[0];
     }

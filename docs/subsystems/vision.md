@@ -53,7 +53,9 @@ field, repeats the last timestamp for its source, has a Z error over
 `kMaxZErrorMeters`, is a single ambiguous tag from a source that checks
 ambiguity, or was captured while the chassis was spinning faster than
 `kMaxYawRateRadPerSec`. Accepted and rejected poses are both logged per
-camera.
+camera, as `Vision/<name>/AcceptedPoses` and `RejectedPoses`. In
+simulation each camera also logs its pose and the tags it sees
+(`Vision/<name>/CameraPose`, `Vision/<name>/Tags`).
 
 Standard deviations scale with average tag distance squared over tag
 count, times the camera's `stdDevFactor`, times the source factors above.

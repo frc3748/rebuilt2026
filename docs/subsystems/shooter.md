@@ -78,9 +78,18 @@ captured setpoint, and `holdShot(speed, hoodPosition, hoodFeedforward)`
 on fixed values, until `releaseShot()`. `stopFeed()`, `forceFeed()` and
 `reverseFeed()` override the hopper and kicker until `releaseFeed()`.
 
+## Logging
+
+While the shooter isn't `IDLE` or `UNDETERMINED`, `ShooterComp.update()`
+logs the setpoint it is using (pass if `isPassing()`, hub otherwise):
+`Shooter/Setpoint/Speed` (m/s), `Shooter/Setpoint/HoodAngle` and
+`Shooter/Setpoint/AimError` (the robot-relative azimuth), both in
+radians. The flywheel logs `Flywheel/Ready`, and every motor logs under
+`Motors/<name>`.
+
 ## Simulation
 
 In simulation the `Superstructure` launches game pieces through the
 [`FuelSimulation`]({{ '/utilities/simulation/' | relative_url }})
 while the shooter `isFiring()`, and `ShotVisualizer` logs the
-trajectory under `Shooter/Trajectory`.
+trajectory under `Shooter/Trajectory` for as long as it fires.

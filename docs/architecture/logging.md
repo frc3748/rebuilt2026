@@ -2,7 +2,7 @@
 layout: default
 title: Logging & Telemetry
 eyebrow: Architecture
-description: AdvantageKit, DogLog, Elastic — how data leaves the robot.
+description: AdvantageKit, tunables, Elastic — how data leaves the robot.
 permalink: /architecture/logging/
 ---
 
@@ -12,7 +12,7 @@ audiences.
 | Channel | Audience | Purpose |
 | --- | --- | --- |
 | **AdvantageKit `Logger`** | Developers | Replayable, deterministic recording of everything. |
-| **DogLog / NetworkTables** | Developers, tuners | Live numbers and tunable values during a match. |
+| **Tunables (NetworkTables)** | Developers, tuners | Values you can edit live, recorded in the log. |
 | **Elastic notifications** | Drivers | Big, glanceable toasts during a match. |
 
 ## AdvantageKit
@@ -20,10 +20,19 @@ audiences.
 `Robot` configures `Logger` once at startup:
 
 ```java
-Logger.addDataReceiver(new WPILOGWriter());   // writes to USB on real robot
+Logger.recordMetadata("GIT_SHA", BuildInfo.GIT_SHA);
+...
+Logger.addDataReceiver(new WPILOGWriter());   // USB stick on the roboRIO, logs/ in sim
 Logger.addDataReceiver(new NT4Publisher());   // streams to AdvantageScope
 Logger.start();
 ```
+
+The metadata is `ROBOT`, `MODE`, `ROBOT_TYPE`, and the build info:
+`GIT_SHA`, `GIT_BRANCH`, `GIT_DIRTY` and `BUILD_DATE`. The
+`generateBuildInfo` task in `build.gradle` writes those into
+`build/generated/buildinfo/frc/robot/BuildInfo.java` before every
+compile, so each log says which commit it came from and whether the
+tree had uncommitted changes.
 
 After that, every input every subsystem reads gets recorded. The two
 methods you use day to day:
@@ -32,8 +41,8 @@ methods you use day to day:
 io.updateInputs(inputs);                       // pull from hardware
 Logger.processInputs("Drive/Module0", inputs); // record (live) or restore (replay)
 
-Logger.recordOutput("Drive/Pose",     getPose());
-Logger.recordOutput("Drive/Setpoint", lastSetpoint);
+Logger.recordOutput("Drive/AimTarget", new Pose2d(targetTrans, goal));
+Logger.recordOutput("Shooter/Setpoint/Speed", setpoint.getShooterRPS());
 ```
 
 Replay is the killer feature: open a `.wpilog` file in AdvantageScope,
@@ -42,21 +51,28 @@ re-executes with identical inputs.
 
 ### What gets logged automatically
 
-- All `@AutoLog` inputs from every IO.
-- State-machine state, desired state, transitioning flag.
-- Subsystem flags.
+- All `@AutoLog` inputs from every IO. Mechanism motors log under
+  `Motors/<name>`, including `TempCelsius`, and `Motor` adds its `Goal`
+  and `Mode` as outputs.
+- State-machine state, desired state, transitioning flag, flags.
+- AdvantageKit's own `PowerDistribution/*`, `SystemStats/*` and
+  `DriverStation/*` tables.
+- Every tunable, under `NetworkInputs/Tunable/…`.
 
 ### What you log by hand
 
-Outputs (anything *computed*): poses, setpoints, error values,
-3D mechanism poses for AdvantageScope visualization. Convention: use
-the subsystem name as the prefix (`"Shooter/DistanceToTarget"`).
+Outputs (anything *computed*): goals, setpoints, targets, error
+values. Use the subsystem name as the prefix (`"Shooter/Setpoint/Speed"`).
 
-## DogLog
+Poses that only exist to draw the robot in AdvantageScope go through
+`Visuals.record` instead, which only records in simulation. The full
+key list and the reasoning are on
+[Logging & robotTools]({{ '/architecture/logging-and-robottools/' | relative_url }}).
 
-[DogLog](https://doglog.dev) provides the dashboard-tunable values.
-The codebase uses it through
-[`TunableNumber`]({{ '/utilities/tunable-number/' | relative_url }}):
+## Tunables
+
+[`TunableNumber`]({{ '/utilities/tunable-number/' | relative_url }})
+wraps AdvantageKit's `LoggedNetworkNumber`:
 
 ```java
 stowSetpoint = new TunableNumber("Intake/Extension Stow Setpoint", constants.stowSetpoint);
@@ -65,7 +81,9 @@ case STOW -> goTo(stowSetpoint.get(), 0);
 ```
 
 The value shows up under `/Tunable` in NetworkTables and is editable
-live. It is not saved: every reboot starts from the value in code.
+live. Every value is recorded under `NetworkInputs/Tunable/…`, so replay
+sees the same edits. It is not saved: every reboot starts from the
+value in code.
 
 Use it for **anything you'd want to tune at a competition without a
 rebuild** — PID gains, tolerances, fixed-pose targets, flywheel speeds.
@@ -97,10 +115,12 @@ Bad candidates: anything that fires every loop.
 
 For AdvantageScope's 3D field view:
 
-- **`Odometry/Robot`** (a `Pose2d`) shows the robot on the field.
-- **Pose3d outputs** show mechanisms (`Intake/Pose`, `Hopper/Pose`, `Hood/Pose`).
-- In simulation, `ShotVisualizer` logs the predicted shot under `Shooter/Trajectory`. Each
-  `Camera` logs `Vision/<name>/CameraPose` so you can verify its transform.
+- `Odometry/Robot` (a `Pose2d`) shows the robot on the field.
+- In simulation only, Pose3d outputs show mechanisms (`Intake/Pose`,
+  `Intake/ExtensionPose`, `Hopper/Pose`, `Hood/Pose`), each `Camera`
+  logs `Vision/<name>/CameraPose` and `Vision/<name>/Tags`, and
+  `ShotVisualizer` logs the predicted shot under `Shooter/Trajectory`
+  while the shooter is firing.
 
 For SmartDashboard / Shuffleboard:
 
@@ -118,7 +138,9 @@ USB-stick workflow:
 
 1. Plug a USB stick into the roboRIO. `WPILOGWriter` writes to it automatically.
 2. After the match, pull the stick.
-3. Open the most recent `.wpilog` in AdvantageScope.
+3. Open the most recent `.wpilog` in AdvantageScope, or add the stick
+   as a log folder in
+   [robotTools]({{ '/architecture/logging-and-robottools/' | relative_url }}#opening-logs-in-robottools).
 4. To **replay**, point a local sim at the log: it'll re-run the robot code with the same inputs and you can step through anything.
 
 This is the single most valuable debugging tool in the codebase.

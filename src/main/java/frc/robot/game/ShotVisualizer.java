@@ -23,8 +23,17 @@ public class ShotVisualizer {
     private final RobotState state;
     private final Translation3d[] trajectory = new Translation3d[kPoints];
 
+    private boolean visible;
+
     public ShotVisualizer(RobotState state) {
         this.state = state;
+    }
+
+    public void clear() {
+        if (visible) {
+            Logger.recordOutput("Shooter/Trajectory", new Translation3d[0]);
+            visible = false;
+        }
     }
 
     public void update(LinearVelocity exitVelocity, Angle launchAngle) {
@@ -52,5 +61,6 @@ public class ShotVisualizer {
         }
 
         Logger.recordOutput("Shooter/Trajectory", trajectory);
+        visible = true;
     }
 }

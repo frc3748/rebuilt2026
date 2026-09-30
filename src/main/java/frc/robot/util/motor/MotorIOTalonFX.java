@@ -24,11 +24,12 @@ import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
-import dev.doglog.DogLog;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
+import edu.wpi.first.units.measure.Temperature;
 import edu.wpi.first.units.measure.Voltage;
+import frc.robot.util.TunableNumber;
 
 public class MotorIOTalonFX implements MotorIO {
     private final MotorConfig config;
@@ -42,6 +43,7 @@ public class MotorIOTalonFX implements MotorIO {
     private final StatusSignal<AngularVelocity> velocity;
     private final StatusSignal<Voltage> appliedVolts;
     private final StatusSignal<Current> currentAmps;
+    private final StatusSignal<Temperature> temperature;
     private final BaseStatusSignal[] followerVolts;
     private final BaseStatusSignal[] followerCurrents;
     private final BaseStatusSignal[] signals;
@@ -110,13 +112,15 @@ public class MotorIOTalonFX implements MotorIO {
         velocity = motor.getVelocity();
         appliedVolts = motor.getMotorVoltage();
         currentAmps = motor.getStatorCurrent();
-        signals = new BaseStatusSignal[4 + 2 * followers.length];
+        temperature = motor.getDeviceTemp();
+        signals = new BaseStatusSignal[5 + 2 * followers.length];
         signals[0] = position;
         signals[1] = velocity;
         signals[2] = appliedVolts;
         signals[3] = currentAmps;
-        System.arraycopy(followerVolts, 0, signals, 4, followers.length);
-        System.arraycopy(followerCurrents, 0, signals, 4 + followers.length, followers.length);
+        signals[4] = temperature;
+        System.arraycopy(followerVolts, 0, signals, 5, followers.length);
+        System.arraycopy(followerCurrents, 0, signals, 5 + followers.length, followers.length);
         BaseStatusSignal.setUpdateFrequencyForAll(50.0, signals);
         motor.optimizeBusUtilization();
         for (TalonFX talon : followers) {
@@ -171,7 +175,7 @@ public class MotorIOTalonFX implements MotorIO {
     }
 
     private void tunable(String gain, double initial, DoubleConsumer edit, Runnable apply) {
-        DogLog.tunable(config.name + "/" + gain, initial, value -> {
+        new TunableNumber(config.name + "/" + gain, initial).onChange(value -> {
             edit.accept(value);
             apply.run();
         });
@@ -192,6 +196,7 @@ public class MotorIOTalonFX implements MotorIO {
         inputs.velocity = velocity.getValueAsDouble() * velocityScale;
         inputs.appliedVolts = appliedVolts.getValueAsDouble();
         inputs.currentAmps = currentAmps.getValueAsDouble();
+        inputs.tempCelsius = temperature.getValueAsDouble();
 
         if (inputs.followerAppliedVolts.length != followers.length) {
             inputs.followerAppliedVolts = new double[followers.length];

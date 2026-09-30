@@ -11,7 +11,6 @@ import com.pathplanner.lib.commands.PathfindingCommand;
 
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.Timer;
@@ -31,6 +30,7 @@ import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.shooter.ShooterConstants;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.subsystems.vision.VisionMeasurement;
+import frc.robot.util.BatteryTracker;
 import frc.robot.util.ConcurrentTimeInterpolatableBuffer;
 import frc.robot.util.RobotTime;
 import frc.robot.util.SimulatedRobotState;
@@ -52,8 +52,12 @@ public class RobotState extends StateMachine<RobotState.State> {
     private final ShooterConstants shooterConstants;
     private final ShotCalculator shotCalculator;
     private final GameState gameState = new GameState();
+    private final BatteryTracker battery = new BatteryTracker();
     private final Supplier<ShooterSetpoint> hubSupplier = ShooterSetpoint.hubSetpointSupplier(this);
     private final Supplier<ShooterSetpoint> passSupplier = ShooterSetpoint.passSetpointSupplier(this);
+    private long setpointTimestamp = -1;
+    private ShooterSetpoint hubSetpoint;
+    private ShooterSetpoint passSetpoint;
 
     private final Drive drive;
     private final Vision vision;
@@ -108,7 +112,6 @@ public class RobotState extends StateMachine<RobotState.State> {
         superstructure.subsystems().forEach(this::addChildSubsystem);
         enable();
 
-        Logger.recordOutput("Bumper/Pose", new Pose3d());
         CommandScheduler.getInstance().schedule(PathfindingCommand.warmupCommand());
     }
 
@@ -118,6 +121,7 @@ public class RobotState extends StateMachine<RobotState.State> {
             drive.requestTransition(Drive.State.TRAVERSING);
         }
         gameState.update();
+        battery.update();
         dashboard.update();
     }
 
@@ -142,24 +146,6 @@ public class RobotState extends StateMachine<RobotState.State> {
     public void updateSimulation() {
         if (Constants.kMode == Mode.SIM) {
             superstructure.simulationPeriodic();
-        }
-    }
-
-    public void updateLogger() {
-        logLatest("RobotState/YawAngularVelocity", driveYawAngularVelocity);
-        logLatest("RobotState/RollAngularVelocity", driveRollAngularVelocity);
-        logLatest("RobotState/PitchAngularVelocity", drivePitchAngularVelocity);
-        logLatest("RobotState/AccelX", accelX);
-        logLatest("RobotState/AccelY", accelY);
-        Logger.recordOutput("RobotState/DesiredChassisSpeedFieldFrame", getLatestDesiredFieldRelativeChassisSpeed());
-        Logger.recordOutput("RobotState/MeasuredChassisSpeedFieldFrame", getLatestMeasuredFieldRelativeChassisSpeeds());
-        Logger.recordOutput("RobotState/FusedChassisSpeedFieldFrame", getLatestFusedFieldRelativeChassisSpeed());
-    }
-
-    private static void logLatest(String key, ConcurrentTimeInterpolatableBuffer<Double> buffer) {
-        var latest = buffer.getInternalBuffer().lastEntry();
-        if (latest != null) {
-            Logger.recordOutput(key, latest.getValue());
         }
     }
 
@@ -242,11 +228,28 @@ public class RobotState extends StateMachine<RobotState.State> {
     }
 
     public ShooterSetpoint getCurrentHubSetpoint() {
-        return hubSupplier.get();
+        refreshSetpoints();
+        if (hubSetpoint == null) {
+            hubSetpoint = hubSupplier.get();
+        }
+        return hubSetpoint;
     }
 
     public ShooterSetpoint getCurrentPassSetpoint() {
-        return passSupplier.get();
+        refreshSetpoints();
+        if (passSetpoint == null) {
+            passSetpoint = passSupplier.get();
+        }
+        return passSetpoint;
+    }
+
+    private void refreshSetpoints() {
+        long now = Logger.getTimestamp();
+        if (now != setpointTimestamp) {
+            setpointTimestamp = now;
+            hubSetpoint = null;
+            passSetpoint = null;
+        }
     }
 
     public boolean shouldShootHub() {

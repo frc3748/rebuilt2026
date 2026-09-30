@@ -210,13 +210,15 @@ mapping for our asset bundle:
 | Game pieces (fuel) | `NT/Fuel Simulation/Fuels` | Array of `Translation3d`, published by `FuelSim` in simulation. |
 
 These are the comp and secondary robots' keys; the practice robot only logs the chassis.
+Everything but the chassis is logged in simulation only, so a log from
+the real robot shows the chassis without moving parts.
 
 ### Wiring a new component pose
 
 The pattern in the subsystem's `update()` looks like this:
 
 ```java
-Logger.recordOutput("Intake/Pose", new Pose3d()
+Visuals.record("Intake/Pose", new Pose3d()
         .plus(constants.origin)
         .plus(new Transform3d(new Translation3d(),
                 new Rotation3d(0, -Units.degreesToRadians(extension.getPosition() + 90), 0))));
@@ -224,7 +226,9 @@ Logger.recordOutput("Intake/Pose", new Pose3d()
 
 Each `Pose3d` is relative to the **robot origin** (centre of the
 chassis at the ground), not the field — AdvantageScope composes them
-with the robot's field pose automatically.
+with the robot's field pose automatically. `Visuals.record` only
+records in simulation; see
+[Logging & robotTools]({{ '/architecture/logging-and-robottools/' | relative_url }}#real-robot-vs-simulation).
 
 ### Setting up the 3D Field tab
 

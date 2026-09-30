@@ -35,13 +35,13 @@ AdvantageKit subclass that wraps the loop with input recording.
 The constructor:
 
 1. Reads `Constants.kRobot` to know which robot it is running on. See [Multiple Robots]({{ '/architecture/robots/' | relative_url }}).
-2. Records `ROBOT`, `MODE` and `ROBOT_TYPE` metadata, adds `WPILOGWriter` (writes to USB on the roboRIO) and `NT4Publisher` (streams to AdvantageScope), disables REV's `StatusLogger` auto-logging, and starts the `Logger`.
+2. Records `ROBOT`, `MODE`, `ROBOT_TYPE` and build-info (`GIT_SHA`, `GIT_BRANCH`, `GIT_DIRTY`, `BUILD_DATE`) metadata, adds `WPILOGWriter` (writes to USB on the roboRIO) and `NT4Publisher` (streams to AdvantageScope), disables REV's `StatusLogger` auto-logging, and starts the `Logger`.
 3. Constructs `new RobotState(Constants.kRobot.create())` and registers it with the [`SubsystemManager`]({{ '/architecture/subsystem-manager/' | relative_url }}).
 
 Each periodic hook is a one-liner that delegates:
 
 ```java
-@Override public void robotPeriodic()      { CommandScheduler.getInstance().run(); robotState.updateLogger(); }
+@Override public void robotPeriodic()      { TunableNumber.pollAll(); CommandScheduler.getInstance().run(); }
 @Override public void simulationPeriodic() { robotState.updateSimulation(); }
 @Override public void autonomousInit()     { SubsystemManagerFactory.getInstance().notifyAutonomousStart(); }
 @Override public void teleopInit()         { SubsystemManagerFactory.getInstance().notifyTeleopStart(); }
@@ -124,13 +124,13 @@ detection can look up where the robot was when a frame was captured.
 
 For one tick of `robotPeriodic`:
 
-1. **CommandScheduler** runs every subsystem's `periodic()`. For each `StateMachine`:
+1. `TunableNumber.pollAll()` runs the `onChange` listeners of any [tunable]({{ '/utilities/tunable-number/' | relative_url }}) edited since the last loop.
+2. **CommandScheduler** runs every subsystem's `periodic()`. For each `StateMachine`:
    1. Registered motors and sensors read their inputs, and `Logger.processInputs` records them (or replaces them with logged values in replay).
    2. `update()` runs: telemetry and self-requested transitions.
    3. The override or `applyState(state)` sets motor goals, then `applyConstraints()` can overrule them.
-   4. Each motor sends its final command once.
-2. Scheduled commands (bindings, autos) run.
-3. `RobotState.updateLogger()` records the latest gyro rates and chassis speeds.
+   4. Each motor sends its final command once and logs it as `Motors/<name>/Goal` and `Mode`.
+3. Scheduled commands (bindings, autos) run.
 
 The whole loop is deterministic and replayable — point AdvantageScope
 at a `wpilog` file and you can step through it.

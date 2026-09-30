@@ -5,9 +5,9 @@ import java.util.function.Supplier;
 
 import org.littletonrobotics.junction.Logger;
 
-import dev.doglog.DogLog;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Rotation2d;
+import frc.robot.util.TunableNumber;
 
 public class HeadingLock {
     private final Supplier<Rotation2d> heading;
@@ -24,7 +24,7 @@ public class HeadingLock {
         controller.enableContinuousInput(-Math.PI, Math.PI);
         toleranceRadians = config.headingLockToleranceRadians;
         captureRadPerSec = config.headingLockCaptureRadPerSec;
-        DogLog.tunable("Drive/Heading Lock kP", config.headingLockP, controller::setP);
+        new TunableNumber("Drive/Heading Lock kP", config.headingLockP).onChange(controller::setP);
     }
 
     public double hold() {

@@ -1,7 +1,5 @@
 package frc.robot.subsystems.shooter.hood;
 
-import org.littletonrobotics.junction.Logger;
-
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
@@ -13,6 +11,7 @@ import frc.robot.RobotState;
 import frc.robot.game.ShooterSetpoint;
 import frc.robot.game.TrenchZone;
 import frc.robot.util.TunableNumber;
+import frc.robot.util.Visuals;
 import frc.robot.util.motor.PosMotor;
 import frc.robot.util.state.StateMachine;
 
@@ -60,7 +59,7 @@ public class Hood extends StateMachine<Hood.State> {
 
     @Override
     protected void update() {
-        Logger.recordOutput("Hood/Pose", new Pose3d()
+        Visuals.record("Hood/Pose", new Pose3d()
                 .plus(robotState.getShooterConstants().shooterToRobotCenter)
                 .plus(constants.shooterToHood)
                 .plus(new Transform3d(

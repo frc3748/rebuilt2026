@@ -8,7 +8,6 @@ import edu.wpi.first.math.interpolation.InverseInterpolator;
 import edu.wpi.first.math.util.Units;
 import frc.robot.RobotState;
 
-import org.littletonrobotics.junction.Logger;
 
 public class BallTargetFactory {
     static InterpolatingTreeMap<Double, Double> heightMap = new InterpolatingTreeMap<Double, Double>(
@@ -51,13 +50,10 @@ public class BallTargetFactory {
             offSet = new Translation2d(-offSet.getX(), offSet.getY());
         }
 
-        Logger.recordOutput("BallTargetFactory/distanceFromTarget", distance);
         speakerPose = new Translation3d(
                 speakerPose.getX() + offSet.getX(), speakerPose.getY() + offSet.getY(),
                 speakerPose.getZ() + heightMap.get(distance));
 
-        Logger.recordOutput("targetPose", speakerPose);
-        Logger.recordOutput("targetPose2d", new Translation2d(speakerPose.getX(), speakerPose.getY()));
         return speakerPose;
     }
 }

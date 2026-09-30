@@ -32,9 +32,6 @@ permalink: /reference/glossary/
 <dt>Controls</dt>
 <dd>The class that owns the driver and operator Xbox controllers, every binding, and rumble. Shared by every robot; a robot can override one binding in a subclass. See <a href="{{ '/architecture/robot-state/' | relative_url }}#controls">RobotState</a>.</dd>
 
-<dt>DogLog</dt>
-<dd>A lightweight tunable-constants and live-telemetry library. Wrapped by <a href="{{ '/utilities/tunable-number/' | relative_url }}"><code>TunableNumber</code></a>.</dd>
-
 <dt>DriveConfig</dt>
 <dd>A robot's drivetrain constants: gyro, motor controllers, turn sensor, CAN IDs, geometry, gains. One subclass per robot (<code>CompDrive</code>, <code>SecondaryDrive</code>, <code>PracticeDrive</code>). See <a href="{{ '/subsystems/drive/' | relative_url }}#driveconfig">Drive</a>.</dd>
 
@@ -104,6 +101,9 @@ permalink: /reference/glossary/
 <dt>roboRIO</dt>
 <dd>The NI single-board computer that runs the robot code.</dd>
 
+<dt>robotTools</dt>
+<dd>The team's local web app for reading AdvantageKit logs: power, batteries, motor and path tracking, vision, state timelines. It also keeps the battery list in <code>batteries.json</code>. See <a href="{{ '/architecture/logging-and-robottools/' | relative_url }}">Logging &amp; robotTools</a>.</dd>
+
 <dt>RobotDefinition / RobotType</dt>
 <dd>How one codebase runs several robots. A <code>RobotDefinition</code> subclass describes one robot, usually by extending the closest robot and overriding only what differs; <code>RobotType</code> lists them (<code>COMP</code>, <code>SECONDARY</code>, <code>PRACTICE</code>) and <code>Constants.kRobot</code> picks one. See <a href="{{ '/architecture/robots/' | relative_url }}">Multiple Robots</a>.</dd>
 
@@ -133,6 +133,12 @@ permalink: /reference/glossary/
 
 <dt>Trench Zone</dt>
 <dd>A region of the field where the intake auto-deploys. See <a href="{{ '/reference/field-constants/' | relative_url }}">Field Constants</a>.</dd>
+
+<dt>TunableNumber</dt>
+<dd>A number you can edit live from the dashboard under <code>/Tunable</code>, built on AdvantageKit's <code>LoggedNetworkNumber</code> so edits are logged. See <a href="{{ '/utilities/tunable-number/' | relative_url }}">Tuning</a>.</dd>
+
+<dt>Visuals</dt>
+<dd>The helper for values that only draw the robot in AdvantageScope, such as mechanism poses. It records them only in simulation. See <a href="{{ '/architecture/logging-and-robottools/' | relative_url }}#real-robot-vs-simulation">Logging &amp; robotTools</a>.</dd>
 
 <dt>WPILib</dt>
 <dd>The FRC standard library — units, geometry, command framework, hardware abstractions.</dd>

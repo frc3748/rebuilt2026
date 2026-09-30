@@ -86,7 +86,7 @@ Three patterns shape almost every file:
   <li>
     <strong>AdvantageKit-first logging</strong> — inputs are recorded
     on every loop, replayable in AdvantageScope, and surfaced live on
-    the dashboard via DogLog and Elastic.
+    the dashboard through NetworkTables and Elastic.
   </li>
 </ol>
 

@@ -44,5 +44,5 @@ hopper is built), the roller radius and the pose origin.
 ## Logging
 
 `update()` integrates the roller's velocity over `rollerRadiusMeters`
-and publishes the spin as `Hopper/Pose` for mechanism visualization in
-AdvantageScope.
+and, in simulation, publishes the spin as `Hopper/Pose` for mechanism
+visualization in AdvantageScope. The motor logs under `Motors/Hopper`.

@@ -51,7 +51,7 @@ subclasses it and overwrites fields in the constructor. `Drive`,
 | Limits | `maxSpeedMetersPerSec`, `slowSpeedMetersPerSec`, `maxLinearAcceleration`, current limits |
 | PathPlanner | `robotMassKg`, `robotMOI`, `wheelCOF`, `pathTranslationPid`, `pathRotationPid`, `pathConstraints` |
 | Heading | `aimP`, `aimD` (aiming in `TRAVERSING_AT_ANGLE`), `headingLockP`, `headingLockD`, `headingLockToleranceRadians`, `headingLockCaptureRadPerSec` |
-| Auto-align | `driveToPointP`, `driveToPointHeadingP`, and four tolerances |
+| Auto-align | `driveToPointP`, `driveToPointHeadingP`, `metersTolerance` (0.04 m), `radiansTolerance` (2°) |
 
 Helpers compute the rest: `moduleTranslations()`, `driveBaseRadius()`,
 `maxAngularSpeed()`, `pathPlannerConfig()`, and so on.
@@ -79,9 +79,8 @@ Module CAN IDs for each are on the [CAN ID Map]({{ '/reference/can-ids/' | relat
 
 ## Hardware abstraction
 
-- **`GyroIO`** / `GyroIOPigeon2` / `GyroIONavX` — yaw, pitch, roll, rates, acceleration.
-- **`ModuleIO`** / `ModuleIOSpark` / `ModuleIOSim` — per-wheel I/O.
-- **`DriveIO`** — chassis-level logged inputs (module states, pose, aim goal).
+- **`GyroIO`** / `GyroIOPigeon2` / `GyroIONavX` — yaw, pitch, roll, their rates (`yawRateRadPerSec` and so on), acceleration.
+- **`ModuleIO`** / `ModuleIOSpark` / `ModuleIOSim` — per-wheel I/O, including drive and turn motor temperatures.
 
 `ModuleIOSpark` builds a Spark Flex or Spark MAX for the drive motor
 from `driveController`, and throws if it is `TALON_FX` (Kraken swerve
@@ -129,6 +128,18 @@ The default command is `DriveCommands.smartDrive(...)`:
 
 The shared bindings (slow mode, aim, heading reset) are listed under
 [Controls]({{ '/architecture/robot-state/' | relative_url }}#controls).
+
+## Logging
+
+- `Drive/Gyro` and `Drive/Module0`…`Module3` — the gyro and module inputs.
+- `SwerveStates/Setpoints` (after each module optimizes and cosine-scales its state; empty while disabled) and `SwerveStates/Measured`; `SwerveChassisSpeeds/Setpoints` and `SwerveChassisSpeeds/Measured`.
+- `Odometry/Robot` — the estimated pose. `Odometry/TrajectorySetpoint` — PathPlanner's target pose. The active path, `Odometry/Trajectory`, is logged by `DashboardManager`.
+- `Drive/AimTarget` — the point `getAimRotationForHub()` aims at, with the goal heading.
+
+Each loop, outside simulation, the drive also hands `RobotState` its
+gyro rates and its measured, desired and fused chassis speeds. The
+desired speeds are the discretized speeds from the last `runVelocity`
+call.
 
 ## Public API (selected)
 

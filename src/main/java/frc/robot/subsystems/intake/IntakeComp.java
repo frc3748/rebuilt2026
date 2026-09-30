@@ -1,7 +1,5 @@
 package frc.robot.subsystems.intake;
 
-import org.littletonrobotics.junction.Logger;
-
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
@@ -12,6 +10,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.RobotState;
 import frc.robot.game.TrenchZone;
 import frc.robot.util.TunableNumber;
+import frc.robot.util.Visuals;
 import frc.robot.util.motor.PosMotor;
 import frc.robot.util.motor.SpinMotor;
 
@@ -72,12 +71,12 @@ public class IntakeComp extends Intake {
 
     @Override
     protected void update() {
-        Logger.recordOutput("Intake/Pose", new Pose3d()
+        Visuals.record("Intake/Pose", new Pose3d()
                 .plus(constants.origin)
                 .plus(new Transform3d(
                         new Translation3d(),
                         new Rotation3d(0, -Units.degreesToRadians(extension.getPosition() + 90), 0))));
-        Logger.recordOutput("Intake/ExtensionPose", new Pose3d(
+        Visuals.record("Intake/ExtensionPose", new Pose3d(
                 new Translation3d(getState() != State.STOW ? Units.inchesToMeters(11) : 0, 0, Units.inchesToMeters(-2.7)),
                 new Rotation3d()));
     }

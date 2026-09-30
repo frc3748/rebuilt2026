@@ -7,8 +7,6 @@ import static edu.wpi.first.units.Units.MetersPerSecond;
 import static edu.wpi.first.units.Units.Radians;
 import static edu.wpi.first.units.Units.Seconds;
 
-import org.littletonrobotics.junction.Logger;
-
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
@@ -46,7 +44,6 @@ public class ShotCalculator {
                         new Rotation2d()))
                 .getTranslation();
         Distance distance = Meters.of(shooterPosition.getDistance(target.toTranslation2d()));
-        Logger.recordOutput("Shooter/DistanceToTarget", distance.in(Meters));
         return distance;
     }
 
@@ -65,7 +62,6 @@ public class ShotCalculator {
                 ? direction.getAngle().minus(robot.getRotation())
                 : new Rotation2d();
 
-        Logger.recordOutput("Shooter/DesiredAzimuthRad", azimuth.getRadians());
         return Radians.of(azimuth.getRadians());
     }
 

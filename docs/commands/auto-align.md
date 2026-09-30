@@ -52,17 +52,21 @@ through `drive.getConfig()`:
 | `driveToPointP` / `driveToPointHeadingP` | Translation and heading kP. |
 | `maxSpeedMetersPerSec`, `maxLinearAcceleration` | Translation profile, times `constraintFactor`. |
 | `maxAngularSpeed()`, `maxAngularAcceleration()` | Heading profile. |
-| `metersTolerance`, `metersAccelTolerance` | Translation goal tolerance. |
-| `radiansTolerance`, `radAccelTolerance` | Heading goal tolerance. |
+| `metersTolerance` | Translation goal tolerance, 0.04 m by default. |
+| `radiansTolerance` | Heading goal tolerance, 2° by default. |
 
-## Tuning via DogLog
+## Tuning
 
-Each gain and tolerance is also a DogLog tunable, so you can adjust it
-from the dashboard without a redeploy:
+Each gain and tolerance is also a
+[`TunableNumber`]({{ '/utilities/tunable-number/' | relative_url }}), so
+you can adjust it from the dashboard without a redeploy:
 
 - `Auto Align/Drive kP`, `Auto Align/Turn kP`
-- `Auto Align/Meters Tolerance`, `Auto Align/Meters Accel Tolerance`
-- `Auto Align/Radians Tolerance`, `Auto Align/Radians Accel Tolerance`
+- `Auto Align/Meters Tolerance`, `Auto Align/Radians Tolerance`
+
+They are created once, in a static `Tuning` shared by every
+`AutoAlignToPoseCommand`, and applied to the controllers in
+`initialize()`, so an edit takes effect on the next align.
 
 Copy good values back into the `DriveConfig`; tunables reset on reboot.
 See [Tuning]({{ '/utilities/tunable-number/' | relative_url }}).
@@ -89,8 +93,8 @@ This is what `ActionCommands.turnToHub` does.
 
 ## Logging
 
-`DriveToPose/currentPose`, `DriveToPose/targetPose` and
-`DriveToPose/ffScaler` are logged every loop.
+`initialize()` logs the goal as `DriveToPose/Target` and sets
+`DriveToPose/Active` to `true`; `end()` sets it back to `false`.
 
 ## Pitfalls
 

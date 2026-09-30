@@ -27,7 +27,6 @@ class SecondaryRobotTest {
         state = new RobotState(new SecondaryRobot());
         for (int i = 0; i < 25; i++) {
             CommandScheduler.getInstance().run();
-            state.updateLogger();
             state.updateSimulation();
         }
     }

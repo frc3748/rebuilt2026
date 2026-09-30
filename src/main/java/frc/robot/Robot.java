@@ -8,6 +8,7 @@ import org.littletonrobotics.junction.wpilog.WPILOGWriter;
 import com.revrobotics.util.StatusLogger;
 
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import frc.robot.util.TunableNumber;
 import frc.robot.util.state.SubsystemManagerFactory;
 
 public class Robot extends LoggedRobot {
@@ -17,6 +18,10 @@ public class Robot extends LoggedRobot {
         Logger.recordMetadata("ROBOT", "2026 Recharge");
         Logger.recordMetadata("MODE", Constants.kMode.name());
         Logger.recordMetadata("ROBOT_TYPE", Constants.kRobot.name());
+        Logger.recordMetadata("GIT_SHA", BuildInfo.GIT_SHA);
+        Logger.recordMetadata("GIT_BRANCH", BuildInfo.GIT_BRANCH);
+        Logger.recordMetadata("GIT_DIRTY", Boolean.toString(BuildInfo.GIT_DIRTY));
+        Logger.recordMetadata("BUILD_DATE", BuildInfo.BUILD_DATE);
         Logger.addDataReceiver(new WPILOGWriter());
         Logger.addDataReceiver(new NT4Publisher());
         StatusLogger.disableAutoLogging();
@@ -28,8 +33,8 @@ public class Robot extends LoggedRobot {
 
     @Override
     public void robotPeriodic() {
+        TunableNumber.pollAll();
         CommandScheduler.getInstance().run();
-        robotState.updateLogger();
     }
 
     @Override

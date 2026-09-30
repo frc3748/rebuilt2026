@@ -57,7 +57,6 @@ class CompRobotTest {
     private static void loop(int times) {
         for (int i = 0; i < times; i++) {
             CommandScheduler.getInstance().run();
-            state.updateLogger();
             state.updateSimulation();
         }
     }

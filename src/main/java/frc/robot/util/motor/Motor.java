@@ -24,7 +24,7 @@ public class Motor implements Hardware {
     private int slot;
 
     public Motor(MotorConfig config) {
-        this(config.name(), createIO(config));
+        this("Motors/" + config.name(), createIO(config));
     }
 
     public Motor(String name, MotorIO io) {

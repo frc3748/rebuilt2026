@@ -22,7 +22,6 @@ public class GyroIOPigeon2 implements GyroIO {
     private final StatusSignal<Angle> pitch;
     private final StatusSignal<AngularVelocity> rollRate;
     private final StatusSignal<AngularVelocity> pitchRate;
-    private final StatusSignal<AngularVelocity> yawRate;
     private final StatusSignal<LinearAcceleration> accelX;
     private final StatusSignal<LinearAcceleration> accelY;
     private final Queue<Double> yawPositionQueue;
@@ -36,7 +35,6 @@ public class GyroIOPigeon2 implements GyroIO {
         pitch = pigeon.getPitch();
         rollRate = pigeon.getAngularVelocityXDevice();
         pitchRate = pigeon.getAngularVelocityYDevice();
-        yawRate = pigeon.getAngularVelocityZDevice();
         accelX = pigeon.getAccelerationX();
         accelY = pigeon.getAccelerationY();
 
@@ -55,14 +53,13 @@ public class GyroIOPigeon2 implements GyroIO {
     public void updateInputs(GyroIOInputs inputs) {
         inputs.connected = BaseStatusSignal.refreshAll(yaw, yawVelocity).equals(StatusCode.OK);
         inputs.yawPosition = Rotation2d.fromDegrees(yaw.getValueAsDouble());
-        inputs.yawVelocityRadPerSec = Units.degreesToRadians(yawVelocity.getValueAsDouble());
+        inputs.yawRateRadPerSec = Units.degreesToRadians(yawVelocity.getValueAsDouble());
 
-        BaseStatusSignal.refreshAll(rollRate, pitchRate, yawRate, pitch, roll, accelX, accelY);
+        BaseStatusSignal.refreshAll(rollRate, pitchRate, pitch, roll, accelX, accelY);
         inputs.rollRadians = Units.degreesToRadians(roll.getValueAsDouble());
         inputs.pitchRadians = Units.degreesToRadians(pitch.getValueAsDouble());
         inputs.rollRateRadPerSec = Units.degreesToRadians(rollRate.getValueAsDouble());
         inputs.pitchRateRadPerSec = Units.degreesToRadians(pitchRate.getValueAsDouble());
-        inputs.yawRateRadPerSec = Units.degreesToRadians(yawRate.getValueAsDouble());
         inputs.accelXGs = accelX.getValueAsDouble();
         inputs.accelYGs = accelY.getValueAsDouble();
 

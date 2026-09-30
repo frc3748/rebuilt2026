@@ -185,6 +185,7 @@ public class ModuleIOSpark implements ModuleIO {
                 new DoubleSupplier[] { driveSpark::getAppliedOutput, driveSpark::getBusVoltage },
                 values -> inputs.driveAppliedVolts = values[0] * values[1]);
         ifOk(driveSpark, driveSpark::getOutputCurrent, value -> inputs.driveCurrentAmps = value);
+        ifOk(driveSpark, driveSpark::getMotorTemperature, value -> inputs.driveTempCelsius = value);
         inputs.driveConnected = driveConnectedDebounce.calculate(!sparkStickyFault);
 
         sparkStickyFault = false;
@@ -194,6 +195,7 @@ public class ModuleIOSpark implements ModuleIO {
                 new DoubleSupplier[] { turnSpark::getAppliedOutput, turnSpark::getBusVoltage },
                 values -> inputs.turnAppliedVolts = values[0] * values[1]);
         ifOk(turnSpark, turnSpark::getOutputCurrent, value -> inputs.turnCurrentAmps = value);
+        ifOk(turnSpark, turnSpark::getMotorTemperature, value -> inputs.turnTempCelsius = value);
         inputs.turnConnected = turnConnectedDebounce.calculate(!sparkStickyFault);
 
         if (canCoder != null) {

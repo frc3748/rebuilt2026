@@ -11,9 +11,6 @@ import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.util.PathPlannerLogging;
 
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation3d;
-import edu.wpi.first.math.geometry.Transform3d;
-import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.RobotState;
@@ -44,7 +41,7 @@ public class DashboardManager {
                 drive.setFieldPoses();
             }
             drive.setFieldPoses("Auto Path", poses);
-            Logger.recordOutput("Pathplanner Trajectory", toTransforms(poses));
+            Logger.recordOutput("Odometry/Trajectory", poses.toArray(Pose2d[]::new));
         });
 
         SmartDashboard.putString("Robot/Type", robotName);
@@ -65,14 +62,16 @@ public class DashboardManager {
         SmartDashboard.putString("Game/GameState", game.getPhase());
         SmartDashboard.putString("Game/ShiftCountdown", String.format("%.2f", game.getSecondsUntilShift()));
         SmartDashboard.putBoolean("Robot/AutoChoosed", getSelectedAuto().name().toLowerCase().contains("game"));
-        Logger.recordOutput("Distance to Hub", TrenchZone.getDistanceToClosestShootingPose(state));
+        Logger.recordOutput("Game/Phase", game.getPhase());
+        Logger.recordOutput("Game/HubActive", game.isHubActive());
+        Logger.recordOutput("Game/WonAuto", game.wonAuto());
+        Logger.recordOutput("Game/DistanceToHub", TrenchZone.getDistanceToClosestShootingPose(state));
     }
 
     public void clearPreview() {
         previewed = null;
         state.getDrive().setFieldPoses("Auto Path", new ArrayList<>());
         state.getDrive().setFieldPoses();
-        Logger.recordOutput("Auto Trajectory 3D", new Transform3d[] {});
     }
 
     private void previewSelectedAuto() {
@@ -88,15 +87,6 @@ public class DashboardManager {
                 poses.add(AllianceFlip.forAlliance(pose));
             }
         }
-        Logger.recordOutput("Auto Trajectory 3D", toTransforms(poses));
         state.getDrive().setFieldPoses(poses.toArray(Pose2d[]::new));
-    }
-
-    private static Transform3d[] toTransforms(List<Pose2d> poses) {
-        return poses.stream()
-                .map(pose -> new Transform3d(
-                        new Translation3d(pose.getX(), pose.getY(), 0.0),
-                        new Rotation3d(0.0, 0.0, pose.getRotation().getRadians())))
-                .toArray(Transform3d[]::new);
     }
 }

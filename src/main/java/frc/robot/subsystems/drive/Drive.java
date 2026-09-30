@@ -13,7 +13,6 @@ import edu.wpi.first.hal.HAL;
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
@@ -56,12 +55,11 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.littletonrobotics.junction.AutoLogOutput;
 import org.littletonrobotics.junction.Logger;
 
-public class Drive extends StateMachine<Drive.State> implements DriveIO {
+public class Drive extends StateMachine<Drive.State> {
   static final Lock odometryLock = new ReentrantLock();
 
   private final GyroIO gyroIO;
   private final GyroIOInputsAutoLogged gyroInputs = new GyroIOInputsAutoLogged();
-  private final DriveIOInputsAutoLogged driveInputs = new DriveIOInputsAutoLogged();
 
   public final Field2d fieldPose = new Field2d();
 
@@ -73,6 +71,7 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
   private final DriveConfig config;
   private final SwerveDriveKinematics kinematics;
   private Rotation2d rawGyroRotation = Rotation2d.kZero;
+  private ChassisSpeeds desiredSpeeds = new ChassisSpeeds();
   private SwerveModulePosition[] lastModulePositions =
       new SwerveModulePosition[] {
           new SwerveModulePosition(),
@@ -201,10 +200,6 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
         config.pathPlannerConfig(),
         () -> DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red,
         this);
-    PathPlannerLogging.setLogActivePathCallback(
-        (activePath) -> {
-          Logger.recordOutput("Odometry/Trajectory", activePath.toArray(new Pose2d[0]));
-        });
     PathPlannerLogging.setLogTargetPoseCallback(
         (targetPose) -> {
           Logger.recordOutput("Odometry/TrajectorySetpoint", targetPose);
@@ -234,8 +229,7 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
     Translation2d drivingVector = targetTrans.minus(currentPose.getTranslation());
     Rotation2d goal = drivingVector.getAngle();
 
-    driveInputs.driveAtAngleGoal = new Pose2d(targetTrans, goal);
-    driveInputs.driveAtAngleDesired = new Pose2d(currentPose.getX(), currentPose.getY(), goal);
+    Logger.recordOutput("Drive/AimTarget", new Pose2d(targetTrans, goal));
 
     return goal;
   }
@@ -245,13 +239,7 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
     odometryLock.lock();
     gyroIO.updateInputs(gyroInputs);
 
-    {
-      driveInputs.modStates = getModuleStates();
-      driveInputs.currentPose = getPose();
-      driveInputs.currentPose3d = new Pose3d(driveInputs.currentPose);
-
-      fieldPose.setRobotPose(driveInputs.currentPose);
-    }
+    fieldPose.setRobotPose(getPose());
 
     double timestamp = RobotTime.getTimestampSeconds();
     robotState.addOdometryMeasurement(timestamp, getPose());
@@ -263,7 +251,6 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
     }
 
     Logger.processInputs("Drive/Gyro", gyroInputs);
-    Logger.processInputs("Drive/DriveBase", driveInputs);
     SmartDashboard.putData(fieldPose);
 
     for (var module : modules) {
@@ -276,7 +263,6 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
         module.stop();
       }
       Logger.recordOutput("SwerveStates/Setpoints", new SwerveModuleState[] {});
-      Logger.recordOutput("SwerveStates/SetpointsOptimized", new SwerveModuleState[] {});
     }
 
     double[] sampleTimestamps = modules[0].getOdometryTimestamps();
@@ -303,17 +289,13 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
       poseEstimator.updateWithTime(sampleTimestamps[i], rawGyroRotation, modulePositions);
     }
 
-    gyroDisconnectedAlert.set(!gyroInputs.connected);
+    gyroDisconnectedAlert.set(!gyroInputs.connected && Constants.kMode != Mode.SIM);
   }
 
   private void recordMotion(double timestamp) {
-    if (driveInputs.optimizedModStates.length != 4) {
-      return;
-    }
-    ChassisSpeeds measured = kinematics.toChassisSpeeds(driveInputs.optimizedModStates);
+    ChassisSpeeds measured = getChassisSpeeds();
     ChassisSpeeds measuredField = ChassisSpeeds.fromRobotRelativeSpeeds(measured, getPose().getRotation());
-    ChassisSpeeds desiredField = ChassisSpeeds.fromRobotRelativeSpeeds(
-        kinematics.toChassisSpeeds(driveInputs.modStates), getPose().getRotation());
+    ChassisSpeeds desiredField = ChassisSpeeds.fromRobotRelativeSpeeds(desiredSpeeds, getPose().getRotation());
     ChassisSpeeds fusedField = new ChassisSpeeds(
         measuredField.vxMetersPerSecond, measuredField.vyMetersPerSecond, gyroInputs.yawRateRadPerSec);
 
@@ -328,17 +310,14 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
     SwerveModuleState[] setpointStates = kinematics.toSwerveModuleStates(discreteSpeeds);
     SwerveDriveKinematics.desaturateWheelSpeeds(setpointStates, config.maxSpeedMetersPerSec);
 
-    Logger.recordOutput("SwerveStates/Setpoints", setpointStates);
     Logger.recordOutput("SwerveChassisSpeeds/Setpoints", discreteSpeeds);
 
     for (int i = 0; i < 4; i++) {
       modules[i].runSetpoint(setpointStates[i]);
     }
 
-    Logger.recordOutput("SwerveStates/SetpointsOptimized", setpointStates);
-
-    driveInputs.chassieSpeeds = discreteSpeeds;
-    driveInputs.optimizedModStates = setpointStates;
+    Logger.recordOutput("SwerveStates/Setpoints", setpointStates);
+    desiredSpeeds = discreteSpeeds;
   }
 
   public void runCharacterization(double output) {
@@ -429,9 +408,6 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
         new Notification().withTitle("Pose Reset").withDescription("Pose has been set to a new custom one"));
   }
 
-  public void setTargetPose(Pose2d pose) {
-    driveInputs.goalPose = pose;
-  }
 
   public void addVisionMeasurement(
       Pose2d visionRobotPoseMeters,
@@ -462,10 +438,6 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
 
   public GyroIOInputsAutoLogged getGyroIOInputs() {
     return gyroInputs;
-  }
-
-  public DriveIOInputsAutoLogged getDriveIOInputs() {
-    return driveInputs;
   }
 
   public void determineSelf() {

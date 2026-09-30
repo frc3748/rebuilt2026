@@ -11,7 +11,6 @@ import com.revrobotics.ResetMode;
 import com.revrobotics.spark.SparkBase;
 import com.revrobotics.spark.config.SparkBaseConfig;
 
-import dev.doglog.DogLog;
 import frc.robot.util.motor.Gains;
 
 public final class SparkUtil {
@@ -72,7 +71,7 @@ public final class SparkUtil {
 
     private record Tuner(String key, SparkBase spark, SparkBaseConfig config) {
         void add(String name, double initial, DoubleConsumer edit) {
-            DogLog.tunable(key + "/" + name, initial, value -> {
+            new TunableNumber(key + "/" + name, initial).onChange(value -> {
                 edit.accept(value);
                 spark.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
             });

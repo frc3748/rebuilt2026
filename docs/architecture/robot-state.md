@@ -30,7 +30,8 @@ public enum State { UNDETERMINED, SOFT_STOP, TRAVERSING, AUTO }
 
 Every loop, `update()` also moves the drive back to `TRAVERSING` when
 the driver pushes the right stick past 0.1, so manual rotation always
-beats auto-aim.
+beats auto-aim. Then it updates the game state, the battery tracker and
+the dashboard.
 
 ## What it owns
 
@@ -44,6 +45,7 @@ beats auto-aim.
 | `ShotCalculator` | `new ShotCalculator(shooterConstants)` |
 | `GameState` | Match phase and hub status. |
 | `DashboardManager` | Auto chooser (`definition.autos(this)`) and `Game/*` values. |
+| `BatteryTracker` | The **Battery** chooser and `Battery/*` logs. See [Batteries]({{ '/architecture/logging-and-robottools/' | relative_url }}#batteries). |
 | `SimulatedRobotState` | Ground-truth pose, simulation only. |
 
 `vision`, `drive` and `superstructure.subsystems()` are added as child
@@ -65,7 +67,7 @@ subsystems.
 | `getFieldToRobot(timestamp)` | Interpolated pose at a past time, as an `Optional`. |
 | `getLatest…ChassisSpeed…()` | Measured (robot- and field-relative), desired, and fused chassis speeds. |
 | `getMaxAbsDriveYawAngularVelocityInRange(t0, t1)` | Fastest yaw rate in a window; vision uses it to reject frames taken while spinning. |
-| `getCurrentHubSetpoint()` / `getCurrentPassSetpoint()` | A fresh [`ShooterSetpoint`]({{ '/utilities/shooter-setpoint/' | relative_url }}) on every call. |
+| `getCurrentHubSetpoint()` / `getCurrentPassSetpoint()` | This loop's [`ShooterSetpoint`]({{ '/utilities/shooter-setpoint/' | relative_url }}). Solved on the first call in a loop and cached until `Logger.getTimestamp()` changes. |
 | `shouldShootHub()` | `true` when the robot is on its own side of the hub. |
 
 Mechanisms are not on `RobotState`. Shared code gets them from
@@ -127,7 +129,9 @@ Both live in `frc.robot.game`.
   selected auto's paths on the field while the Driver Station is in
   autonomous mode, and publishes `Game/HubActivated`, `Game/WonAuto`,
   `Game/GameState`, `Game/ShiftCountdown`, `Robot/AutoChoosed` and
-  `Robot/Type`.
+  `Robot/Type` to SmartDashboard. It logs `Game/Phase`,
+  `Game/HubActive`, `Game/WonAuto` and `Game/DistanceToHub`, and logs
+  the path PathPlanner is following as `Odometry/Trajectory`.
 
 ## The hand-off, end to end
 

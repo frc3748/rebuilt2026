@@ -3,8 +3,6 @@ package frc.robot.game;
 import static edu.wpi.first.units.Units.Inches;
 import static edu.wpi.first.units.Units.Meter;
 
-import org.littletonrobotics.junction.Logger;
-
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
 import frc.robot.RobotState;
@@ -27,7 +25,6 @@ public class PassTargetFactory {
             target = AllianceFlip.flip(target);
         }
 
-        Logger.recordOutput("PassTarget", target);
         return target;
     }
 }

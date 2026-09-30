@@ -21,7 +21,6 @@ build time. Here's the full set.
 | Lib | Why |
 | --- | --- |
 | **AdvantageKit** (Littleton Robotics) | The replay-driven logger. Annotation processor generates `*AutoLogged` classes. See [Logging & Telemetry]({{ '/architecture/logging/' | relative_url }}). |
-| **DogLog** | Dashboard-tunable values. See [Tuning]({{ '/utilities/tunable-number/' | relative_url }}). |
 
 ## Motor controllers
 

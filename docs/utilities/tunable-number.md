@@ -2,14 +2,14 @@
 layout: default
 title: Tuning with TunableNumber
 eyebrow: Utilities
-description: Dashboard-tunable constants and live motor gains, both built on DogLog tunables.
+description: Dashboard-tunable constants and live motor gains, both built on TunableNumber.
 permalink: /utilities/tunable-number/
 ---
 
 Anything you'd want to tune at a competition without redeploying goes
-through a [DogLog](https://doglog.dev/) tunable. There are two ways in:
-`TunableNumber` for values you read, and `SparkUtil.tune` for motor
-gains.
+through a `TunableNumber`. You either read it where the value is used,
+or give it a callback. Motor gains are wired up for you by
+`SparkUtil.tune` and `MotorIOTalonFX`.
 
 > **Nothing is saved.** A tuned value applies live and is gone on
 > reboot. When you find a good number, copy it into the code.
@@ -17,11 +17,13 @@ gains.
 ## `TunableNumber`
 
 [`TunableNumber`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/util/TunableNumber.java)
-wraps `DogLog.tunable(key, default)`:
+wraps AdvantageKit's `LoggedNetworkNumber` at `/Tunable/<key>`:
 
 ```java
 public TunableNumber(String key, double defaultValue);
 public double get();
+public TunableNumber onChange(DoubleConsumer listener);
+public static void pollAll();
 ```
 
 Mechanism defaults live in the robot's constants object as plain
@@ -48,12 +50,21 @@ values, declares a `static final TunableNumber` instead.
 Calling `get()` every loop is what picks up dashboard edits; don't copy
 the value into a plain `double` at construction.
 
-For code that needs a callback instead of polling, call DogLog
-directly, as `AutoAlignToPoseCommand` does:
+For code that needs a callback instead of polling, use `onChange`:
 
 ```java
-DogLog.tunable("Auto Align/Drive kP", config.driveToPointP, driveController::setP);
+new TunableNumber("Drive/Heading Lock kP", config.headingLockP).onChange(controller::setP);
 ```
+
+`Robot.robotPeriodic()` calls `TunableNumber.pollAll()` before the
+scheduler runs, so listeners fire on the main loop, once per change.
+`SparkUtil.tune`, `MotorIOTalonFX`, `HeadingLock`, the `Auto Turn` gain
+in `DriveCommands` and `ShooterComp`'s `TOF Tuning/…` values all work
+this way.
+
+`AutoAlignToPoseCommand` creates its `Auto Align/…` tunables once, in
+a static `Tuning` shared by every instance, and reads them in
+`initialize()`, so an edit applies to the next align.
 
 ## Motor gains
 
@@ -102,9 +113,12 @@ Keep names stable; the key is how you find the value on the dashboard.
 
 ## Where values show up
 
-DogLog publishes tunables under `/Tunable` in NetworkTables, so any NT
-client (Elastic, AdvantageScope, OutlineViewer) can edit them. With
-DogLog's default options, edits are ignored while connected to FMS.
+Tunables live under `/Tunable` in NetworkTables, so any NT client
+(Elastic, AdvantageScope, OutlineViewer) can edit them. Each value is
+also recorded in the log under `NetworkInputs/Tunable/…`, so replay
+uses the same numbers and robotTools can list every edit made mid-run.
+While the FMS is attached, `get()` returns the default and edits are
+ignored.
 
 ## What to tune (and what not to)
 

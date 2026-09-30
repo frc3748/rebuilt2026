@@ -364,7 +364,6 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
 
     Logger.recordOutput(getName() + "/transitioning", isTransitioning());
     Logger.recordOutput(getName() + "/flags", getCurrentFlagsAsArray());
-    Logger.recordOutput(getName(), getCurrentFlagsAsArray());
 
     Logger.recordOutput(getName() + "/enabled", enabled);
     Logger.recordOutput(getName() + "/overridden", override != null);

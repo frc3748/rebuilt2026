@@ -78,9 +78,10 @@ button resets it to 0.
 
 ## Logging
 
-The intake publishes `Intake/Pose` (the arm angle) and
+In simulation, the intake publishes `Intake/Pose` (the arm angle) and
 `Intake/ExtensionPose` to AdvantageScope, so you can see it deploy on
-the field view.
+the field view. The motors log under `Motors/Intake Roller` and
+`Motors/Intake Extension` on every robot.
 
 ## Pitfalls
 

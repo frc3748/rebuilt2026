@@ -127,7 +127,11 @@ public class Superstructure {
         ShooterSetpoint setpoint = shooter.isPassing() ? state.getCurrentPassSetpoint() : state.getCurrentHubSetpoint();
         LinearVelocity exitVelocity = MetersPerSecond.of(setpoint.getShooterRPS());
         Angle launchAngle = Degrees.of(90).minus(Radians.of(setpoint.getHoodRadians()));
-        shotVisualizer.update(exitVelocity, launchAngle);
+        if (shooter.isFiring()) {
+            shotVisualizer.update(exitVelocity, launchAngle);
+        } else {
+            shotVisualizer.clear();
+        }
 
         if (shooter.isFiring() && shotTimer.hasElapsed(state.getShooterConstants().simSecondsBetweenShots)
                 && fuel.launch(exitVelocity, launchAngle)) {

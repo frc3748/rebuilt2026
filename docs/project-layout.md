@@ -12,15 +12,16 @@ A bird's-eye view of where everything lives.
 
 ```
 rebuilt2026/
-├── build.gradle                ← GradleRIO build, AdvantageKit annotation processor, JUnit (forkEvery = 1)
+├── build.gradle                ← GradleRIO build, AdvantageKit annotation processor, BuildInfo, sim extensions, JUnit (forkEvery = 1)
 ├── settings.gradle             ← Project name
 ├── gradle/, gradlew(.bat)      ← Gradle wrapper
 ├── vendordeps/                 ← External library JSONs (Phoenix, REVLib, Studica, …)
 ├── src/
 │   ├── main/
-│   │   ├── deploy/             ← Static files copied to /home/lvuser/deploy (PathPlanner paths)
+│   │   ├── deploy/             ← Static files copied to /home/lvuser/deploy (PathPlanner paths, batteries.json)
 │   │   └── java/frc/robot/     ← All robot code (see below)
 │   └── test/java/frc/robot/    ← CompRobotTest, SecondaryRobotTest, PracticeRobotTest
+├── logs/                       ← Simulator logs (git-ignored)
 ├── .wpilib/                    ← WPILib team-number / language preferences
 └── docs/                       ← This documentation site
 ```
@@ -92,13 +93,15 @@ frc/robot/
     │   ├── Gains.java                ← PID, feedforward, gravity and MAXMotion values
     │   ├── SpinMotor.java            ← Velocity-controlled motor: set(speed)
     │   ├── PosMotor.java             ← Position-controlled motor: set(position)
-    │   ├── Motor.java                ← Shared base: picks the IO for the current Mode, logs, sends once per loop
+    │   ├── Motor.java                ← Shared base: picks the IO for the current Mode, logs under Motors/<name>, sends once per loop
     │   ├── MotorIO.java              ← Interface (@AutoLog inputs)
     │   ├── MotorIOSpark.java         ← Spark MAX / Spark Flex
     │   ├── MotorIOTalonFX.java       ← TalonFX (Kraken, Falcon) through Phoenix 6
     │   └── MotorIOSim.java           ← Kinematic sim (tracks setpoints)
     ├── state/                  ← The state-machine framework
-    ├── TunableNumber.java            ← Dashboard-tunable constant (DogLog)
+    ├── TunableNumber.java            ← Dashboard-tunable constant (AdvantageKit LoggedNetworkNumber)
+    ├── Visuals.java                  ← Records visual-only outputs, in simulation only
+    ├── BatteryTracker.java           ← Battery chooser, Battery/* logs
     ├── SparkUtil.java                ← Spark error checks and tune(), the live-gains helper
     ├── ConcurrentTimeInterpolatableBuffer.java, RobotTime.java
     ├── SimulatedRobotState.java      ← Ground-truth pose in simulation

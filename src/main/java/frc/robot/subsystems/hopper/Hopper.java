@@ -2,13 +2,12 @@ package frc.robot.subsystems.hopper;
 
 import java.util.function.BooleanSupplier;
 
-import org.littletonrobotics.junction.Logger;
-
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
 import frc.robot.util.TunableNumber;
+import frc.robot.util.Visuals;
 import frc.robot.util.motor.SpinMotor;
 import frc.robot.util.state.StateMachine;
 
@@ -51,7 +50,7 @@ public class Hopper extends StateMachine<Hopper.State> {
     @Override
     protected void update() {
         spinRadians += 0.02 * hopper.getVelocity() / constants.rollerRadiusMeters;
-        Logger.recordOutput("Hopper/Pose", new Pose3d()
+        Visuals.record("Hopper/Pose", new Pose3d()
                 .plus(constants.origin)
                 .plus(new Transform3d(new Translation3d(), new Rotation3d(0, 0, spinRadians))));
     }

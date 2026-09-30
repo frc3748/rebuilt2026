@@ -38,7 +38,7 @@ starts holding 8 pieces.
 
 - **Pickup** — while the intake is in `INTAKE`, pieces inside the intake box are counted as held.
 - **Launch** — while the shooter `isFiring()` (`SHOOTING` or `PASSING`), the `Superstructure` calls `fuel.launch(exitVelocity, launchAngle)` every `ShooterConstants.simSecondsBetweenShots`, from the pass setpoint if `isPassing()` and the hub setpoint otherwise. It returns `false` when the robot holds no fuel.
-- **Update** — `Superstructure.simulationPeriodic()` runs the sim shots and the `ShotVisualizer`, then `fuel.update()`. It is reached through `Robot.simulationPeriodic()` → `RobotState.updateSimulation()`.
+- **Update** — `Superstructure.simulationPeriodic()` runs the sim shots and the `ShotVisualizer`, then `fuel.update()`. It is reached through `Robot.simulationPeriodic()` → `RobotState.updateSimulation()`. `ShotVisualizer` logs `Shooter/Trajectory` while the shooter is firing and clears it when it stops.
 
 A **Reset Fuel** dashboard button clears the field and respawns the
 starting fuel.
@@ -61,6 +61,13 @@ or:
 ./gradlew simulateJava
 ```
 
+`build.gradle` also adds the **Sim Websockets Server** extension with
+`defaultEnabled = false`, so it starts unticked in the Simulate Robot
+Code dialog and `simulateJava` leaves it off. robotTools' sim driver
+loads it to drive the simulator without a window; see
+[Logging & robotTools]({{ '/architecture/logging-and-robottools/' | relative_url }}#opening-logs-in-robottools).
+Sim logs go to `logs/` in the repo.
+
 ## What you see in AdvantageScope
 
 With the right layout:
@@ -68,9 +75,14 @@ With the right layout:
 - The robot as a 3D model, with the intake, hopper and hood poses.
 - Each fuel piece from `/Fuel Simulation/Fuels`.
 - The predicted shot from `Shooter/Trajectory`.
+- Each camera's pose and the tags it sees, under `Vision/<name>/CameraPose` and `Vision/<name>/Tags`.
 
 This is enough to debug almost any indexing or shooting bug without
 ever touching a real ball.
+
+The mechanism poses and camera visuals go through `Visuals.record`, so
+they only exist in simulation logs. See
+[Logging & robotTools]({{ '/architecture/logging-and-robottools/' | relative_url }}#real-robot-vs-simulation).
 
 ## Pitfalls
 

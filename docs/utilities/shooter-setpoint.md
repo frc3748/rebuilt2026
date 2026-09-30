@@ -18,8 +18,9 @@ lives in `frc.robot.game`. Each instance is one solved shot:
 | `getHeight()` | Height of the solved target. |
 
 `ShooterSetpoint.hubSetpointSupplier(state)` and `passSetpointSupplier(state)`
-recompute on every call; `RobotState` exposes them as
-`getCurrentHubSetpoint()` and `getCurrentPassSetpoint()`.
+recompute on every call. `RobotState` exposes them as
+`getCurrentHubSetpoint()` and `getCurrentPassSetpoint()`, which solve
+once per loop and return the cached setpoint for the rest of it.
 
 Each solve goes through `state.getShotCalculator()`. On the real robot
 the robot's shot map in `ShooterConstants` is interpolated and the

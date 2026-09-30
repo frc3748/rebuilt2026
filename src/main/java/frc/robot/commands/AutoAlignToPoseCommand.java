@@ -2,7 +2,6 @@ package frc.robot.commands;
 
 import org.littletonrobotics.junction.Logger;
 
-import dev.doglog.DogLog;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -10,11 +9,11 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
-import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.RobotState;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.DriveConfig;
+import frc.robot.util.TunableNumber;
 
 public class AutoAlignToPoseCommand extends Command {
     public enum AlignType {
@@ -25,6 +24,7 @@ public class AutoAlignToPoseCommand extends Command {
 
     private static final double kFeedforwardMinRadius = 0.0;
     private static final double kFeedforwardMaxRadius = 0.1;
+    private static Tuning tuning;
 
     private final Drive drive;
     private final RobotState state;
@@ -32,11 +32,6 @@ public class AutoAlignToPoseCommand extends Command {
     private final AlignType alignType;
     private final ProfiledPIDController driveController;
     private final ProfiledPIDController thetaController;
-
-    private double metersTolerance;
-    private double radiansTolerance;
-    private double metersAccelTolerance;
-    private double radAccelTolerance;
 
     public AutoAlignToPoseCommand(Drive drive, RobotState state, Pose2d target, double constraintFactor) {
         this(drive, state, target, constraintFactor, AlignType.DEFAULT);
@@ -50,12 +45,11 @@ public class AutoAlignToPoseCommand extends Command {
         this.alignType = alignType;
 
         DriveConfig config = drive.getConfig();
-        metersTolerance = config.metersTolerance;
-        radiansTolerance = config.radiansTolerance;
-        metersAccelTolerance = config.metersAccelTolerance;
-        radAccelTolerance = config.radAccelTolerance;
+        if (tuning == null) {
+            tuning = new Tuning(config);
+        }
         driveController = new ProfiledPIDController(
-                config.driveToPointP,
+                tuning.driveP.get(),
                 0.0,
                 0.0,
                 new TrapezoidProfile.Constraints(
@@ -63,32 +57,13 @@ public class AutoAlignToPoseCommand extends Command {
                         config.maxLinearAcceleration * constraintFactor),
                 0.02);
         thetaController = new ProfiledPIDController(
-                config.driveToPointHeadingP,
+                tuning.turnP.get(),
                 0.0,
                 0.0,
                 new TrapezoidProfile.Constraints(config.maxAngularSpeed(), config.maxAngularAcceleration()),
                 0.02);
         thetaController.enableContinuousInput(-Math.PI, Math.PI);
         addRequirements(drive);
-
-        DogLog.tunable("Auto Align/Drive kP", config.driveToPointP, driveController::setP);
-        DogLog.tunable("Auto Align/Turn kP", config.driveToPointHeadingP, thetaController::setP);
-        DogLog.tunable("Auto Align/Meters Tolerance", metersTolerance, value -> {
-            metersTolerance = value;
-            applyTolerances();
-        });
-        DogLog.tunable("Auto Align/Radians Tolerance", radiansTolerance, value -> {
-            radiansTolerance = value;
-            applyTolerances();
-        });
-        DogLog.tunable("Auto Align/Meters Accel Tolerance", metersAccelTolerance, value -> {
-            metersAccelTolerance = value;
-            applyTolerances();
-        });
-        DogLog.tunable("Auto Align/Radians Accel Tolerance", radAccelTolerance, value -> {
-            radAccelTolerance = value;
-            applyTolerances();
-        });
     }
 
     @Override
@@ -100,21 +75,22 @@ public class AutoAlignToPoseCommand extends Command {
                 .rotateBy(toTarget.unaryMinus())
                 .getX();
 
+        driveController.setP(tuning.driveP.get());
+        thetaController.setP(tuning.turnP.get());
+        driveController.setTolerance(tuning.metersTolerance.get());
+        thetaController.setTolerance(tuning.radiansTolerance.get());
         driveController.reset(current.getTranslation().getDistance(target.getTranslation()), Math.min(0.0, closingVelocity));
-        driveController.setTolerance(0.04);
         thetaController.reset(current.getRotation().getRadians(),
                 state.getLatestRobotRelativeChassisSpeed().omegaRadiansPerSecond);
-        thetaController.setTolerance(Units.degreesToRadians(2.0));
 
         drive.setFieldPoses(current, target);
-        drive.setTargetPose(target);
+        Logger.recordOutput("DriveToPose/Target", target);
+        Logger.recordOutput("DriveToPose/Active", true);
     }
 
     @Override
     public void execute() {
         Pose2d current = state.getLatestFieldToRobot().getValue();
-        Logger.recordOutput("DriveToPose/currentPose", current);
-        Logger.recordOutput("DriveToPose/targetPose", target);
 
         double distance = current.getTranslation().getDistance(target.getTranslation());
         double ffScaler = MathUtil.clamp(
@@ -123,7 +99,6 @@ public class AutoAlignToPoseCommand extends Command {
             distance = 0;
             ffScaler = 1;
         }
-        Logger.recordOutput("DriveToPose/ffScaler", ffScaler);
 
         double driveVelocityScalar = driveController.getSetpoint().velocity * ffScaler
                 + driveController.calculate(distance, 0.0);
@@ -154,6 +129,7 @@ public class AutoAlignToPoseCommand extends Command {
 
     @Override
     public void end(boolean interrupted) {
+        Logger.recordOutput("DriveToPose/Active", false);
         drive.runVelocity(new ChassisSpeeds());
     }
 
@@ -166,8 +142,17 @@ public class AutoAlignToPoseCommand extends Command {
         };
     }
 
-    private void applyTolerances() {
-        driveController.setTolerance(metersTolerance, metersAccelTolerance);
-        thetaController.setTolerance(radiansTolerance, radAccelTolerance);
+    private static class Tuning {
+        final TunableNumber driveP;
+        final TunableNumber turnP;
+        final TunableNumber metersTolerance;
+        final TunableNumber radiansTolerance;
+
+        Tuning(DriveConfig config) {
+            driveP = new TunableNumber("Auto Align/Drive kP", config.driveToPointP);
+            turnP = new TunableNumber("Auto Align/Turn kP", config.driveToPointHeadingP);
+            metersTolerance = new TunableNumber("Auto Align/Meters Tolerance", config.metersTolerance);
+            radiansTolerance = new TunableNumber("Auto Align/Radians Tolerance", config.radiansTolerance);
+        }
     }
 }

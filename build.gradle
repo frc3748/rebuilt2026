@@ -78,6 +78,42 @@ dependencies {
     annotationProcessor "org.littletonrobotics.akit:akit-autolog:$akitJson.version"
 }
 
+def git = { String... args ->
+    try {
+        def process = (["git"] + args.toList()).execute(null, projectDir)
+        def text = process.inputStream.text.trim()
+        process.waitFor()
+        return process.exitValue() == 0 ? text : "unknown"
+    } catch (Exception ignored) {
+        return "unknown"
+    }
+}
+
+def buildInfoDir = layout.buildDirectory.dir("generated/buildinfo")
+
+tasks.register("generateBuildInfo") {
+    outputs.dir(buildInfoDir)
+    outputs.upToDateWhen { false }
+    doLast {
+        def file = buildInfoDir.get().file("frc/robot/BuildInfo.java").asFile
+        file.parentFile.mkdirs()
+        file.text = """package frc.robot;
+
+public final class BuildInfo {
+    public static final String GIT_SHA = "${git("rev-parse", "HEAD")}";
+    public static final String GIT_BRANCH = "${git("rev-parse", "--abbrev-ref", "HEAD")}";
+    public static final boolean GIT_DIRTY = ${!git("status", "--porcelain").isEmpty()};
+    public static final String BUILD_DATE = "${new Date().format("yyyy-MM-dd HH:mm:ss")}";
+
+    private BuildInfo() {}
+}
+"""
+    }
+}
+
+sourceSets.main.java.srcDir(buildInfoDir)
+compileJava.dependsOn("generateBuildInfo")
+
 test {
     useJUnitPlatform()
     forkEvery = 1
@@ -87,6 +123,7 @@ test {
 // Simulation configuration (e.g. environment variables).
 wpi.sim.addGui().defaultEnabled = true
 wpi.sim.addDriverstation()
+wpi.sim.addWebsocketsServer().defaultEnabled = false
 
 // Setting up my Jar File. In this case, adding all libraries into the main jar ('fat jar')
 // in order to make them all available at runtime. Also adding the manifest so WPILib

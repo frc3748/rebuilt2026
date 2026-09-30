@@ -121,6 +121,7 @@ public class MotorIOSpark implements MotorIO {
                 new DoubleSupplier[] { motor::getAppliedOutput, motor::getBusVoltage },
                 values -> inputs.appliedVolts = values[0] * values[1]);
         ifOk(motor, motor::getOutputCurrent, value -> inputs.currentAmps = value);
+        ifOk(motor, motor::getMotorTemperature, value -> inputs.tempCelsius = value);
 
         if (inputs.followerAppliedVolts.length != followers.length) {
             inputs.followerAppliedVolts = new double[followers.length];
