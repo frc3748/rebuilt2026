@@ -16,27 +16,24 @@ at during a match.**
 ```java
 public static void Elastic.sendNotification(Notification n);
 
-public record Notification(
-    NotificationLevel level,
-    String title,
-    String description,
-    double displayTimeMillis);
+new Notification(NotificationLevel level, String title, String description);                 // 3 s
+new Notification(NotificationLevel level, String title, String description, int displayTimeMillis);
+new Notification().withLevel(…).withTitle(…).withDescription(…).withDisplaySeconds(…);   // builder
 
 public enum NotificationLevel { INFO, WARNING, ERROR }
 ```
 
 The dashboard renders the notification as a colored toast that fades
-after `displayTimeMillis`.
+after the display time.
 
 ## Usage examples
 
 ```java
-// Mechanism homed
-Elastic.sendNotification(new Elastic.Notification(
-    NotificationLevel.INFO,
-    "Climb zeroed",
-    "Ready to deploy",
-    2000));
+// An auto couldn't find its starting pose (CompetitionAuto)
+Elastic.sendNotification(new Notification()
+    .withTitle("Path Error")
+    .withDescription("Unable to set pose")
+    .withLevel(NotificationLevel.ERROR));
 
 // Vision dropout
 Elastic.sendNotification(new Elastic.Notification(

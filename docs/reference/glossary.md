@@ -29,8 +29,14 @@ permalink: /reference/glossary/
 <dt>CommandScheduler</dt>
 <dd>WPILib's central loop runner. Calls every subsystem's <code>periodic()</code> and runs any active commands.</dd>
 
+<dt>Controls</dt>
+<dd>The class that owns the driver and operator Xbox controllers, the drive bindings every robot shares, and rumble. See <a href="{{ '/architecture/robot-state/' | relative_url }}#controls">RobotState</a>.</dd>
+
 <dt>DogLog</dt>
-<dd>A lightweight tunable-constants and live-telemetry library. Wrapped by <a href="{{ '/utilities/get-tuned/' | relative_url }}"><code>GetTuned</code></a>.</dd>
+<dd>A lightweight tunable-constants and live-telemetry library. Wrapped by <a href="{{ '/utilities/tunable-number/' | relative_url }}"><code>TunableNumber</code></a>.</dd>
+
+<dt>DriveConfig</dt>
+<dd>A robot's drivetrain constants: gyro, motor controllers, turn sensor, CAN IDs, geometry, gains. One subclass per robot (<code>CompetitionDrive</code>, <code>PracticeDrive</code>). See <a href="{{ '/subsystems/drive/' | relative_url }}#driveconfig">Drive</a>.</dd>
 
 <dt>Elastic</dt>
 <dd>A driver dashboard. The codebase pushes toast notifications to it via <a href="{{ '/utilities/elastic/' | relative_url }}">the Elastic helper</a>.</dd>
@@ -42,7 +48,7 @@ permalink: /reference/glossary/
 <dd>An open-loop prediction added to PID output to compensate for known dynamics. The shooter uses FF for chassis-velocity compensation; the drive uses <code>kS</code>/<code>kV</code>/<code>kA</code>.</dd>
 
 <dt>Flag</dt>
-<dd>A side-channel boolean on a <code>StateMachine</code>, independent of the primary state. Set/queried via <code>setFlag</code>/<code>getFlag</code>.</dd>
+<dd>A side-channel boolean on a <code>StateMachine</code>, independent of the primary state. Set/queried via <code>setFlag</code>/<code>isFlag</code>.</dd>
 
 <dt>FRC</dt>
 <dd>FIRST Robotics Competition.</dd>
@@ -57,7 +63,7 @@ permalink: /reference/glossary/
 <dd>The interface-based hardware abstraction pattern used throughout the codebase. See <a href="{{ '/architecture/io-pattern/' | relative_url }}">The IO Layer Pattern</a>.</dd>
 
 <dt>Limelight</dt>
-<dd>A networked camera with built-in AprilTag detection. The robot has two — one on the fixed shooter, one on the chassis.</dd>
+<dd>A networked camera with built-in AprilTag detection. The competition robot has two Limelight 4s — one on the fixed shooter, one on the chassis.</dd>
 
 <dt>LimelightHelpers</dt>
 <dd>A small NetworkTables wrapper that exposes Limelight reads as Java methods. Lives in <code>util/</code>.</dd>
@@ -67,6 +73,9 @@ permalink: /reference/glossary/
 
 <dt>Megatag / Megatag2</dt>
 <dd>Limelight's multi-tag pose solve. Megatag2 is the gyro-fused successor; the codebase prefers it where available.</dd>
+
+<dt>NavX</dt>
+<dd>Studica's IMU. The practice robot's gyro, on USB.</dd>
 
 <dt>NEO / NEO 550</dt>
 <dd>REV brushless motors. NEOs drive the wheels and flywheel; NEO 550s are used for lower-torque mechanisms.</dd>
@@ -81,16 +90,19 @@ permalink: /reference/glossary/
 <dd>The trajectory generator used for autos. Paths are authored in a GUI and stored as JSON in <code>src/main/deploy/pathplanner/</code>.</dd>
 
 <dt>Pigeon 2</dt>
-<dd>CTRE's IMU. Provides yaw, pitch, roll, and angular velocities. CAN ID 50.</dd>
+<dd>CTRE's IMU. Provides yaw, pitch, roll, and angular velocities. The competition robot's gyro, CAN ID 50.</dd>
 
 <dt>PhotonVision / PhotonLib</dt>
-<dd>An alternative vision pipeline. This codebase uses PhotonLib only in <em>simulation</em> — real cameras are Limelights.</dd>
+<dd>An alternative vision pipeline. PhotonLib simulates every camera, and <code>CameraConfig.Type.PHOTON</code> is intended for real object-detection cameras this year.</dd>
 
 <dt>Pose / Pose2d / Pose3d</dt>
 <dd>A translation + rotation. <code>Pose2d</code> is field-plane (x, y, yaw); <code>Pose3d</code> adds z, pitch, roll.</dd>
 
 <dt>roboRIO</dt>
-<dd>The NI single-board computer that runs the robot code.</dd>
+<dd>The NI single-board computer that runs the robot code. Its serial number tells the code which robot it is on.</dd>
+
+<dt>RobotDefinition / RobotType</dt>
+<dd>How one codebase runs several robots. A <code>RobotDefinition</code> describes one robot; <code>RobotType</code> lists them and picks one by roboRIO serial. See <a href="{{ '/architecture/robots/' | relative_url }}">Multiple Robots</a>.</dd>
 
 <dt>SendableChooser</dt>
 <dd>A WPILib widget that exposes a dropdown to the dashboard. Used for auto selection and per-subsystem state overrides.</dd>
@@ -106,6 +118,9 @@ permalink: /reference/glossary/
 
 <dt>SubsystemManager</dt>
 <dd>A singleton registry that broadcasts lifecycle events (auto start, teleop start, disable) to every registered subsystem. See <a href="{{ '/architecture/subsystem-manager/' | relative_url }}">Subsystem Manager</a>.</dd>
+
+<dt>Superstructure</dt>
+<dd>A robot's mechanisms, autos and mechanism bindings, returned by its <code>RobotDefinition</code>. The practice robot has an empty one. See <a href="{{ '/architecture/robots/' | relative_url }}#superstructure">Multiple Robots</a>.</dd>
 
 <dt>SysId</dt>
 <dd>WPILib's system-identification framework. The drive has SysId routines for characterization.</dd>

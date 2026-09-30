@@ -11,6 +11,7 @@ permalink: /subsystems/kicker/
 | **Source** | `src/main/java/frc/robot/subsystems/kicker/` |
 | **Public class** | [`Kicker`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/subsystems/kicker/Kicker.java) extends `StateMachine<Kicker.State>` |
 | **Constants** | `KickerConstants` |
+| **Built by** | `CompetitionSuperstructure` |
 
 The kicker is the simplest powered mechanism on the robot: one motor,
 three states, no PID. Its purpose is to decouple "piece ready" from

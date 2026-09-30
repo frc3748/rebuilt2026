@@ -54,17 +54,18 @@ the subsystem name as the prefix (`"Shooter/DistanceToTarget"`).
 
 ## DogLog
 
-[DogLog](https://doglog.dev) is a lightweight tunable-constants
-library. The codebase uses it via
-[`GetTuned`]({{ '/utilities/get-tuned/' | relative_url }}):
+[DogLog](https://doglog.dev) provides the dashboard-tunable values.
+The codebase uses it through
+[`TunableNumber`]({{ '/utilities/tunable-number/' | relative_url }}):
 
 ```java
-double kP = GetTuned.getNumber("Drive/AutoAlign/kP", 5.0);
+public static final TunableNumber kStowSetpoint = new TunableNumber("Intake/Extension Stow Setpoint", -93);
+...
+extension.set(kStowSetpoint.get());
 ```
 
-The default value `5.0` is used the first time the robot boots; after
-that the value is editable from the dashboard and persisted.
-DogLog also auto-publishes to NetworkTables for live monitoring.
+The value shows up under `/Tunable` in NetworkTables and is editable
+live. It is not saved: every reboot starts from the value in code.
 
 Use it for **anything you'd want to tune at a competition without a
 rebuild** — PID gains, tolerances, fixed-pose targets, flywheel speeds.
@@ -76,11 +77,10 @@ rebuild** — PID gains, tolerances, fixed-pose targets, flywheel speeds.
 notification API:
 
 ```java
-Elastic.sendNotification(new Elastic.Notification(
-    NotificationLevel.WARNING,
-    "Vision lost",
-    "No tags visible for 2s",
-    2500));
+Elastic.sendNotification(new Notification()
+    .withTitle("Path Error")
+    .withDescription("Unable to set pose")
+    .withLevel(NotificationLevel.ERROR));
 ```
 
 Use it sparingly — every toast competes for the driver's attention.
@@ -97,15 +97,15 @@ Bad candidates: anything that fires every loop.
 
 For AdvantageScope's 3D field view:
 
-- **Pose2d output keyed `"…/Pose"`** shows the robot on the 2D field.
-- **Pose3d arrays** show jointed mechanisms (climb, intake, hood).
-- `ShotVisualizer` logs the predicted shot trajectory, and each `Camera` logs its own
-  cameras as `Pose3d`s so you can verify your transforms are right.
+- **`Odometry/Robot`** (a `Pose2d`) shows the robot on the field.
+- **Pose3d outputs** show mechanisms (`Intake/Pose`, `Hopper/Pose`, `Hood/Pose`).
+- In simulation, `ShotVisualizer` logs the predicted shot under `Shooter/Trajectory`. Each
+  `Camera` logs `Vision/<name>/CameraPose` so you can verify its transform.
 
 For SmartDashboard / Shuffleboard:
 
-- Numbers, booleans, and the `Field2d` from
-  `Drive#getField()` are published.
+- Numbers, booleans, and the drive's `Field2d` (`Drive.fieldPose`)
+  are published.
 
 > **Don't double-publish.** If a value already goes to AdvantageKit
 > (via `recordOutput`), don't separately `SmartDashboard.putNumber` it

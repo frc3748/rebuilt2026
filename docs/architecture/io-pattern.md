@@ -16,8 +16,9 @@ cameras. Subsystems compose those.
 | File | What it is |
 | --- | --- |
 | `util/motor/MotorConfig.java` | Fluent description of one motor: CAN ID, Spark MAX or Flex, followers, gains, MAXMotion, soft limits, tunables. |
+| `util/motor/Gains.java` | PID, feedforward, gravity and MAXMotion values. `MotorConfig` holds one per closed-loop slot. |
 | `util/motor/MotorIO.java` | The interface. `@AutoLog` inputs and setters. |
-| `util/motor/MotorIOSpark.java` | Real hardware. Configures the Spark from the `MotorConfig`, reads inputs with `ifOk`, wires `SparkUtil.tunePID`. |
+| `util/motor/MotorIOSpark.java` | Real hardware. Configures the Spark from the `MotorConfig`, reads inputs with `ifOk`, wires [`SparkUtil.tune`]({{ '/utilities/tunable-number/' | relative_url }}#motor-gains). |
 | `util/motor/MotorIOSim.java` | Kinematic simulation. Velocity goals are reached with a short lag, position goals move at the MAXMotion cruise velocity. |
 | `util/motor/SpinMotor.java` | A velocity-controlled motor: `set(speed)`, `isAtGoal(tolerance)`. |
 | `util/motor/PosMotor.java` | A position-controlled motor: `set(position)`, `set(position, ff, slot)`, `resetPosition(position)`. |
@@ -73,14 +74,28 @@ Every camera, whatever the vendor, reports the same three things:
 | `Camera.java` | Vendor-neutral processing: filters poses, weights them, and turns object observations into field positions. |
 | `Vision.java` | The state machine that owns the cameras. |
 
-Adding a camera is one `CameraConfig` in `VisionConstants.kCameras`.
-Adding a vendor is one `CameraIO` class and one constant in `CameraConfig.Type`.
+Adding a camera is one `CameraConfig` returned from the robot's
+`RobotDefinition.cameras()`. Adding a vendor is one `CameraIO` class and
+one constant in `CameraConfig.Type`.
+
+## Drive
+
+The swerve drive keeps the AdvantageKit template's own interfaces:
+
+| Interface | Implementations |
+| --- | --- |
+| `GyroIO` | `GyroIOPigeon2`, `GyroIONavX` |
+| `ModuleIO` | `ModuleIOSpark` (Spark Flex or MAX drive; CANcoder or Spark absolute-encoder turn), `ModuleIOSim` |
+
+`Drive` picks them from `Constants.kMode` and the robot's `DriveConfig`
+(`gyro`, `driveController`, `turnSensor`), and passes the same config to
+each one. See [Drive]({{ '/subsystems/drive/' | relative_url }}).
 
 ## How the mode is chosen
 
 `Constants.kMode` is `REAL` on the roboRIO and `SIM` on a laptop; set
-`kSimMode` to `REPLAY` to replay a log. `Motor` and `Camera.of` read it,
-so no subsystem switches on the mode.
+`kSimMode` to `REPLAY` to replay a log. `Motor`, `Camera.of` and `Drive`
+read it, so no mechanism switches on the mode.
 
 ## Caveats
 

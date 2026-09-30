@@ -7,110 +7,96 @@ permalink: /commands/auto-align/
 ---
 
 [`AutoAlignToPoseCommand`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/commands/AutoAlignToPoseCommand.java)
-drives the chassis to a target pose using two independent profiled-PID
-controllers: one for translation, one for heading.
+drives the chassis to a target pose using two profiled-PID controllers:
+one on the distance to the target, one on heading.
 
 It's the underlying primitive behind:
 
-- "Drive to scoring location" autos.
+- `ActionCommands.aimAtHub` and `turnToHub`.
 - `ActionCommands.goToFixedPosAndShoot`.
-- `ActionCommands.autoClimb`'s initial positioning step.
+- `CompetitionAuto.nudge(meters)`.
 
 ## Constructor signature
 
 ```java
-new AutoAlignToPoseCommand(
-  Drive drive,
-  Supplier<Pose2d> target,
-  AlignType type,
-  double constraintScale);
+new AutoAlignToPoseCommand(Drive drive, RobotState state, Pose2d target, double constraintFactor);
+new AutoAlignToPoseCommand(Drive drive, RobotState state, Pose2d target, double constraintFactor, AlignType alignType);
 ```
 
 | Parameter | Meaning |
 | --- | --- |
-| `drive` | The drive to command. |
-| `target` | A supplier — re-evaluated every loop, so you can target a moving point. |
-| `type` | One of `DEFAULT`, `TRANSLATION_ONLY`, `ROTATION_ONLY`. |
-| `constraintScale` | Scales max velocity / accel. `1.0` = normal, `0.5` = gentle, `1.5` = aggressive (use with caution). |
+| `drive` | The drive to command. The command requires it. |
+| `state` | Where the current pose and speeds are read from. |
+| `target` | A fixed field pose. Wrap the command in a `DeferredCommand` to compute the target when it starts. |
+| `constraintFactor` | Scales max velocity and acceleration. `1.0` is normal. |
+| `alignType` | `DEFAULT` if omitted. |
 
 ## `AlignType`
 
 ```java
-enum AlignType { DEFAULT, TRANSLATION_ONLY, ROTATION_ONLY }
+enum AlignType { DEFAULT, ROTATION, TRANSLATION }
 ```
 
-- **`DEFAULT`** — both controllers active. Robot drives to the pose
-  and ends up at the heading.
-- **`TRANSLATION_ONLY`** — heading controller off; robot keeps
-  whatever yaw it had.
-- **`ROTATION_ONLY`** — translation controller off; robot snaps to
-  the target heading in place.
+- **`DEFAULT`** — both controllers active; finishes when both are at goal.
+- **`ROTATION`** — turns in place; finishes when the heading is at goal.
+- **`TRANSLATION`** — heading held still; finishes when the position is at goal.
 
-## Tolerances
+## Constants and tolerances
 
-Tolerances live in `DriveConstants` and gate `isFinished()`:
+Everything comes from the robot's
+[`DriveConfig`]({{ '/subsystems/drive/' | relative_url }}#driveconfig)
+through `drive.getConfig()`:
 
-| Constant | Meaning |
+| Field | Used for |
 | --- | --- |
-| `kAutoAlignPositionTolerance` | Meters; both X and Y must be within this. |
-| `kAutoAlignAccelTolerance` | Meters/s²; translation acceleration must be below this (so we don't declare done while still moving). |
-| `kAutoAlignHeadingTolerance` | Radians. |
-| `kAutoAlignAngularAccelTolerance` | Rad/s². |
-
-The command finishes only when **all four** are satisfied for at least
-a few consecutive loops.
+| `driveToPointP` / `driveToPointHeadingP` | Translation and heading kP. |
+| `maxSpeedMetersPerSec`, `maxLinearAcceleration` | Translation profile, times `constraintFactor`. |
+| `maxAngularSpeed()`, `maxAngularAcceleration()` | Heading profile. |
+| `metersTolerance`, `metersAccelTolerance` | Translation goal tolerance. |
+| `radiansTolerance`, `radAccelTolerance` | Heading goal tolerance. |
 
 ## Tuning via DogLog
 
-Every gain in this command is wrapped in
-[`GetTuned`]({{ '/utilities/get-tuned/' | relative_url }}) so you can
-adjust them mid-match from the dashboard:
+Each gain and tolerance is also a DogLog tunable, so you can adjust it
+from the dashboard without a redeploy:
 
-- `AutoAlign/Translation/kP`, `kI`, `kD`
-- `AutoAlign/Heading/kP`, `kI`, `kD`
-- `AutoAlign/MaxVelocity`, `AutoAlign/MaxAccel`
+- `Auto Align/Drive kP`, `Auto Align/Turn kP`
+- `Auto Align/Meters Tolerance`, `Auto Align/Meters Accel Tolerance`
+- `Auto Align/Radians Tolerance`, `Auto Align/Radians Accel Tolerance`
+
+Copy good values back into the `DriveConfig`; tunables reset on reboot.
+See [Tuning]({{ '/utilities/tunable-number/' | relative_url }}).
 
 ## Usage examples
 
 ### Drive to a fixed pose
 
 ```java
-new AutoAlignToPoseCommand(
-  robotState.getDrive(),
-  () -> new Pose2d(2.5, 5.0, Rotation2d.fromDegrees(90)),
-  AlignType.DEFAULT,
-  1.0);
+new AutoAlignToPoseCommand(drive, state, new Pose2d(2.5, 5.0, Rotation2d.fromDegrees(90)), 1.0);
 ```
 
-### Snap to a specific heading without moving
+### Turn in place to a heading chosen at start
 
 ```java
-new AutoAlignToPoseCommand(
-  robotState.getDrive(),
-  () -> new Pose2d(robotState.getLatestFieldToRobot().getTranslation(),
-                   Rotation2d.fromDegrees(0)),
-  AlignType.ROTATION_ONLY,
-  1.0);
+new DeferredCommand(() -> {
+    Pose2d pose = state.getLatestFieldToRobot().getValue();
+    Pose2d aimed = new Pose2d(pose.getTranslation(), drive.getAimRotationForHub());
+    return new AutoAlignToPoseCommand(drive, state, aimed, 1, AlignType.ROTATION);
+}, Set.of(drive));
 ```
 
-### Track a moving target
+This is what `ActionCommands.turnToHub` does.
 
-```java
-new AutoAlignToPoseCommand(
-  robotState.getDrive(),
-  () -> nearestScoringPose(robotState),  // recomputed every loop
-  AlignType.DEFAULT,
-  0.7);
-```
+## Logging
+
+`DriveToPose/currentPose`, `DriveToPose/targetPose` and
+`DriveToPose/ffScaler` are logged every loop.
 
 ## Pitfalls
 
-- **Robot overshoots.** Decrease `MaxAccel` or `kP`. Acceleration is
-  usually the issue, not P.
-- **Robot oscillates near target.** Tighten the tolerance — too-loose
-  tolerances let the command keep "re-correcting" inside the deadband.
+- **Robot overshoots.** Lower `constraintFactor` or `Auto Align/Drive kP`.
 - **Never finishes.** Heading and translation tolerances are
-  independent; one being too tight blocks `isFinished()` forever.
-  Check both in the AdvantageScope plot.
+  independent; one being too tight blocks `isFinished()` in `DEFAULT`.
+  Check both in AdvantageScope.
 - **Vision corrects mid-align.** Expected and fine — but if it causes
-  jumps, you may want to raise vision std devs during alignment.
+  jumps, raise the camera's `stdDevFactor`.

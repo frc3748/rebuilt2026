@@ -33,6 +33,10 @@ description: The 2026 robot code for FRC Team 3748 — a state-machine driven, h
     <h3>Robot Lifecycle</h3>
     <p>How <code>Main</code>, <code>Robot</code>, and <code>RobotState</code> fit together.</p>
   </a>
+  <a class="card" href="{{ '/architecture/robots/' | relative_url }}">
+    <h3>Multiple Robots</h3>
+    <p>One codebase for the competition and practice robots, and how to add another.</p>
+  </a>
   <a class="card" href="{{ '/architecture/io-pattern/' | relative_url }}">
     <h3>The IO Layer Pattern</h3>
     <p>Why every subsystem has an interface, a Spark impl, and a Sim impl.</p>
@@ -97,7 +101,14 @@ Three patterns shape almost every file:
 
 <h2 id="quick-tour">Quick tour</h2>
 
-<p>The robot has seven physical subsystems:</p>
+<p>
+The same code runs two robots, picked at boot by roboRIO serial number
+(see <a href="{{ '/architecture/robots/' | relative_url }}">Multiple Robots</a>).
+The <strong>competition robot</strong> has six subsystems; the
+<strong>practice robot</strong> is a drivetrain with no cameras.
+</p>
+
+<p>The competition robot's subsystems:</p>
 
 <table>
 <thead><tr><th>Subsystem</th><th>What it does</th></tr></thead>
@@ -108,7 +119,6 @@ Three patterns shape almost every file:
 <tr><td><a href="{{ '/subsystems/intake/' | relative_url }}">Intake</a></td><td>Pivoting arm that pulls game pieces from the floor.</td></tr>
 <tr><td><a href="{{ '/subsystems/hopper/' | relative_url }}">Hopper</a></td><td>Carries pieces from intake to shooter; jam-aware.</td></tr>
 <tr><td><a href="{{ '/subsystems/kicker/' | relative_url }}">Kicker</a></td><td>Pushes the piece the final inch into the flywheel.</td></tr>
-<tr><td><a href="{{ '/subsystems/climb/' | relative_url }}">Climb</a></td><td>One-motor elevator with stalling based zeroing mechanism.</td></tr>
 </tbody>
 </table>
 

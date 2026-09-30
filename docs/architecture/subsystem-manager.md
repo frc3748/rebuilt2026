@@ -12,14 +12,17 @@ that want to react to them.
 
 ## The contract
 
-Every subsystem registers itself in its constructor:
+`Robot` registers one machine, the root:
 
 ```java
-SubsystemManagerFactory.getInstance().registerSubsystem(this);
+SubsystemManagerFactory.getInstance().registerSubsystem(robotState);
 ```
 
-After registration, the subsystem will receive broadcasts whenever the
-robot's mode changes.
+Registration walks `getChildSubsystems()` recursively, so every machine
+added with `addChildSubsystem` (vision, drive, the superstructure's
+subsystems, and their own children such as the hood and flywheel) is
+registered too. After registration, each one receives broadcasts
+whenever the robot's mode changes.
 
 ## What it broadcasts
 
@@ -38,8 +41,9 @@ A few reasons:
 
 - **Order independence.** Subsystems can be constructed in any order;
   the manager finds them all afterward.
-- **One-line lifecycle for new mechanisms.** Add a new subsystem and it
-  gets disabled-on-disable for free, without touching `Robot.java`.
+- **One-line lifecycle for new mechanisms.** Return a new subsystem from
+  the robot's `Superstructure.subsystems()` and it gets
+  disabled-on-disable for free, without touching `Robot.java`.
 - **Dashboard chooser.** When a subsystem registers, the manager
   publishes a `SendableChooser` to SmartDashboard for forcing states
   during testing.

@@ -67,7 +67,24 @@ converts it to a field position using the robot pose at capture time.
 `kObjectMemorySeconds`, and `Vision#getClosestObject()` returns the
 nearest one.
 
+## Camera types
+
+`CameraConfig.Type` picks the `CameraIO` used on the real robot:
+
+| Type | IO | Notes |
+| --- | --- | --- |
+| `LIMELIGHT_3` | `CameraIOLimelight` | MegaTag 1 + 2. |
+| `LIMELIGHT_3G` | `CameraIOLimelight` | MegaTag 1 + 2. |
+| `LIMELIGHT_4` | `CameraIOLimelight` | Also switches on the camera's internal IMU (`SetIMUMode(1)`). Only LL4 does this. |
+| `PHOTON` | `CameraIOPhoton` | PhotonVision. Intended for object detection this year. |
+
+In simulation every camera uses `CameraIOPhotonSim`, whatever its type.
+
 ## Adding a camera
+
+Cameras belong to a robot. Each `RobotDefinition` returns its own list
+from `cameras()`; the competition cameras are constants in
+`CompetitionRobot`.
 
 ```java
 public static final CameraConfig kIntakeCamera = new CameraConfig("Intake Camera", "photon-intake", CameraConfig.Type.PHOTON)
@@ -77,8 +94,19 @@ public static final CameraConfig kIntakeCamera = new CameraConfig("Intake Camera
         .stdDevFactor(1.5);
 ```
 
-Add it to `VisionConstants.kCameras`. A camera on a moving mechanism
-passes a supplier instead: `.robotToCamera(() -> turretToCamera(turret.getAngle()))`.
+Then return it from the robot's `cameras()`:
+
+```java
+@Override
+public CameraConfig[] cameras() {
+    return new CameraConfig[] { kChassisCamera, kShooterCamera, kIntakeCamera };
+}
+```
+
+A camera on a moving mechanism passes a supplier instead:
+`.robotToCamera(() -> turretToCamera(turret.getAngle()))`. A robot with
+no cameras returns `new CameraConfig[0]`, and `Vision` simply has
+nothing to do.
 
 ## Adding a vendor
 
@@ -91,9 +119,11 @@ QUEST(CameraIOQuest::new)
 
 Nothing else changes.
 
-## Cameras on this robot
+## Cameras on the competition robot
 
-| Config | Network name | Notes |
-| --- | --- | --- |
-| `kShooterCamera` | `limelight-turret` | Fixed to the shooter. Applies the same in-code offset to its reported pose as the turret-era code did. |
-| `kChassisCamera` | `limelight` | Rear of chassis. Offsets live in the Limelight web UI. |
+Defined in `CompetitionRobot`. The practice robot has none.
+
+| Config | Network name | Type | Notes |
+| --- | --- | --- | --- |
+| `kShooterCamera` | `limelight-turret` | `LIMELIGHT_4` | Fixed to the shooter. Applies the same in-code offset to its reported pose as the turret-era code did. |
+| `kChassisCamera` | `limelight` | `LIMELIGHT_4` | Rear of chassis. Offsets live in the Limelight web UI. |

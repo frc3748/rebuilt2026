@@ -5,11 +5,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.File;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.littletonrobotics.junction.LogTable;
+
+import com.pathplanner.lib.path.PathPlannerPath;
 
 import edu.wpi.first.hal.HAL;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -18,6 +24,7 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
+import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.commands.autos.AutoRoutine;
@@ -66,10 +73,16 @@ class CompetitionRobotTest {
 
     @Test
     void everyAutoFindsItsPaths() {
+        Set<String> pathFiles = Arrays.stream(new File(Filesystem.getDeployDirectory(), "pathplanner/paths").list())
+                .map(file -> file.replace(".path", ""))
+                .collect(Collectors.toSet());
         List<AutoRoutine> autos = state.getSuperstructure().autos();
         assertEquals(15, autos.size());
         for (AutoRoutine auto : autos) {
             assertFalse(auto.build().getName().endsWith("(FAILED)"), auto.name());
+            for (PathPlannerPath path : auto.previewPaths()) {
+                assertTrue(pathFiles.contains(path.name), auto.name() + " uses a path that isn't on disk with that exact name: " + path.name);
+            }
         }
     }
 

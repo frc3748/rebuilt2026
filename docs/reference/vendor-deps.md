@@ -21,21 +21,21 @@ build time. Here's the full set.
 | Lib | Why |
 | --- | --- |
 | **AdvantageKit** (Littleton Robotics) | The replay-driven logger. Annotation processor generates `*AutoLogged` classes. See [Logging & Telemetry]({{ '/architecture/logging/' | relative_url }}). |
-| **DogLog** | Dashboard-tunable values. See [`GetTuned`]({{ '/utilities/get-tuned/' | relative_url }}). |
+| **DogLog** | Dashboard-tunable values. See [Tuning]({{ '/utilities/tunable-number/' | relative_url }}). |
 
 ## Motor controllers
 
 | Lib | Why |
 | --- | --- |
 | **REVLib** | Spark Max / Spark Flex API. Used for every NEO on the robot. |
-| **Phoenix 6** (`v26.1.1`) | Pigeon 2 gyro, any TalonFX motors. |
+| **Phoenix 6** (`v26.1.1`) | Pigeon 2 gyro and swerve CANcoders on the competition robot. |
 | **Phoenix 5** (`v5.36.0`) | Legacy CTRE devices, kept for backward compatibility. |
 
 ## Vision
 
 | Lib | Why |
 | --- | --- |
-| **PhotonLib** | Simulator-side AprilTag pipeline. Real cameras use Limelight via NetworkTables (no vendor dep needed). |
+| **PhotonLib** | `CameraIOPhoton` for PhotonVision cameras (`CameraConfig.Type.PHOTON`, intended for object detection this year), and `CameraIOPhotonSim` for every camera in simulation. Limelights go through NetworkTables via `LimelightHelpers`, no vendor dep needed. |
 
 ## Trajectory & autonomy
 
@@ -48,6 +48,7 @@ build time. Here's the full set.
 
 | Lib | Why |
 | --- | --- |
+| **Studica** (`2026.0.0`) | NavX gyro (`com.studica.frc.AHRS`), read by `GyroIONavX` on the practice robot. |
 | **libgrapplefrc2026** | Grapple/LaserCAN-style sensors. |
 | **redux** | Redux Robotics sensor support. |
 | **ThriftyLib** (`2026.1.0`) | Thrifty Bot encoder support. |
@@ -56,7 +57,7 @@ build time. Here's the full set.
 
 | Lib | Why |
 | --- | --- |
-| **MapleSim** (`0.4.0-beta`) | Advanced physics simulator. The drive-train sim layer. |
+| **MapleSim** (`0.4.0-beta`) | Physics simulator. Not used by robot code right now: the drive sim is WPILib's `DCMotorSim` in `ModuleIOSim`, and fuel is simulated by `FuelSim`. |
 
 ## Misc
 

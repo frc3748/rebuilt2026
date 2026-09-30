@@ -6,6 +6,9 @@ description: Distance-aware solver for hood angle, flywheel speed, and the headi
 permalink: /utilities/shooter-setpoint/
 ---
 
+[`ShooterSetpoint`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/game/ShooterSetpoint.java)
+lives in `frc.robot.game`. Each instance is one solved shot:
+
 | Getter | Meaning |
 | --- | --- |
 | `getShooterRPS()` | Flywheel target, meters per second of surface speed. |

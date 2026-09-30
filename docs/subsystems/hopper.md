@@ -11,6 +11,7 @@ permalink: /subsystems/hopper/
 | **Source** | `src/main/java/frc/robot/subsystems/hopper/` |
 | **Public class** | [`Hopper`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/subsystems/hopper/Hopper.java) extends `StateMachine<Hopper.State>` |
 | **Constants** | `HopperConstants` |
+| **Built by** | `CompetitionSuperstructure` |
 
 ## States
 

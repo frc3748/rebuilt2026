@@ -2,91 +2,79 @@
 layout: default
 title: Simulation
 eyebrow: Utilities
-description: SimulatedRobotState, FuelSim — game-piece physics in the desktop simulator.
+description: SimulatedRobotState, FuelSimulation and FuelSim — ground truth and game-piece physics in the desktop simulator.
 permalink: /utilities/simulation/
 ---
 
-The simulator can do more than run motors. With these two utilities,
-it also simulates *game pieces*: the balls spawn at intake locations,
-fall under gravity, interact with the simulated intake geometry, and
-get logged as 3D poses for AdvantageScope.
+The simulator can do more than run motors. Mechanisms simulate through
+`MotorIOSim`, the drive through `ModuleIOSim`, cameras through
+`CameraIOPhotonSim`, and on the competition robot the fuel itself is
+simulated: pieces sit on the field, get picked up by the intake, and fly
+when the shooter fires.
+
+## Which robot?
+
+The simulator runs `Constants.kDefaultRobot` (see
+[Multiple Robots]({{ '/architecture/robots/' | relative_url }})). The
+practice robot simulates a drivetrain only.
 
 ## `SimulatedRobotState`
 
 [`SimulatedRobotState`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/util/SimulatedRobotState.java)
-mirrors the live `RobotState` in simulation. It holds the
-ground-truth robot pose that the simulated cameras (`CameraIOPhotonSim`)
-render AprilTags from. Mechanisms simulate through `MotorIOSim`, and game
-pieces through `FuelSim`.
+holds the ground-truth robot pose. `Drive` feeds it every loop in
+simulation, and `CameraIOPhotonSim` renders AprilTags from it.
+`RobotState#getSimRobot()` returns it, or `null` on a real robot.
+
+## `FuelSimulation`
+
+[`FuelSimulation`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/game/FuelSimulation.java)
+is the robot-facing wrapper. `CompetitionSuperstructure` creates one
+only in `SIM` mode, from the drive's `DriveConfig` (frame size and
+bumper height), the shooter height, and an intake box in front of the
+robot. The field starts with its usual fuel and the robot starts
+holding 8 pieces.
+
+- **Pickup** — while the intake is in `INTAKE`, pieces inside the intake box are counted as held.
+- **Launch** — while `SHOOTING` or `PASSING`, `Shooter` calls `fuel.launch(exitVelocity, launchAngle)` every `kSimSecondsBetweenShots`. It returns `false` when the robot holds no fuel.
+- **Update** — `CompetitionSuperstructure.simulationPeriodic()` calls `fuel.update()`, reached through `Robot.simulationPeriodic()` → `RobotState.updateSimulation()`.
+
+A **Reset Fuel** dashboard button clears the field and respawns the
+starting fuel.
 
 ## `FuelSim`
 
-[`FuelSim`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/util/FuelSim.java)
-is the physics engine for game pieces. It runs in
-`Robot#simulationPeriodic` and does the following each loop:
-
-1. **Spawn** pieces at field intake locations on a configurable rate.
-2. **Integrate** their motion under gravity + drag.
-3. **Test for pickup** by the simulated intake (geometric overlap with
-   the intake bounding volume).
-4. **Test for ejection** when the shooter fires (a launched piece
-   gets velocity from the flywheel + hood angle).
-5. **Publish** every piece's 3D pose to AdvantageKit for visualization.
-
-### Registering the robot
-
-Once at startup:
-
-```java
-FuelSim.getInstance().registerRobot(robotState);
-FuelSim.getInstance().registerIntakeGeometry(intakeSim);
-```
-
-After registration, the simulator knows enough geometry to detect
-interactions automatically.
+[`FuelSim`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/game/FuelSim.java)
+is the physics engine underneath: gravity, air resistance, field and
+hub collisions, hub scoring, and intake boxes. It publishes
+every piece as a `Translation3d` array to `/Fuel Simulation/Fuels` in
+NetworkTables for AdvantageScope.
 
 ## Running the simulator
+
+Use **WPILib: Simulate Robot Code** from the command palette (see
+[Getting Started]({{ '/getting-started/' | relative_url }})),
+or:
 
 ```bash
 ./gradlew simulateJava
 ```
 
-Hot-reload doesn't work (it's a JVM relaunch each time) but the
-turnaround is fast — most logic changes are 5-10 second iterations.
-
 ## What you see in AdvantageScope
 
 With the right layout:
 
-- The robot as a 3D model.
-- Each game piece as a yellow sphere.
-- Pieces inside the hopper follow the robot.
-- Pieces in flight trace a parabolic arc to (hopefully) the target.
+- The robot as a 3D model, with the intake, hopper and hood poses.
+- Each fuel piece from `/Fuel Simulation/Fuels`.
+- The predicted shot from `Shooter/Trajectory`.
 
 This is enough to debug almost any indexing or shooting bug without
 ever touching a real ball.
 
-## Tuning the physics
-
-A few `GetTuned` knobs:
-
-| Key | Default | What it does |
-| --- | --- | --- |
-| `Sim/Gravity` | -9.81 m/s² | Vertical gravity. |
-| `Sim/Drag` | small | Linear drag coefficient. |
-| `Sim/SpawnRate` | 1 Hz | How often new pieces appear at intake stations. |
-| `Sim/MaxPieces` | 20 | Cap on simultaneous pieces. |
-
-Don't expect bit-for-bit accuracy — it's a sim. But it's a sim that
-exercises the *codepath* of a shot, which is what matters for finding
-bugs.
-
 ## Pitfalls
 
-- **Pieces fall through the floor.** Drag/gravity mismatch with the
-  step size. Reset and try again — usually transient.
-- **Intake never sees a piece.** Intake geometry isn't registered, or
-  the bounding volume is wrong. Check `FuelSim.registerIntakeGeometry`
-  args.
-- **Shots always miss.** Verify `kShooterToRobotCenter` matches
-  what real hardware uses — the sim uses the same `VisionConstants`.
+- **Shooter never launches.** The robot holds no fuel. Drive over
+  pieces with the intake in `INTAKE`, or press **Reset Fuel**.
+- **Intake never picks up.** Check the intake box built in
+  `CompetitionSuperstructure.createFuelSimulation()`.
+- **Shots always miss.** Check `ShooterConstants.kShooterToRobotCenter`;
+  the sim launches from there.

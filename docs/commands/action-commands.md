@@ -2,120 +2,104 @@
 layout: default
 title: Action Commands
 eyebrow: Commands
-description: High-level composite commands — what driver buttons actually invoke.
+description: High-level composite commands for the competition robot — what driver buttons and autos actually invoke.
 permalink: /commands/action-commands/
 ---
 
-[`ActionCommands`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/commands/ActionCommands.java)
-is the "buttons-to-behavior" layer. Every static method here returns
-a `Command` that orchestrates multiple subsystems.
+[`ActionCommands`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/robots/competition/ActionCommands.java)
+is the "buttons-to-behavior" layer for the competition robot. It lives
+in `robots/competition/` because every method needs that robot's
+mechanisms.
 
 Think of it as the playbook: each method is one named play that the
-driver or auto can call.
+driver or an auto can call.
 
 ## Factory pattern
 
-Every method is `static` and takes the `RobotState` as its first
-argument:
+Every method is `static`, takes the `CompetitionSuperstructure`, and
+returns a `Command`:
 
 ```java
-public static Command aimAndShoot(RobotState state) { … }
-public static Command shootOrPassBasedOnPos(RobotState state) { … }
-public static Command trackBasedOnPos(RobotState state) { … }
-public static Command autoClimb(RobotState state) { … }
-public static Command goToFixedPosAndShoot(RobotState state, Pose2d target) { … }
-public static Command shakeIntake(RobotState state) { … }
+public static Command shakeIntake(CompetitionSuperstructure robot)
+public static Command aimAtHub(CompetitionSuperstructure robot)
+public static Command turnToHub(CompetitionSuperstructure robot)
+public static Command aimAndShoot(CompetitionSuperstructure robot)
+public static Command shootOrPassBasedOnPos(CompetitionSuperstructure robot)
+public static Command trackBasedOnPos(CompetitionSuperstructure robot)
+public static Command goToFixedPosAndShoot(CompetitionSuperstructure robot)
 ```
 
-This keeps the factory stateless — every command captures the state
-reference at build time.
+The superstructure gives access to the mechanisms (`getShooter()`,
+`getIntake()`, …) and `robot.state()` gives the `RobotState`.
 
-## The "shoot" family
+> **Keep this signature.** [`CustomAuto`]({{ '/commands/autos/' | relative_url }}#customauto)
+> finds actions by reflection: every public static method that takes
+> exactly one `CompetitionSuperstructure` and returns `Command` shows
+> up in its dashboard choosers automatically.
 
-### `aimAndShoot(state)`
+## Aiming
 
-The basic full shot:
+| Method | What it does |
+| --- | --- |
+| `aimAtHub` | [`AutoAlignToPoseCommand`]({{ '/commands/auto-align/' | relative_url }}) to the current position with the heading from `Drive#getAimRotationForHub()` (`AlignType.DEFAULT`). |
+| `turnToHub` | Same target, `AlignType.ROTATION`: turns in place. |
 
-1. Request `Shooter.State.HUB_TRACKING`.
-2. Wait until the shooter reports ready.
-3. Request `Shooter.State.SHOOTING`.
-4. After the shot completes (timeout or beam clear), return to `IDLE`.
+Both are `DeferredCommand`s, so the target is taken when the command
+starts, not when it's built.
 
-### `shootOrPassBasedOnPos(state)`
+## Shooting
 
-Same as `aimAndShoot`, but picks the target based on the alliance and
-the robot's field X coordinate:
+| Method | What it does |
+| --- | --- |
+| `aimAndShoot` | Requests `HUB_TRACKING`, then `SHOOTING`. |
+| `shootOrPassBasedOnPos` | `SHOOTING` if `RobotState#shouldShootHub()`, else `PASSING`. |
+| `trackBasedOnPos` | `HUB_TRACKING` or `PASS_TRACKING`, by the same test. Aims without feeding. |
+| `goToFixedPosAndShoot` | Drives to a fixed spot 80″ out from the hub face (alliance-flipped), then overrides the flywheel and hood with `FixedPos/RPS`, `FixedPos/Hood` and `FixedPos/Hood FF`. |
 
-- **Blue alliance, X ≤ hub-X** — shoot the hub.
-- **Red alliance, X ≥ hub-X** — shoot the hub.
-- **Otherwise** — pass to teammate.
+`shouldShootHub()` is true when the robot is between its own alliance
+wall and the hub; otherwise the shot becomes a pass to
+`PassTargetFactory`'s spot.
 
-This lets the same button do the right thing from either side of the
-field. The target factory (`BallTargetFactory` vs.
-`PassTargetFactory`) is chosen accordingly.
+## Utility
 
-### `trackBasedOnPos(state)`
-
-Same target-selection logic as above, but doesn't shoot — just aims.
-Useful as a "hold trigger to aim, release to shoot" pattern combined
-with another binding.
-
-### `goToFixedPosAndShoot(state, target)`
-
-Drives to a hardcoded pose via
-[`AutoAlignToPoseCommand`]({{ '/commands/auto-align/' | relative_url }}),
-then runs `aimAndShoot`. Used in auto routines that have known
-scoring positions.
-
-## The "climb" family
-
-### `autoClimb(state)`
-
-Coordinates drive + climb for a rung climb:
-
-1. Drive auto-aligns to the climb pose.
-2. Climb deploys: `STOW → UP`.
-3. Waits for an operator confirmation (a specific button press) to
-   start `UP → DOWN`.
-4. The `Climb` subsystem auto-completes to `CLIMB` once the motor
-   stall-current threshold is exceeded.
-
-## The "utility" family
-
-### `shakeIntake(state)`
-
-Repeatedly toggles the intake between `INTAKE` and `SHAKE` to unjam a
-stuck piece. Cancellable — release the button and the intake goes
-back to `STOW`.
+| Method | What it does |
+| --- | --- |
+| `shakeIntake` | Repeats intake `SHAKE` for 0.6 s, `IDLE` for 0.6 s, until cancelled. |
 
 ## Where these get bound
 
-In `RobotState`'s controller-binding section:
+In `CompetitionSuperstructure.bindDriver`:
 
-```java
-controller.rightTrigger().onTrue(ActionCommands.shootOrPassBasedOnPos(this));
-controller.rightBumper() .onTrue(ActionCommands.autoClimb(this));
-controller.x()           .whileTrue(ActionCommands.shakeIntake(this));
-```
+| Driver input | Command |
+| --- | --- |
+| Right trigger | `drive.stopWithX()`, then `shootOrPassBasedOnPos`; release runs `trackBasedOnPos`. |
+| Left trigger | Intake `INTAKE` while held, `IDLE` on release. |
+| Left bumper | Intake `STOW`. |
+| A | Shooter `OUTTAKE` and intake `OUTAKE`; release returns to `trackBasedOnPos`. |
+| X (hold) | `goToFixedPosAndShoot`; release calls `shooter.releaseShot()`. |
+| B (hold) | `shakeIntake`. |
+| D-pad up (hold) | `turnToHub`. |
 
-The pattern is always **bind to an `ActionCommands` method**, not to a
-raw transition, when the behavior spans more than one subsystem.
+The operator controller holds overrides. Hold **X** (hopper and
+kicker), **B** (intake) or **A** (shooter) and press a trigger or bumper
+to override that group, or the right stick to clear it. The left stick
+clears every override.
+
+Drive bindings shared by every robot are in
+[`Controls`]({{ '/architecture/robot-state/' | relative_url }}#controls).
 
 ## Adding a new action
 
-The shape:
-
 ```java
-public static Command myNewAction(RobotState state) {
-  return Commands.sequence(
-    state.getShooter().transitionCommand(Shooter.State.HUB_TRACKING),
-    Commands.waitUntil(state.getShooter().getFlywheel()::isReady),
-    state.getShooter().transitionCommand(Shooter.State.SHOOTING),
-    Commands.waitSeconds(0.5),
-    state.getShooter().transitionCommand(Shooter.State.IDLE)
-  );
+public static Command myNewAction(CompetitionSuperstructure robot) {
+    Shooter shooter = robot.getShooter();
+    return Commands.sequence(
+            shooter.transitionCommand(Shooter.State.HUB_TRACKING),
+            aimAtHub(robot),
+            shooter.transitionCommand(Shooter.State.SHOOTING));
 }
 ```
 
-Then bind it in `RobotState`'s setup. Never bypass the state machines
-— always go through `transitionCommand`.
+Then bind it in `CompetitionSuperstructure`. It also appears in the
+custom auto choosers. Never bypass the state machines — always go
+through `transitionCommand` or `requestTransition`.

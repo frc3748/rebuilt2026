@@ -36,7 +36,7 @@ the machine handles the rest.
   <dd>An enum value. Every machine has at least an <code>UNDETERMINED</code> state, which represents "we don't know where the mechanism physically is yet."</dd>
 
   <dt>Transition</dt>
-  <dd>A directed edge in the state graph. Backed by a <code>Command</code> that runs once when the edge is traversed. Most transitions are instantaneous; some (like climb deployment) take seconds.</dd>
+  <dd>A directed edge in the state graph. Backed by a <code>Command</code> that runs once when the edge is traversed. Most transitions are instantaneous.</dd>
 
   <dt>State command</dt>
   <dd>A long-running <code>Command</code> registered for a state. Starts when the state is entered, ends when the state is exited.</dd>
@@ -64,7 +64,7 @@ Because motors only send in step 5, a constraint can replace a state's command w
 
 ```java
 public class Intake extends StateMachine<Intake.State> {
-    public enum State { UNDETERMINED, STOW, IDLE, INTAKE, OUTAKE, CLIMB_TOW, SHAKE }
+    public enum State { UNDETERMINED, STOW, IDLE, INTAKE, OUTAKE, SHAKE }
 
     private final SpinMotor rollers = new SpinMotor(kRollers);
     private final PosMotor extension = new PosMotor(kExtension);
@@ -121,6 +121,7 @@ Constraints still apply while overridden.
 | --- | --- |
 | `requestTransition(State)` | Request a transition; lands on a following loop. |
 | `transitionCommand(State)` | A `Command` that requests the transition and waits until it lands. |
+| `transitionCommand(State, false)` | Requests the transition and finishes immediately. Autos use it to overlap steps. |
 | `getState()` | Current state. |
 | `isDetermined()` / `isTransitioning()` | Lifecycle checks. |
 | `setOverride(State)` / `setOverride(Runnable)` / `clearOverride()` | Manual control. |
@@ -131,7 +132,7 @@ Used inside a subclass:
 | --- | --- |
 | `addHardware(devices…)` | Register motors and sensors for the read and write steps. |
 | `allowAllTransitions()` | Every state can be reached from every other state. |
-| `addTransition(from, to, Runnable)` | One edge with an action, e.g. restoring a current limit when leaving `ZEROING`. |
+| `addTransition(from, to, Runnable)` | One edge with an action that runs when it is traversed. |
 | `registerStateCommand(state, Runnable)` | Runs once on entering a state. |
 | `applyState(state)` | What the mechanism does in each state. |
 | `applyConstraints()` | Rules that always win. |
@@ -170,10 +171,10 @@ hood PID — it just orchestrates intent.
 
 Every machine auto-logs to AdvantageKit:
 
-- `…/CurrentState`
-- `…/DesiredState`
-- `…/IsTransitioning`
-- `…/Flags/<flag-name>`
+- `<Name>/state` and `<Name>/desired`
+- `<Name>/transitioning`
+- `<Name>/flags`
+- `<Name>/enabled` and `<Name>/overridden`
 
 In AdvantageScope, plot these and you'll see exactly what the
 subsystem was trying to do, frame by frame.
@@ -187,6 +188,6 @@ subsystem was trying to do, frame by frame.
 - **State commands hold setpoints.** A "tracking" state's command is
   often `run(() -> io.setPosition(supplier.get()))` — the supplier is
   the actual control loop.
-- **Transition commands wait on physical conditions.** A climb
-  deployment transition might `waitUntil(stallDetected)` before
-  declaring victory.
+- **Autos chain transition commands.** `transitionCommand(state)`
+  waits for the state to land, so `Commands.sequence(...)` of them
+  runs step by step; pass `false` to fire and move on.

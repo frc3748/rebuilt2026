@@ -119,6 +119,11 @@ For sim-only development you don't need a robot:
 4. WPILib pops up a dialog asking which Halsim extensions to enable. Tick **Sim GUI** and **DriverStation** (the one in the list is usually labelled `halsim_ds_socket`). **Sim GUI** alone is not enough — without DriverStation you can't enable the robot.
 5. Click OK. Two windows open: the Sim GUI (joystick mappings, field, modules) and the Driver Station.
 
+The simulator runs the robot named by `Constants.kDefaultRobot`
+(`COMPETITION` by default). Change it to `RobotType.PRACTICE` to
+simulate the practice drivetrain. See
+[Multiple Robots]({{ '/architecture/robots/' | relative_url }}).
+
 > **If you're asked "do you want A or B"** during sim launch, that's
 > the choice of which halsim extension to use. Pick **the
 > DriverStation option** so you get the real DS UI. A plain Sim GUI
@@ -130,7 +135,7 @@ The Driver Station window controls match state (disabled, autonomous,
 teleop) and routes joystick input to the robot.
 
 1. Plug in an Xbox controller (or any HID joystick).
-2. In the Driver Station, look at the panel on the left side — it has four numbered joystick slots (0, 1, 2, 3). Drag your controller from the "USB Devices" list on the right into **slot 0** (the first one). The codebase's main controller binding reads from port 0.
+2. In the Driver Station, look at the panel on the left side — it has four numbered joystick slots (0, 1, 2, 3). Drag your controller from the "USB Devices" list on the right into **slot 0** (the first one). The driver controller reads from port 0; a second controller in **slot 1** is the operator.
 3. Up at the top, you'll see four buttons: **TeleOperated**, **Autonomous**, **Practice**, **Test**. Click **TeleOperated** for normal driving, or **Autonomous** to run the selected auto routine.
 4. To the right of those, the big **Enable** / **Disable** buttons control match state. Click **Enable** to let the robot start receiving commands.
 5. If **Enable** is greyed out, the Driver Station can't see the robot code or the joystick. Check that:
@@ -138,10 +143,9 @@ teleop) and routes joystick input to the robot.
    - The joystick is in slot 0 (the slot has a green checkmark when populated).
    - "Comms" and "Robot Code" indicators on the left are both green.
 
-To pick which autonomous routine runs, switch to the **Driver Station's
-Setup tab** and use the "Game Data" dropdown — but the actual auto
-selector for this code lives in **Elastic** or the SmartDashboard
-chooser. See [Auto Commands]({{ '/commands/auto-commands/' | relative_url }}).
+To pick which autonomous routine runs, use the **Auto Choices**
+chooser in Elastic or SmartDashboard. See
+[Autos]({{ '/commands/autos/' | relative_url }}).
 
 ## Connect AdvantageScope
 
@@ -187,7 +191,7 @@ shows our actual chassis + mechanisms:
 The asset bundle defines:
 
 - The chassis model (the static base of the robot).
-- Component slots for moveable mechanisms — each slot has a name like `Intake`, `Climb`, `Shooter`, and expects a `Pose3d` value to render.
+- Component slots for moveable mechanisms — each slot has a name like `Intake`, `Hopper`, `Hood`, and expects a `Pose3d` value to render.
 
 ## What to log to the 3D field
 
@@ -197,23 +201,25 @@ mapping for our asset bundle:
 
 | AdvantageScope component | NetworkTables / AdvantageKit key | Notes |
 | --- | --- | --- |
-| Robot chassis | `NT/AdvantageKit/RealOutputs/Odometry/Robot` | Already logged by `Drive` — `Pose2d` is auto-promoted to `Pose3d` for the 3D field. |
-| Intake | `NT/AdvantageKit/RealOutputs/Intake/ComponentPoses` | Array of `Pose3d` for the four-bar links + roller. |
-| Hopper | `NT/AdvantageKit/RealOutputs/Hopper/Roller` | One `Pose3d` for the conveyor angle. |
-| Kicker | `NT/AdvantageKit/RealOutputs/Kicker/ComponentPose` | One `Pose3d`. |
-| Climb | `NT/AdvantageKit/RealOutputs/Climb/ComponentPoses` | Array of `Pose3d` for the two elevator stages. |
-| Hood | `NT/AdvantageKit/RealOutputs/Shooter/Hood/ComponentPose` | One `Pose3d`. |
-| Flywheel (cosmetic spin) | `NT/AdvantageKit/RealOutputs/Shooter/Flywheel/ComponentPose` | One `Pose3d`. |
-| Game pieces (fuel) | `NT/AdvantageKit/RealOutputs/MapleSim/Fuel` | Array of `Pose3d` — already logged by `MapleSimPhysics`. |
+| Robot chassis | `NT/AdvantageKit/RealOutputs/Odometry/Robot` | Logged by `Drive` — `Pose2d` is auto-promoted to `Pose3d` for the 3D field. |
+| Intake arm | `NT/AdvantageKit/RealOutputs/Intake/Pose` | One `Pose3d` for the arm angle. |
+| Intake extension | `NT/AdvantageKit/RealOutputs/Intake/ExtensionPose` | One `Pose3d`. |
+| Hopper | `NT/AdvantageKit/RealOutputs/Hopper/Pose` | One `Pose3d`. |
+| Hood | `NT/AdvantageKit/RealOutputs/Hood/Pose` | One `Pose3d`. |
+| Shot trajectory | `NT/AdvantageKit/RealOutputs/Shooter/Trajectory` | Simulation only. |
+| Game pieces (fuel) | `NT/Fuel Simulation/Fuels` | Array of `Translation3d`, published by `FuelSim` in simulation. |
+
+These are the competition robot's keys; the practice robot only logs the chassis.
 
 ### Wiring a new component pose
 
 The pattern in the subsystem's `update()` looks like this:
 
 ```java
-Logger.recordOutput(
-    "Intake/ComponentPoses",
-    new Pose3d[] {frontLink, rearLink, lowerLink, upperLink, roller});
+Logger.recordOutput("Intake/Pose", new Pose3d()
+        .plus(kOrigin)
+        .plus(new Transform3d(new Translation3d(),
+                new Rotation3d(0, -Units.degreesToRadians(extension.getPosition() + 90), 0))));
 ```
 
 Each `Pose3d` is relative to the **robot origin** (centre of the
@@ -228,6 +234,13 @@ with the robot's field pose automatically.
    - **Robot** → `Robot_Rebuilt`.
 3. Drag the keys from the table above into the tab's pose slots. The slot names match the components defined in our asset bundle.
 4. Save the layout — **File → Export Layout** — and check it into the team's docs so everyone gets the same view.
+
+## Run the tests
+
+The tests boot each robot in simulation and check the state machines,
+vision pipeline and autos. Run them with **Ctrl + Shift + P → WPILib:
+Test Robot Code**, or `./gradlew test`. Each test class runs in its own
+JVM. See [Multiple Robots]({{ '/architecture/robots/' | relative_url }}#tests).
 
 ## Your first change
 

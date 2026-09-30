@@ -2,124 +2,129 @@
 layout: default
 title: RobotState
 eyebrow: Architecture
-description: The top-level state machine that owns every subsystem and binds every controller.
+description: The top-level state machine that builds the robot from its definition and holds the shared pose history.
 permalink: /architecture/robot-state/
 ---
 
 [`RobotState`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/RobotState.java)
-is the largest file in the codebase and the only one that knows about
-*every* subsystem. It serves three jobs at once: subsystem owner,
-controller binder, and global state machine.
+is the root of the state-machine tree. It builds the drive, vision and
+superstructure from a [`RobotDefinition`]({{ '/architecture/robots/' | relative_url }}),
+holds the pose and speed history everyone reads, and hands controller,
+game and dashboard work to three small helpers.
 
-> **Pattern.** Think of `RobotState` as the "wiring diagram" for the
-> robot. It doesn't implement subsystem behavior; it composes it.
+> **Pattern.** `RobotState` doesn't know which mechanisms a robot has.
+> It asks the definition for a `Superstructure` and adds whatever that
+> returns.
 
 ## States
 
 ```java
-public enum State {
-  UNDETERMINED, SOFT_STOP, TRAVERSING, AUTO,
-  CLIMBING, SHOOTING, INTAKING, PASSING
-}
+public enum State { UNDETERMINED, SOFT_STOP, TRAVERSING, AUTO }
 ```
 
-These are not redundant with subsystem states — they're the *match
-flow*. The `RobotState` doesn't care which intake position you're in;
-it cares whether you're "currently intaking" or "currently shooting"
-so that, e.g., the climb subsystem won't accept a deploy request
-mid-shot.
+| State | Effect |
+| --- | --- |
+| `SOFT_STOP` | Drive to `IDLE`. |
+| `TRAVERSING` | Drive to `TRAVERSING`. Entered on teleop start and when the machine determines itself. |
+| `AUTO` | Drive to `TRAVERSING`, plus the selected auto. On autonomous start the auto's `build()` command is registered as this state's command. |
+
+Every loop, `update()` also moves the drive back to `TRAVERSING` when
+the driver pushes the right stick past 0.1, so manual rotation always
+beats auto-aim.
 
 ## What it owns
 
-In its constructor, `RobotState` instantiates:
+| Field | Built from |
+| --- | --- |
+| `Drive` | `definition.drive()` |
+| `Vision` | `definition.cameras()` |
+| `Superstructure` | `definition.createSuperstructure(this)` |
+| `Controls` | The two Xbox controllers. |
+| `GameState` | Match phase and hub status. |
+| `DashboardManager` | Auto chooser and `Game/*` values. |
+| `SimulatedRobotState` | Ground-truth pose, simulation only. |
 
-- One `Drive` (with a `GyroIO` + 4× `ModuleIO`)
-- One `Vision` (with one `Camera` per `CameraConfig`)
-- One `Shooter` (owning `Hood` and `Flywheel`, each built on `Motor`)
-- One `Intake`, `Hopper`, `Kicker`, and `Climb`, each built from `SpinMotor` / `PosMotor`
-
-The choice of IO implementation comes from a single `robotState`
-integer field — see [the IO pattern]({{ '/architecture/io-pattern/' | relative_url }}).
+`vision`, `drive` and `superstructure.subsystems()` are added as child
+subsystems.
 
 ## Public accessors
 
-The rest of the code accesses subsystems through `RobotState`:
-
 | Method | Returns |
 | --- | --- |
-| `getDrive()` | `Drive` |
-| `getVision()` | `Vision` |
-| `getShooter()` | `Shooter` |
-| `getIntake()` | `Intake` |
-| `getHopper()` | `Hopper` |
-| `getKicker()` | `Kicker` |
-| `getClimb()` | `Climb` |
-| `getController()` | Driver `CommandXboxController` |
-| `getCurrentHubSetpoint()` | A `Supplier<ShooterSetpoint>` for hub shots |
-| `getCurrentPassSetpoint()` | A `Supplier<ShooterSetpoint>` for passes |
-| `getLatestFieldToRobot()` | Most recent pose from the buffer |
-| `getPredictedFieldToRobot()` | Pose extrapolated to the *next* shot release |
+| `getDefinition()` | The `RobotDefinition` this robot was built from. |
+| `getDrive()` / `getVision()` | `Drive` / `Vision` |
+| `getSuperstructure()` | The robot's `Superstructure`. |
+| `getControls()` | `Controls` |
+| `getGameState()` | `GameState` |
+| `getSimRobot()` | `SimulatedRobotState` (`null` on a real robot). |
+| `getLatestFieldToRobot()` | Latest `(timestamp, Pose2d)` entry. |
+| `getFieldToRobot(timestamp)` | Interpolated pose at a past time, as an `Optional`. |
+| `getLatest…ChassisSpeed…()` | Measured (robot- and field-relative), desired, and fused chassis speeds. |
+| `getMaxAbsDriveYawAngularVelocityInRange(t0, t1)` | Fastest yaw rate in a window; vision uses it to reject frames taken while spinning. |
+| `getCurrentHubSetpoint()` / `getCurrentPassSetpoint()` | A fresh [`ShooterSetpoint`]({{ '/utilities/shooter-setpoint/' | relative_url }}) on every call. |
+| `shouldShootHub()` | `true` when the robot is on its own side of the hub. |
 
-The two pose accessors deserve a callout: shots aim at where the robot
-*will be* a few ms in the future, not where it is now. The latency
-compensation lives in the kinematic buffers.
+Mechanisms are not on `RobotState`. Competition code receives the
+`CompetitionSuperstructure` directly and calls `getShooter()`,
+`getIntake()`, and so on.
 
 ## Kinematic buffers
 
-`RobotState` holds two
-[`ConcurrentTimeInterpolatableBuffer`]({{ '/utilities/time-buffers/' | relative_url }})
-instances, each with ~1s of history:
+With `LOOKBACK_TIME = 1.0` s of history each:
 
-- **`fieldToRobotBuffer`** — pose history. Lets vision measurements
-  fuse at the timestamp they were taken, not received.
-- **`driveSpeedsBuffer`** — chassis velocity history. Used by the
-  shooter solver to compensate for robot motion at release time.
+- **`fieldToRobot`** — `Pose2d` history, fed by `addOdometryMeasurement`.
+- **Yaw, pitch and roll rate, accel X and Y** — `Double` buffers, fed by `addDriveMotionMeasurements`.
 
-## Controller bindings
+The latest chassis speeds are kept in `AtomicReference`s, not buffers.
+`addVisionMeasurement` forwards accepted vision poses to the drive's
+pose estimator on the real robot only.
 
-Driver and operator controllers get bound to subsystem transitions:
+## Controls
 
-```java
-controller.rightTrigger().onTrue(ActionCommands.aimAndShoot(this));
-controller.leftBumper() .onTrue(intake.transitionCommand(Intake.State.INTAKE));
-controller.leftBumper() .onFalse(intake.transitionCommand(Intake.State.STOW));
-controller.a()          .onTrue(climb.transitionCommand(Climb.State.UP));
-```
+[`Controls`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/Controls.java)
+owns the driver (port 0) and operator (port 1) `CommandXboxController`s
+and the bindings every robot shares:
 
-Every binding goes through a state machine — never a raw motor write.
-This is what makes the codebase replayable and testable.
+| Driver input | Action |
+| --- | --- |
+| Left stick / right stick X | Translate / rotate (the drive's default command). |
+| Right bumper (hold) | Drive `SLOW`. |
+| D-pad left | Drive `TRAVERSING_AT_ANGLE` (auto-aim heading). |
+| D-pad right | Drive `TRAVERSING`. |
+| D-pad down | Reset heading to zero. Only bound when not in a match. |
 
-## Auto selection
+`controls.rumble(seconds)` rumbles both controllers. `RobotState` uses
+it for half a second whenever the hub turns on or off. Mechanism
+bindings are added by the superstructure's `bindControls(controls)`.
 
-A `LoggedDashboardChooser<Command>` is populated from
-[`AutoCommands`]({{ '/commands/auto-commands/' | relative_url }}). The
-selected `Command` is returned by `getAutoCommand()` and runs in
-`Robot.autonomousInit()`.
+## Game state and dashboard
 
-## Subsystem registration
+Both live in `frc.robot.game`.
 
-Every subsystem registers itself with
-[`SubsystemManager`]({{ '/architecture/subsystem-manager/' | relative_url }})
-in its own constructor. By the time `RobotState`'s constructor
-returns, all of them are wired into the lifecycle broadcast.
+- **`GameState`** reads the match time and game-specific message each
+  loop and works out the phase (`Autonomous`, `Transition`,
+  `Shift 1`–`Shift 4`, `End Game`), the seconds until the next shift,
+  whether our hub is active, and whether we won auto.
+- **`DashboardManager`** builds the **Auto Choices** chooser (`None`,
+  every PathPlanner auto, then the superstructure's autos), previews the
+  selected auto's paths on the field while the Driver Station is in
+  autonomous mode, and publishes `Game/HubActivated`, `Game/WonAuto`,
+  `Game/GameState`, `Game/ShiftCountdown`, `Robot/AutoChoosed` and
+  `Robot/Type`.
 
 ## The hand-off, end to end
 
-A right-trigger press becomes a shot in roughly this sequence:
+On the competition robot, a right-trigger press becomes a shot in
+roughly this sequence:
 
-1. **Trigger** fires `ActionCommands.aimAndShoot(robotState)`.
-2. The composite first calls `shooter.transitionCommand(HUB_TRACKING)`.
-3. `Shooter` enters `HUB_TRACKING`; its state command sets the child
-   subsystems into `HUB_TRACKING` too, each pulling its target from
-   the supplier in `RobotState.getCurrentHubSetpoint()`.
-4. The supplier asks `getPredictedFieldToRobot()` for where the robot
-   *will be* on shot release.
-5. The shooter waits until all three children report `isReady()`.
-6. It transitions to `SHOOTING`; the state command spins hopper and
-   kicker.
-7. The piece launches. After a short timeout, `Shooter` returns to
-   `IDLE`.
-
-That whole flow exists because `RobotState` knows about every piece
-and can wire them together. The subsystems themselves remain unaware
-of each other.
+1. **Trigger** runs `drive.stopWithX()`, then
+   `ActionCommands.shootOrPassBasedOnPos(robot)`.
+2. That asks `RobotState.shouldShootHub()` and requests
+   `Shooter.State.SHOOTING` (or `PASSING`).
+3. `Shooter` requests its children's states: flywheel `SHOOT`, hood
+   `HUB_TRACKING`, hopper and kicker `SHOOT`.
+4. The hood and flywheel read their targets from
+   `getCurrentHubSetpoint()` every loop.
+5. The hopper and kicker only feed while the flywheel reports ready.
+6. Releasing the trigger runs `ActionCommands.trackBasedOnPos(robot)`,
+   which drops the shooter back to `HUB_TRACKING` or `PASS_TRACKING`.

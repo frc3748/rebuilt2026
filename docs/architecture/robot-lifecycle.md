@@ -11,8 +11,8 @@ The lifecycle splits across three files:
 | File | Role |
 | --- | --- |
 | [`Main.java`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/Main.java) | JVM entry point — a one-liner. |
-| [`Robot.java`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/Robot.java) | Extends `LoggedRobot`. Owns the logger and the lifecycle hooks. |
-| [`RobotState.java`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/RobotState.java) | Owns every subsystem. Wires controller bindings. |
+| [`Robot.java`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/Robot.java) | Extends `LoggedRobot`. Picks the robot, owns the logger and the lifecycle hooks. |
+| [`RobotState.java`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/RobotState.java) | Builds the drive, vision and the robot's superstructure from a `RobotDefinition`. |
 
 ## `Main` — the entry point
 
@@ -24,8 +24,8 @@ public static void main(String... args) {
 }
 ```
 
-WPILib takes over from here. It instantiates a `Robot`, calls
-`robotInit()`, then drives the periodic loop at ~50 Hz.
+WPILib takes over from here. It instantiates a `Robot` and drives the
+periodic loop at ~50 Hz.
 
 ## `Robot` — logging and hooks
 
@@ -34,18 +34,21 @@ AdvantageKit subclass that wraps the loop with input recording.
 
 The constructor:
 
-1. Configures the AdvantageKit `Logger` with `WPILOGWriter` (writes to USB on the roboRIO) and `NT4Publisher` (streams to AdvantageScope).
-2. Disables REV's built-in auto-logging to avoid double-recording.
-3. Constructs the [`RobotState`]({{ '/architecture/robot-state/' | relative_url }}) singleton.
+1. Calls `RobotType.detect()` to find out which robot it is running on. See [Multiple Robots]({{ '/architecture/robots/' | relative_url }}).
+2. Records `ROBOT`, `MODE` and `ROBOT_TYPE` metadata, adds `WPILOGWriter` (writes to USB on the roboRIO) and `NT4Publisher` (streams to AdvantageScope), disables REV's `StatusLogger` auto-logging, and starts the `Logger`.
+3. Constructs `new RobotState(robotType.create())` and registers it with the [`SubsystemManager`]({{ '/architecture/subsystem-manager/' | relative_url }}).
 
 Each periodic hook is a one-liner that delegates:
 
 ```java
-@Override public void robotPeriodic() { CommandScheduler.getInstance().run(); }
-@Override public void autonomousInit() { SubsystemManagerFactory.getInstance().notifyAutonomousStart(); }
-@Override public void teleopInit()     { SubsystemManagerFactory.getInstance().notifyTeleopStart(); }
-@Override public void disabledInit()   { SubsystemManagerFactory.getInstance().disableAllSubsystems(); }
+@Override public void robotPeriodic()      { CommandScheduler.getInstance().run(); robotState.updateLogger(); }
+@Override public void simulationPeriodic() { robotState.updateSimulation(); }
+@Override public void autonomousInit()     { SubsystemManagerFactory.getInstance().notifyAutonomousStart(); }
+@Override public void teleopInit()         { SubsystemManagerFactory.getInstance().notifyTeleopStart(); }
+@Override public void disabledInit()       { SubsystemManagerFactory.getInstance().disableAllSubsystems(); }
 ```
+
+`testInit()` also cancels every scheduled command.
 
 The pattern: **`Robot` doesn't make decisions, it announces transitions**.
 The [`SubsystemManager`]({{ '/architecture/subsystem-manager/' | relative_url }})
@@ -54,69 +57,74 @@ subsystem decides what to do.
 
 ## `RobotState` — wiring
 
-`RobotState` is constructed once, from `Robot`'s constructor. It does
-five things:
+`RobotState` is constructed once, from `Robot`'s constructor, with the
+detected robot's `RobotDefinition`. It does five things.
 
-### 1. Choose IO implementations
-
-A single `robotState` field — `1` for real hardware, `2` for sim,
-anything else for replay — decides which IO subclass each subsystem
-gets:
+### 1. Build the robot
 
 ```java
-switch (robotState) {
-  case 1 -> new Drive(new GyroIOPigeon2(), new ModuleIOSpark(0), new ModuleIOSpark(1), …);
-  case 2 -> new Drive(new GyroIO(){},      new ModuleIOSim(),    new ModuleIOSim(),    …);
-  default -> new Drive(new GyroIO(){},     new ModuleIO(){},     new ModuleIO(){},     …);
-}
+drive = new Drive(definition.drive(), this);
+vision = new Vision(this, definition.cameras());
+superstructure = definition.createSuperstructure(this);
+dashboard = new DashboardManager(this, gameState, definition.name(), superstructure.autos());
 ```
 
-See [The IO Layer Pattern]({{ '/architecture/io-pattern/' | relative_url }}) for the full story.
+Each piece picks its own IO from `Constants.kMode`. `Drive` does it for
+the gyro and modules:
+
+```java
+return switch (Constants.kMode) {
+  case REAL   -> new ModuleIOSpark(config, index);
+  case SIM    -> new ModuleIOSim(config);
+  case REPLAY -> new ModuleIO() {};
+};
+```
+
+`Motor` and `Camera.of` do the same. See [The IO Layer Pattern]({{ '/architecture/io-pattern/' | relative_url }}).
 
 ### 2. Register subsystems
 
-Every subsystem registers itself with the [`SubsystemManager`]({{ '/architecture/subsystem-manager/' | relative_url }})
-in its constructor. After `RobotState`'s constructor returns, the
-manager knows about all of them.
+`RobotState` adds `vision`, `drive` and every state machine from
+`superstructure.subsystems()` as child subsystems. When `Robot`
+registers `RobotState`, the manager walks the children recursively, so
+every machine receives the lifecycle broadcasts.
 
 ### 3. Bind controllers
 
-Driver and operator Xbox controllers get bound to subsystem transition
-requests:
-
 ```java
-controller.a().onTrue(shooter.transitionCommand(Shooter.State.HUB_TRACKING));
-controller.b().onTrue(shooter.transitionCommand(Shooter.State.IDLE));
+controls.bindDrive(drive);
+superstructure.bindControls(controls);
 ```
 
-Notice there are no `runOnce(() -> motor.set(...))` calls. Driver intent
-is *always* expressed as a state-machine request.
+The shared drive bindings live in `Controls`; mechanism bindings live
+in the robot's superstructure. Every binding is a state-machine request,
+never a raw motor write.
 
-### 4. Populate the auto chooser
+### 4. Pick the auto
 
-A `LoggedDashboardChooser<Command>` is filled from
-[`AutoCommands`]({{ '/commands/auto-commands/' | relative_url }}). The
-selected command runs in `autonomousInit()`.
+`DashboardManager` fills the **Auto Choices** chooser. When autonomous
+starts, `RobotState` registers the selected auto's `build()` command as
+the `AUTO` state's command and switches to `AUTO`. See
+[Autos]({{ '/commands/autos/' | relative_url }}).
 
 ### 5. Hold the kinematic buffers
 
-`RobotState` maintains
+`RobotState` keeps
 [`ConcurrentTimeInterpolatableBuffer`]({{ '/utilities/time-buffers/' | relative_url }})
-instances for pose and drive velocity history. These
-buffers let the shooter aim at where the target *was* when a vision
-frame was taken, not where the camera currently points.
+histories of the robot pose and gyro rates, so vision and object
+detection can look up where the robot was when a frame was captured.
 
 ## The 20 ms loop, end to end
 
 For one tick of `robotPeriodic`:
 
-1. **CommandScheduler** runs.
-2. Each registered subsystem's `periodic()` is called.
-   1. The IO reads inputs (`io.updateInputs(inputs)`).
-   2. `Logger.processInputs(prefix, inputs)` records them (and replaces them with logged values in replay mode).
-   3. The state machine processes pending transitions and runs the current state's command.
-3. Outputs from any state-machine action propagate back to motors via the IO.
-4. The logger flushes the frame.
+1. **CommandScheduler** runs every subsystem's `periodic()`. For each `StateMachine`:
+   1. Registered motors and sensors read their inputs, and `Logger.processInputs` records them (or replaces them with logged values in replay).
+   2. `update()` runs: telemetry and self-requested transitions.
+   3. The override or `applyState(state)` sets motor goals, then `applyConstraints()` can overrule them.
+   4. Each motor sends its final command once.
+2. Scheduled commands (bindings, autos) run.
+3. `RobotState.updateLogger()` records the latest gyro rates and chassis speeds.
 
 The whole loop is deterministic and replayable — point AdvantageScope
 at a `wpilog` file and you can step through it.

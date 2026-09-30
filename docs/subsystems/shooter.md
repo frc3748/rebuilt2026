@@ -15,6 +15,7 @@ whole shot is one transition.
 | | |
 | --- | --- |
 | **Source** | `src/main/java/frc/robot/subsystems/shooter/` |
+| **Built by** | `CompetitionSuperstructure` |
 | **Children** | `Hood`, `Flywheel` |
 | **Constants** | `ShooterConstants` (shot map, time-of-flight map), `HoodConstants`, `FlywheelConstants` |
 
@@ -57,5 +58,7 @@ flywheel on a captured setpoint until `releaseShot()`.
 
 ## Simulation
 
-In simulation `Shooter` launches game pieces into `FuelSim` while in
-`SHOOTING` or `PASSING`, and logs the trajectory under `Shooter/Trajectory`.
+In simulation `Shooter` launches game pieces through the
+[`FuelSimulation`]({{ '/utilities/simulation/' | relative_url }}) that
+`CompetitionSuperstructure` hands it, while in `SHOOTING` or `PASSING`.
+`ShotVisualizer` logs the trajectory under `Shooter/Trajectory`.

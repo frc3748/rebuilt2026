@@ -11,6 +11,7 @@ permalink: /subsystems/intake/
 | **Source** | `src/main/java/frc/robot/subsystems/intake/` |
 | **Public class** | [`Intake`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/subsystems/intake/Intake.java) extends `StateMachine<Intake.State>` |
 | **Constants** | `IntakeConstants` |
+| **Built by** | `CompetitionSuperstructure` |
 
 ## States
 
@@ -22,18 +23,19 @@ enum State {
 
 | State | Behavior |
 | --- | --- |
-| `IDLE` | Pivot held at stow angle, rollers off. |
-| `INTAKE` | Pivot down to ground angle, rollers in. |
-| `OUTAKE` | Pivot down, rollers reversed. |
-| `STOW` | Same as `IDLE` but signals "intentional stow". |
-| `SHAKE` | Oscillates the pivot ±N degrees to unjam stuck pieces. |
+| `STOW` | Extension to the stow setpoint, rollers off. |
+| `IDLE` | Extension down at the intake setpoint, rollers off. |
+| `INTAKE` | Extension down, rollers in. |
+| `OUTAKE` | Extension to the outtake setpoint, rollers reversed. |
+| `SHAKE` | Extension to the shake setpoint, rollers in. |
 
-`SHAKE` is wired through `ActionCommands.shakeIntake()`, which is
-typically bound to a "did the piece get stuck?" operator button.
+`ActionCommands.shakeIntake(robot)` alternates `SHAKE` and `IDLE` every
+0.6 s to knock stuck pieces loose. On the competition robot it runs
+while the driver holds **B**.
 
 ## Trench constraint
 
-When the robot is near a trench (see [`TrenchZone`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/util/TrenchZone.java)),
+When the robot is near a trench (see [`TrenchZone`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/game/TrenchZone.java)),
 the intake extension is forced to the intake setpoint so it fits under.
 This lives in `applyConstraints()`, so it wins over every state and every
 operator override:
@@ -57,19 +59,23 @@ intake.clearOverride();
 
 ## Mechanism
 
-- **Pivot motor** — NEO with absolute encoder. Closed-loop position with
-  feedforward against gravity (cosine of arm angle × `kG`).
-- **Roller motors** — NEO 550s; open-loop voltage.
+- **Extension** — Spark MAX on CAN 46 with a follower on 47. MAXMotion
+  position with cosine gravity feedforward; gains are tunable live.
+- **Rollers** — Spark Flex on CAN 48, velocity control.
+
+The extension uses its relative encoder. The "Intake Zero" dashboard
+button resets it to 0.
 
 ## Logging
 
-The intake publishes a 3D pose for its arm joint to AdvantageScope,
-so you can see the deployed/stowed angle on the simulated field.
+The intake publishes `Intake/Pose` (the arm angle) and
+`Intake/ExtensionPose` to AdvantageScope, so you can see it deploy on
+the field view.
 
 ## Pitfalls
 
-- **"Stuck" intake on boot.** Check the absolute encoder offset in
-  `IntakeConstants`. If the reported angle disagrees with the visual
-  position, the rest of the math will all be wrong.
-- **Pieces eject before reaching hopper.** Roller voltage too high.
-  Tune `IntakeConstants.kIntakeRollerVolts` down.
+- **Setpoints are off by a constant.** The extension encoder reads 0
+  wherever the arm was at boot. Move the arm to its zero position and
+  press "Intake Zero".
+- **Pieces eject before reaching the hopper.** Roller speed too high.
+  Tune `Intake/Roller Intake Speed` down.

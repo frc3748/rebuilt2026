@@ -2,161 +2,152 @@
 layout: default
 title: Drive
 eyebrow: Subsystem
-description: Four-module swerve drive with high-rate odometry, vision fusion, and PathPlanner integration.
+description: Four-module swerve drive with high-rate odometry, vision fusion, and PathPlanner integration, configured per robot by a DriveConfig.
 permalink: /subsystems/drive/
 ---
 
 The drive subsystem is the most complex and the most foundational.
-Every other subsystem that needs a pose asks `Drive` (via `RobotState`)
-for it.
+Every other subsystem that needs a pose asks `RobotState`, which `Drive`
+feeds. Every robot has one; its constants come from the robot's
+[`DriveConfig`](#driveconfig).
 
 | | |
 | --- | --- |
 | **Source** | `src/main/java/frc/robot/subsystems/drive/` |
 | **Public class** | [`Drive`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/subsystems/drive/Drive.java) extends `StateMachine<Drive.State>` |
 | **Children** | Four `Module` wrappers (FL, FR, BL, BR) |
-| **Constants** | [`DriveConstants`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/subsystems/drive/DriveConstants.java) |
+| **Constants** | A [`DriveConfig`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/subsystems/drive/DriveConfig.java) subclass per robot: `CompetitionDrive`, `PracticeDrive` |
 
 ## States
 
 ```java
 public enum State {
   UNDETERMINED,
-  IDLE,
-  TRAVERSING,             // open-loop, joystick-driven
-  SLOW,                   // reduced max velocity for fine alignment
-  TRAVERSING_AT_ANGLE     // joystick translation, locked heading
+  IDLE,                   // stopped
+  CROSSED,                // wheels in an X
+  TRAVERSING,             // joystick-driven
+  TRAVERSING_AT_ANGLE,    // joystick translation, heading aimed at the target
+  PATHFINDING,
+  ALIGNING,
+  SLOW                    // reduced max speed, heading aimed at the target
 }
 ```
 
-`UNDETERMINED` → `IDLE` happens automatically once odometry has at
-least one valid sample.
+The drive determines itself straight into `TRAVERSING`.
 
-## Geometry
+## `DriveConfig`
 
-| Parameter | Value |
+`DriveConfig` is a plain class of public fields with defaults. A robot
+subclasses it and overwrites fields in the constructor. `Drive`,
+`ModuleIOSpark`, `ModuleIOSim`, the gyro IOs, `DriveCommands` and
+`AutoAlignToPoseCommand` all read from `drive.getConfig()`.
+
+| Group | Fields |
 | --- | --- |
-| Track width | 0.71 m (28″) |
-| Wheel base | 0.71 m (28″) |
-| Wheel radius | 0.0508 m (2″) |
-| Max translation speed | 5.27 m/s |
-| Slow-mode max | 0.5 m/s |
-| Drive reduction | 6.48 : 1 (L2 SDS) |
-| Turn reduction | 12.1 : 1 |
+| Hardware | `gyro` (`PIGEON2` or `NAVX`), `pigeonCanId`, `navXPort`, `navXUpdateRateHz`, `driveController` (`SPARK_FLEX` or `SPARK_MAX`), `turnSensor` (`CANCODER` or `SPARK_ABSOLUTE_ENCODER`) |
+| Modules | `frontLeft`, `frontRight`, `backLeft`, `backRight`: `ModuleConstants(driveCanId, turnCanId, canCoderId, zeroRotation, driveInverted)` |
+| Geometry | `trackWidth`, `wheelBase`, `bumperHeight`, `wheelRadiusMeters`, `driveReduction`, `turnReduction` |
+| Gains | `driveKp`…`driveKv`, `driveSparkKv`, `turnKp`…`turnKv`, and the `…Sim…` gains for `ModuleIOSim` |
+| Limits | `maxSpeedMetersPerSec`, `slowSpeedMetersPerSec`, `maxLinearAcceleration`, current limits |
+| PathPlanner | `robotMassKg`, `robotMOI`, `wheelCOF`, `pathTranslationPid`, `pathRotationPid`, `pathConstraints` |
+| Auto-align | `driveToPointP`, `driveToPointHeadingP`, and four tolerances |
 
-Module translations are computed from track width and wheel base in
-`DriveConstants` and passed to `SwerveDriveKinematics`.
+Helpers compute the rest: `moduleTranslations()`, `driveBaseRadius()`,
+`maxAngularSpeed()`, `pathPlannerConfig()`, and so on.
 
-## Module layout
+## The two drivetrains
 
-The four modules are indexed 0–3:
+| | Competition (`CompetitionDrive`) | Practice (`PracticeDrive`) |
+| --- | --- | --- |
+| Gyro | Pigeon 2, CAN 50 | NavX, USB1, 50 Hz |
+| Drive motors | NEO on Spark Flex, 6.48 : 1 | NEO on Spark MAX, 7.31 : 1 |
+| Turn motors | NEO 550 on Spark MAX, 12.1 : 1 | NEO on Spark MAX, 12.8 : 1 |
+| Turn sensor | CANcoder | Spark absolute encoder |
+| Track width × wheel base | 28″ × 28″ | 0.80 m × 0.80 m |
+| Wheel radius | 0.0508 m (2″) | 0.0508 m (2″) |
+| Max speed | 5.27 m/s | 3.5 m/s |
+| Slow-mode max | 0.5 m/s | 0.5 m/s (default) |
 
-| Index | Position | Drive CAN | Turn CAN | Encoder CAN |
-| --- | --- | --- | --- | --- |
-| 0 | Front-Left | 8 | 3 | 4 |
-| 1 | Front-Right | 2 | 9 | 1 |
-| 2 | Back-Left | 4 | 7 | 2 |
-| 3 | Back-Right | 6 | 5 | 3 |
-
-Drive motors are NEOs; turn motors are NEO 550s with absolute
-CANcoders. The Pigeon 2 gyro lives on CAN ID 50.
+Module CAN IDs for both are on the [CAN ID Map]({{ '/reference/can-ids/' | relative_url }}).
 
 ## Hardware abstraction
 
-Three IO interfaces:
-
-- **`GyroIO`** / `GyroIOPigeon2` — yaw, pitch, roll, angular velocities.
+- **`GyroIO`** / `GyroIOPigeon2` / `GyroIONavX` — yaw, pitch, roll, rates, acceleration.
 - **`ModuleIO`** / `ModuleIOSpark` / `ModuleIOSim` — per-wheel I/O.
-- **`DriveIO`** — chassis-level (used in some legacy paths).
+- **`DriveIO`** — chassis-level logged inputs (module states, pose, aim goal).
 
-The real impl runs a **`SparkOdometryThread`** at 250 Hz to capture
-sub-loop wheel positions, giving more accurate dead-reckoning between
-the 50 Hz `periodic()` ticks.
+`ModuleIOSpark` builds a Spark Flex or Spark MAX for the drive motor
+from `driveController`. For turning, `CANCODER` writes `zeroRotation` as
+the CANcoder's magnet offset and seeds the Spark's relative encoder
+from it; `SPARK_ABSOLUTE_ENCODER` reads the Spark's absolute encoder and
+subtracts `zeroRotation` in code. Drive and turn PID are tunable live as
+`Drive PID/…` and `Turn PID/…` through
+[`SparkUtil.tune`]({{ '/utilities/tunable-number/' | relative_url }}#motor-gains).
+
+On the real robot a **`SparkOdometryThread`** samples wheel positions
+and gyro yaw at `odometryFrequency` (100 Hz), faster than the 50 Hz loop.
 
 ## Pose estimation
 
-A WPILib `SwerveDrivePoseEstimator` fuses three inputs:
+A WPILib `SwerveDrivePoseEstimator` fuses:
 
-1. **Module odometry** — every loop, the 250 Hz samples are batched
-   and replayed in time order.
-2. **Vision** — `Drive#addVisionMeasurement(Pose2d, double timestamp,
-   Matrix stdDevs)` is called by `Vision` whenever a Megatag
-   estimate arrives.
-3. **Gyro** — the Pigeon 2 yaw provides absolute heading reference.
+1. **Module odometry** — every loop, the high-rate samples are replayed in time order.
+2. **Gyro** — yaw from the gyro; if it disconnects, the drive falls back to kinematics and raises an alert.
+3. **Vision** — `Drive#addVisionMeasurement(pose, timestamp, stdDevs)`, called through `RobotState#addVisionMeasurement` on the real robot.
 
-The result is read by everyone via:
+Each loop the drive pushes its pose and motion into `RobotState`, and
+everyone reads it from there:
 
 ```java
-robotState.getLatestFieldToRobot();    // pose now
-robotState.getPredictedFieldToRobot(); // pose extrapolated forward
+robotState.getLatestFieldToRobot().getValue();   // pose now
+robotState.getFieldToRobot(timestamp);           // pose at a past time
 ```
 
 ## PathPlanner integration
 
-`Drive` registers a `PPHolonomicDriveController` with PathPlanner. Auto
-routines and dynamic paths from
-[`DynamicPathGenerator`]({{ '/utilities/path-generation/' | relative_url }})
-both feed through it.
-
-Path-following tolerances and controller PID gains live in
-`DriveConstants` and are tunable via
-[`GetTuned`]({{ '/utilities/get-tuned/' | relative_url }}).
+`Drive` configures `AutoBuilder` with a `PPHolonomicDriveController`
+using `pathTranslationPid` / `pathRotationPid` and
+`config.pathPlannerConfig()`. Paths flip for the red alliance. Every
+[auto]({{ '/commands/autos/' | relative_url }}) follows paths through it.
 
 ## Driver control
 
-`DriveCommands.joystickDrive(Drive, …)` is the standard binding:
+The default command is `DriveCommands.smartDrive(...)`:
 
-- Left stick → translation, scaled to max velocity.
-- Right stick → rotation (or held heading in `TRAVERSING_AT_ANGLE`).
-- A deadband + cubed response is applied for fine control.
+- Left stick → field-relative translation, squared, up to `getMaxLinearSpeedMetersPerSec()`.
+- Right stick X → rotation, squared.
+- In `TRAVERSING_AT_ANGLE` and `SLOW`, a profiled PID holds `getAimRotationForHub()` instead.
 
-When the driver releases the sticks, the modules **brake-park** (X
-pattern) — implemented by holding `IDLE` and requesting an X module
-state.
+The shared bindings (slow mode, aim, heading reset) are listed under
+[Controls]({{ '/architecture/robot-state/' | relative_url }}#controls).
 
 ## Public API (selected)
 
 ```java
 Pose2d getPose();
-void   setPose(Pose2d pose);                            // teleport — usually only auto init
-void   addVisionMeasurement(Pose2d, double t, Matrix);  // from Vision
-void   runSetpoint(ChassisSpeeds speeds);               // field-relative
-void   runCharacterization(double volts);               // for SysId
-Rotation2d getAimRotationForHub();                      // shortest-path heading toward hub
-Field2d getField();                                     // for Shuffleboard
+void   setPose(Pose2d pose);                            // teleport, usually at auto start
+void   addVisionMeasurement(Pose2d, double t, Matrix);  // from RobotState
+void   runVelocity(ChassisSpeeds speeds);               // robot-relative
+void   stopWithX();
+void   runCharacterization(double output);              // for SysId
+Rotation2d getAimRotationForHub();                      // heading that points the shooter at the target
+DriveConfig getConfig();
 ```
 
 ## Characterization
 
-`DriveCommands` exposes:
-
-- **Wheel-radius characterization** — spins the robot in place and
-  computes the effective wheel radius from gyro vs. odometry.
-- **Feedforward characterization** — sweeps voltage and records
-  velocity to fit `kS`, `kV`, `kA`.
-- **SysId routines** — quasistatic and dynamic, forward and reverse.
-
-Run via dashboard chooser entries; outputs land in AdvantageKit logs
-for offline analysis.
-
-## Tuning knobs
-
-Every PID gain and tolerance is wrapped in
-[`GetTuned`]({{ '/utilities/get-tuned/' | relative_url }}). The most
-common to touch:
-
-- `Drive/Module/Drive/kP`, `kI`, `kD`
-- `Drive/Module/Turn/kP`, `kI`, `kD`
-- `Drive/HeadingController/kP`, `kI`, `kD`
-- `Drive/MaxLinearSpeed`, `Drive/MaxAngularSpeed`
+- `DriveCommands.wheelRadiusCharacterization(drive)` and
+  `DriveCommands.feedforwardCharacterization(drive)` — see
+  [Drive Commands]({{ '/commands/drive-commands/' | relative_url }}).
+- `drive.sysIdQuasistatic(direction)` / `drive.sysIdDynamic(direction)` —
+  WPILib SysId routines.
 
 ## Common pitfalls
 
-- **`UNDETERMINED` forever.** Means odometry never delivered a valid
-  sample. Usually a CANcoder offset issue — verify the offsets in
-  `DriveConstants` against the values in the Spark client.
-- **Wheels skip in autos.** Reduce `Drive/Module/Drive/kP` or lower
-  the auto's max acceleration.
-- **Vision fusion overpowers odometry.** Increase the vision standard
-  deviation factors in
+- **A module points the wrong way at zero.** Check that module's
+  `zeroRotation` in the robot's `DriveConfig`.
+- **Wheels skip in autos.** Lower `pathTranslationPid` or the path's
+  max acceleration.
+- **Vision fusion overpowers odometry.** Raise the camera's
+  `stdDevFactor` or the baselines in
   [`VisionConstants`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/subsystems/vision/VisionConstants.java).
