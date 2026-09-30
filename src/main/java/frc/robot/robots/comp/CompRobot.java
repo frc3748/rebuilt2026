@@ -1,4 +1,4 @@
-package frc.robot.robots.competition;
+package frc.robot.robots.comp;
 
 import static frc.robot.subsystems.shooter.ShooterConstants.kShooterToRobotCenter;
 
@@ -12,11 +12,11 @@ import frc.robot.RobotState;
 import frc.robot.Superstructure;
 import frc.robot.robots.RobotDefinition;
 import frc.robot.subsystems.drive.DriveConfig;
-import frc.robot.subsystems.intake.IntakeCompetition;
-import frc.robot.subsystems.shooter.ShooterCompetition;
+import frc.robot.subsystems.intake.IntakeComp;
+import frc.robot.subsystems.shooter.ShooterComp;
 import frc.robot.subsystems.vision.CameraConfig;
 
-public class CompetitionRobot implements RobotDefinition {
+public class CompRobot extends RobotDefinition {
     public static final CameraConfig kShooterCamera = new CameraConfig("Shooter Camera", "limelight-turret", CameraConfig.Type.LIMELIGHT_4)
             .robotToCamera(kShooterToRobotCenter.plus(new Transform3d(
                     new Translation3d(Units.inchesToMeters(4.594), Units.inchesToMeters(4.270), Units.inchesToMeters(4.181)),
@@ -31,12 +31,12 @@ public class CompetitionRobot implements RobotDefinition {
 
     @Override
     public String name() {
-        return "Competition";
+        return "Comp";
     }
 
     @Override
     public DriveConfig drive() {
-        return new CompetitionDrive();
+        return new CompDrive();
     }
 
     @Override
@@ -47,7 +47,7 @@ public class CompetitionRobot implements RobotDefinition {
     @Override
     public Superstructure createSuperstructure(RobotState state) {
         return new Superstructure(state)
-                .withShooter(new ShooterCompetition(state))
-                .withIntake(new IntakeCompetition(state));
+                .withShooter(new ShooterComp(state))
+                .withIntake(new IntakeComp(state));
     }
 }

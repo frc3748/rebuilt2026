@@ -9,13 +9,13 @@ import frc.robot.subsystems.kicker.Kicker;
 import frc.robot.subsystems.shooter.flywheel.Flywheel;
 import frc.robot.subsystems.shooter.hood.Hood;
 
-public class ShooterCompetition extends Shooter {
-    private final Flywheel flywheel;
-    private final Hood hood;
-    private final Hopper hopper;
-    private final Kicker kicker;
+public class ShooterComp extends Shooter {
+    protected final Flywheel flywheel;
+    protected final Hood hood;
+    protected final Hopper hopper;
+    protected final Kicker kicker;
 
-    public ShooterCompetition(RobotState state) {
+    public ShooterComp(RobotState state) {
         flywheel = new Flywheel(state);
         hood = new Hood(state);
         hopper = new Hopper(flywheel::isReady);
@@ -37,7 +37,7 @@ public class ShooterCompetition extends Shooter {
         enable();
     }
 
-    private void registerStateCommands() {
+    protected void registerStateCommands() {
         registerStateCommand(State.IDLE,
                 () -> request(Flywheel.State.IDLE, Hood.State.IDLE, Hopper.State.IDLE, Kicker.State.IDLE));
         registerStateCommand(State.HUB_TRACKING,
@@ -54,7 +54,7 @@ public class ShooterCompetition extends Shooter {
                 () -> request(Flywheel.State.TUNING, Hood.State.TUNING, Hopper.State.IDLE, Kicker.State.IDLE));
     }
 
-    private void request(Flywheel.State flywheelState, Hood.State hoodState, Hopper.State hopperState,
+    protected void request(Flywheel.State flywheelState, Hood.State hoodState, Hopper.State hopperState,
             Kicker.State kickerState) {
         flywheel.requestTransition(flywheelState);
         hood.requestTransition(hoodState);

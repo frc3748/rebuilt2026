@@ -1,4 +1,4 @@
-package frc.robot.robots.competition;
+package frc.robot.robots.comp;
 
 import com.pathplanner.lib.config.PIDConstants;
 
@@ -8,17 +8,17 @@ import edu.wpi.first.math.util.Units;
 import frc.robot.subsystems.drive.DriveConfig;
 import frc.robot.util.motor.MotorConfig.Controller;
 
-public class CompetitionDrive extends DriveConfig {
-    public CompetitionDrive() {
+public class CompDrive extends DriveConfig {
+    public CompDrive() {
         gyro = GyroType.PIGEON2;
         pigeonCanId = 50;
 
         driveController = Controller.SPARK_FLEX;
         turnSensor = TurnSensor.CANCODER;
-        frontLeft = new ModuleConstants(8, 3, 4, Rotation2d.fromRotations(0.27490234375 + 0.5), false);
-        frontRight = new ModuleConstants(4, 7, 2, Rotation2d.fromRotations(0.084716796875), false);
-        backLeft = new ModuleConstants(2, 9, 1, Rotation2d.fromRotations(-0.0263671875 + 0.5), false);
-        backRight = new ModuleConstants(6, 5, 3, Rotation2d.fromRotations(-0.4609375), false);
+        frontLeft = new ModuleConstants(8, 3, 4, Rotation2d.kZero, false);
+        frontRight = new ModuleConstants(4, 7, 2, Rotation2d.kZero, false);
+        backLeft = new ModuleConstants(2, 9, 1, Rotation2d.kZero, false);
+        backRight = new ModuleConstants(6, 5, 3, Rotation2d.kZero, false);
 
         trackWidth = Units.inchesToMeters(28);
         wheelBase = Units.inchesToMeters(28);

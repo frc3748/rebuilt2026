@@ -1,18 +1,33 @@
 package frc.robot.robots;
 
+import java.util.List;
+
+import frc.robot.Controls;
 import frc.robot.RobotState;
 import frc.robot.Superstructure;
+import frc.robot.commands.autos.AutoRoutine;
+import frc.robot.commands.autos.Autos;
 import frc.robot.subsystems.drive.DriveConfig;
 import frc.robot.subsystems.vision.CameraConfig;
 
-public interface RobotDefinition {
-    String name();
+public abstract class RobotDefinition {
+    public abstract String name();
 
-    DriveConfig drive();
+    public abstract DriveConfig drive();
 
-    CameraConfig[] cameras();
+    public CameraConfig[] cameras() {
+        return new CameraConfig[0];
+    }
 
-    default Superstructure createSuperstructure(RobotState state) {
+    public Superstructure createSuperstructure(RobotState state) {
         return new Superstructure(state);
+    }
+
+    public Controls createControls() {
+        return new Controls();
+    }
+
+    public List<AutoRoutine> autos(RobotState state) {
+        return Autos.all(state);
     }
 }

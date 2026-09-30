@@ -18,7 +18,6 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.Constants.Mode;
-import frc.robot.commands.autos.Autos;
 import frc.robot.game.AllianceFlip;
 import frc.robot.game.BallTargetFactory;
 import frc.robot.game.DashboardManager;
@@ -47,7 +46,7 @@ public class RobotState extends StateMachine<RobotState.State> {
 
     private final RobotDefinition definition;
     private final SimulatedRobotState simulatedRobotState = Robot.isSimulation() ? new SimulatedRobotState() : null;
-    private final Controls controls = new Controls();
+    private final Controls controls;
     private final GameState gameState = new GameState();
     private final Supplier<ShooterSetpoint> hubSupplier = ShooterSetpoint.hubSetpointSupplier(this);
     private final Supplier<ShooterSetpoint> passSupplier = ShooterSetpoint.passSetpointSupplier(this);
@@ -83,10 +82,11 @@ public class RobotState extends StateMachine<RobotState.State> {
         this.definition = definition;
         clearBuffers();
 
+        controls = definition.createControls();
         drive = new Drive(definition.drive(), this);
         vision = new Vision(this, definition.cameras());
         superstructure = definition.createSuperstructure(this);
-        dashboard = new DashboardManager(this, gameState, definition.name(), Autos.all(this));
+        dashboard = new DashboardManager(this, gameState, definition.name(), definition.autos(this));
 
         controls.bind(this);
         new Trigger(gameState::isHubActive).onChange(controls.rumble(0.5));

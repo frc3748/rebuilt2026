@@ -29,7 +29,7 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.commands.autos.AutoRoutine;
 import frc.robot.commands.autos.Autos;
-import frc.robot.robots.competition.CompetitionRobot;
+import frc.robot.robots.comp.CompRobot;
 import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.shooter.Shooter;
 import frc.robot.subsystems.vision.Camera;
@@ -42,14 +42,14 @@ import frc.robot.subsystems.vision.CameraInputsAutoLogged;
 import frc.robot.subsystems.vision.DetectedObject;
 import frc.robot.subsystems.vision.VisionMeasurement;
 
-class CompetitionRobotTest {
+class CompRobotTest {
     private static RobotState state;
     private static Superstructure robot;
 
     @BeforeAll
     static void setup() {
         assertTrue(HAL.initialize(500, 0));
-        state = new RobotState(new CompetitionRobot());
+        state = new RobotState(new CompRobot());
         robot = state.getSuperstructure();
         loop(25);
     }

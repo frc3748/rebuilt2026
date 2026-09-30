@@ -16,12 +16,12 @@ import frc.robot.game.TrenchZone;
 import frc.robot.util.motor.PosMotor;
 import frc.robot.util.motor.SpinMotor;
 
-public class IntakeCompetition extends Intake {
-    private final RobotState robotState;
-    private final SpinMotor rollers = new SpinMotor(kRollers);
-    private final PosMotor extension = new PosMotor(kExtension);
+public class IntakeComp extends Intake {
+    protected final RobotState robotState;
+    protected final SpinMotor rollers = new SpinMotor(kRollers);
+    protected final PosMotor extension = new PosMotor(kExtension);
 
-    public IntakeCompetition(RobotState robotState) {
+    public IntakeComp(RobotState robotState) {
         this.robotState = robotState;
         addHardware(rollers, extension);
         allowAllTransitions();
@@ -66,7 +66,7 @@ public class IntakeCompetition extends Intake {
                 new Rotation3d()));
     }
 
-    private void goTo(double extensionPosition, double rollerSpeed) {
+    protected void goTo(double extensionPosition, double rollerSpeed) {
         extension.set(extensionPosition);
         rollers.set(rollerSpeed);
     }

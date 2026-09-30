@@ -2,13 +2,13 @@ package frc.robot.robots;
 
 import java.util.function.Supplier;
 
-import frc.robot.robots.competition.CompetitionRobot;
-import frc.robot.robots.competitionv2.CompetitionV2Robot;
+import frc.robot.robots.comp.CompRobot;
 import frc.robot.robots.practice.PracticeRobot;
+import frc.robot.robots.secondary.SecondaryRobot;
 
 public enum RobotType {
-    COMPETITION(CompetitionRobot::new),
-    COMPETITION_V2(CompetitionV2Robot::new),
+    COMP(CompRobot::new),
+    SECONDARY(SecondaryRobot::new),
     PRACTICE(PracticeRobot::new);
 
     private final Supplier<RobotDefinition> factory;

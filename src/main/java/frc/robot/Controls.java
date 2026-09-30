@@ -15,8 +15,8 @@ import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.shooter.Shooter;
 
 public class Controls {
-    private final CommandXboxController driver = new CommandXboxController(0);
-    private final CommandXboxController operator = new CommandXboxController(1);
+    protected final CommandXboxController driver = new CommandXboxController(0);
+    protected final CommandXboxController operator = new CommandXboxController(1);
 
     public void bind(RobotState state) {
         Superstructure robot = state.getSuperstructure();
@@ -26,7 +26,7 @@ public class Controls {
         bindOperator(state, robot);
     }
 
-    private void bindDrive(RobotState state) {
+    protected void bindDrive(RobotState state) {
         Drive drive = state.getDrive();
         if (DriverStation.getMatchType() == MatchType.None) {
             driver.povDown().onTrue(Commands.runOnce(
@@ -41,7 +41,7 @@ public class Controls {
         driver.povUp().whileTrue(ActionCommands.turnToHub(state));
     }
 
-    private void bindIntake(RobotState state, Intake intake) {
+    protected void bindIntake(RobotState state, Intake intake) {
         driver.leftTrigger(0.5)
                 .onTrue(intake.transitionCommand(Intake.State.INTAKE))
                 .onFalse(intake.transitionCommand(Intake.State.IDLE));
@@ -52,7 +52,7 @@ public class Controls {
         driver.b().whileTrue(ActionCommands.shakeIntake(state));
     }
 
-    private void bindShooter(RobotState state, Shooter shooter) {
+    protected void bindShooter(RobotState state, Shooter shooter) {
         Drive drive = state.getDrive();
         driver.rightTrigger(0.5)
                 .onTrue(Commands.sequence(
@@ -67,7 +67,7 @@ public class Controls {
                 .onFalse(Commands.runOnce(shooter::releaseShot));
     }
 
-    private void bindOperator(RobotState state, Superstructure robot) {
+    protected void bindOperator(RobotState state, Superstructure robot) {
         operator.leftStick().onTrue(Commands.runOnce(robot::clearOverrides));
 
         bindChord(operator.rightStick(),
@@ -96,7 +96,7 @@ public class Controls {
                 robot.shooterAction(shooter -> shooter.holdShot(state.getCurrentPassSetpoint(), false)));
     }
 
-    private void bindChord(Trigger button, Runnable feedAction, Runnable intakeAction, Runnable shooterAction) {
+    protected void bindChord(Trigger button, Runnable feedAction, Runnable intakeAction, Runnable shooterAction) {
         button.onTrue(Commands.runOnce(() -> {
             if (operator.x().getAsBoolean()) {
                 feedAction.run();
