@@ -79,7 +79,7 @@ class CompRobotTest {
                 .map(file -> file.replace(".path", ""))
                 .collect(Collectors.toSet());
         List<AutoRoutine> autos = Autos.all(state);
-        assertEquals(15, autos.size());
+        assertEquals(14, autos.size());
         for (AutoRoutine auto : autos) {
             assertFalse(auto.build().getName().endsWith("(FAILED)"), auto.name());
             for (PathPlannerPath path : auto.previewPaths()) {

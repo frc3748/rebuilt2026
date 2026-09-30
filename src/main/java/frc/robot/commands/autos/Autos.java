@@ -20,8 +20,7 @@ public final class Autos {
                 new DepotSideCircuitShoot(state),
                 new DepotSideBlair(state),
                 new HpSideBlair(state),
-                new DepotSideBump(state),
-                new CustomAuto(state));
+                new DepotSideBump(state));
     }
 
     private Autos() {}

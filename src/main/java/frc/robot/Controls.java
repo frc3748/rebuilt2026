@@ -18,6 +18,10 @@ public class Controls {
     protected final CommandXboxController driver = new CommandXboxController(0);
     protected final CommandXboxController operator = new CommandXboxController(1);
 
+    public Controls() {
+        DriverStation.silenceJoystickConnectionWarning(true);
+    }
+
     public void bind(RobotState state) {
         Superstructure robot = state.getSuperstructure();
         bindDrive(state);

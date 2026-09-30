@@ -34,6 +34,8 @@ public class CameraIOPhotonSim extends CameraIOPhoton {
         properties.setAvgLatencyMs(20);
 
         cameraSim = new PhotonCameraSim(camera, properties);
+        cameraSim.enableRawStream(false);
+        cameraSim.enableProcessedStream(false);
         visionSim.addCamera(cameraSim, config.robotToCamera());
     }
 
