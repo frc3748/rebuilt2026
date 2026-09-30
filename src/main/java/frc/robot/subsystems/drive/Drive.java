@@ -13,6 +13,7 @@ import edu.wpi.first.hal.HAL;
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
@@ -391,6 +392,11 @@ public class Drive extends StateMachine<Drive.State> {
   @AutoLogOutput(key = "Odometry/Robot")
   public Pose2d getPose() {
     return poseEstimator.getEstimatedPosition();
+  }
+
+   @AutoLogOutput(key = "Odometry/Robot3D")
+  public Pose3d get3dPose() {
+    return new Pose3d(getPose());
   }
 
   public Rotation2d getRotation() {
