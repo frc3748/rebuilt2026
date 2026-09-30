@@ -21,6 +21,7 @@ import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
@@ -351,6 +352,10 @@ public class FuelSim {
     /**
      * Clears the field of fuel
      */
+    public List<Translation3d> getFuelPositions() {
+        return fuels.stream().map(fuel -> fuel.pos).toList();
+    }
+
     public void clearFuel() {
         fuels.clear();
     }

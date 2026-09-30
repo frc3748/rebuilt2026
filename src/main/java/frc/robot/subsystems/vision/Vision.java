@@ -8,6 +8,7 @@ import java.util.Optional;
 
 import org.littletonrobotics.junction.Logger;
 
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -54,22 +55,49 @@ public class Vision extends StateMachine<Vision.State> {
             if (estimating) {
                 camera.getMeasurements().forEach(robotState::addVisionMeasurement);
             }
-            objects.addAll(camera.getObjects());
+            camera.getObjects().forEach(this::remember);
         }
 
         Logger.recordOutput("Vision/Estimating", estimating);
         Logger.recordOutput("Vision/Objects", objects.stream()
                 .map(DetectedObject::fieldPosition)
                 .toArray(Translation2d[]::new));
+        Logger.recordOutput("Vision/ClosestObject", getClosestObjectPose().stream().toArray(Pose2d[]::new));
+    }
+
+    private void remember(DetectedObject object) {
+        objects.removeIf(known -> known.distanceTo(object.fieldPosition()) < VisionConstants.kObjectMergeMeters);
+        objects.add(object);
     }
 
     public List<DetectedObject> getObjects() {
         return objects;
     }
 
+    public List<Pose2d> getObjectPoses() {
+        Translation2d robot = robotTranslation();
+        return objects.stream().map(object -> object.poseFrom(robot)).toList();
+    }
+
     public Optional<DetectedObject> getClosestObject() {
-        Translation2d robot = robotState.getLatestFieldToRobot().getValue().getTranslation();
-        return objects.stream().min(Comparator.comparingDouble(object -> object.fieldPosition().getDistance(robot)));
+        return getClosestObject(robotTranslation());
+    }
+
+    public Optional<DetectedObject> getClosestObject(Translation2d point) {
+        return objects.stream().min(Comparator.comparingDouble(object -> object.distanceTo(point)));
+    }
+
+    public Optional<Pose2d> getClosestObjectPose() {
+        Translation2d robot = robotTranslation();
+        return getClosestObject(robot).map(object -> object.poseFrom(robot));
+    }
+
+    public boolean seesObjects() {
+        return !objects.isEmpty();
+    }
+
+    private Translation2d robotTranslation() {
+        return robotState.getLatestFieldToRobot().getValue().getTranslation();
     }
 
     public Camera[] getCameras() {

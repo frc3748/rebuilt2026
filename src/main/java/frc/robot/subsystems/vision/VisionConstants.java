@@ -13,7 +13,10 @@ public final class VisionConstants {
     public static final double kStabilityWindowSeconds = 0.1;
     public static final double kMaxAmbiguity = 0.3;
     public static final double kMaxZErrorMeters = 0.75;
-    public static final double kObjectMemorySeconds = 0.2;
+    public static final double kObjectMemorySeconds = 0.5;
+    public static final double kObjectMergeMeters = 0.15;
+    public static final double kSimObjectRangeMeters = 5.0;
+    public static final int kSimMaxObjects = 16;
 
     private VisionConstants() {}
 }

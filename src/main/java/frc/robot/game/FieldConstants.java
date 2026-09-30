@@ -27,5 +27,7 @@ public final class FieldConstants {
     public static final Distance TRENCH_WIDTH = Inches.of(49.86);
     public static final Distance TRENCH_CENTER = TRENCH_WIDTH.div(2);
 
+    public static final Distance FUEL_DIAMETER = Inches.of(5.91);
+
     private FieldConstants() {}
 }

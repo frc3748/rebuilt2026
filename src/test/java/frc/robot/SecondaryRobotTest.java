@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import edu.wpi.first.hal.HAL;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.robots.comp.CompDrive;
+import frc.robot.robots.comp.CompRobot;
 import frc.robot.robots.secondary.SecondaryDrive;
 import frc.robot.robots.secondary.SecondaryRobot;
 import frc.robot.subsystems.drive.Drive;
@@ -35,7 +36,7 @@ class SecondaryRobotTest {
     void reusesTheCompMechanismsAndCameras() {
         assertInstanceOf(ShooterComp.class, state.getSuperstructure().getShooter().orElseThrow());
         assertInstanceOf(IntakeComp.class, state.getSuperstructure().getIntake().orElseThrow());
-        assertEquals(2, state.getDefinition().cameras().length);
+        assertEquals(new CompRobot().cameras().length, state.getDefinition().cameras().length);
     }
 
     @Test

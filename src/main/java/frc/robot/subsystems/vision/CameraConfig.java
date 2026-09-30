@@ -65,6 +65,10 @@ public class CameraConfig {
         return this;
     }
 
+    public CameraConfig detector(int detectionPipeline) {
+        return pipelines(-1, detectionPipeline);
+    }
+
     public CameraConfig objectHeight(double meters) {
         objectHeightMeters = meters;
         return this;
@@ -98,8 +102,16 @@ public class CameraConfig {
         return detectionPipeline >= 0;
     }
 
+    public boolean estimatesPose() {
+        return aprilTagPipeline >= 0;
+    }
+
     public int pipelineFor(boolean detecting) {
-        return detecting && canDetectObjects() ? detectionPipeline : aprilTagPipeline;
+        return canDetectObjects() && (detecting || !estimatesPose()) ? detectionPipeline : aprilTagPipeline;
+    }
+
+    public boolean detectsWith(int pipeline) {
+        return canDetectObjects() && pipeline == detectionPipeline;
     }
 
     public double objectHeightMeters() {

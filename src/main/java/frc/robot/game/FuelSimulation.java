@@ -3,10 +3,12 @@ package frc.robot.game;
 import static edu.wpi.first.units.Units.Meters;
 import static edu.wpi.first.units.Units.Radians;
 
+import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.LinearVelocity;
@@ -55,5 +57,9 @@ public class FuelSimulation {
 
     public void update() {
         sim.updateSim();
+    }
+
+    public List<Translation3d> positions() {
+        return sim.getFuelPositions();
     }
 }

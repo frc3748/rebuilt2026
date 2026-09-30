@@ -62,6 +62,7 @@ public class Superstructure {
     private void startFuelSimulation() {
         if (fuel == null && Constants.kMode == Mode.SIM) {
             fuel = createFuelSimulation();
+            state.getSimRobot().setGamePieces(fuel::positions);
         }
     }
 

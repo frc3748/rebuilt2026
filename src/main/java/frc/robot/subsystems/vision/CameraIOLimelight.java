@@ -6,23 +6,29 @@ import java.util.List;
 
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.networktables.DoubleSubscriber;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
-import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.networktables.TimestampedDouble;
 import frc.robot.game.FieldConstants;
 import frc.robot.util.LimelightHelpers;
 import frc.robot.util.LimelightHelpers.PoseEstimate;
 import frc.robot.util.LimelightHelpers.RawDetection;
 
 public class CameraIOLimelight implements CameraIO {
+    private static final String kColorPipeline = "pipe_color";
+
     private final String name;
     private final boolean hasImu;
     private final NetworkTable table;
+    private final DoubleSubscriber heartbeat;
+    private double lastFrame = Double.NaN;
 
     public CameraIOLimelight(CameraConfig config, boolean hasImu) {
         name = config.networkName();
         this.hasImu = hasImu;
         table = NetworkTableInstance.getDefault().getTable(name);
+        heartbeat = table.getDoubleTopic("hb").subscribe(Double.NaN);
     }
 
     @Override
@@ -57,11 +63,29 @@ public class CameraIOLimelight implements CameraIO {
                 ? Arrays.stream(megatag1.rawFiducials).mapToInt(fiducial -> fiducial.id).toArray()
                 : new int[0];
 
+        inputs.objectObservations = readObjects(seesTag);
+    }
+
+    private ObjectObservation[] readObjects(boolean hasTarget) {
+        TimestampedDouble frame = heartbeat.getAtomic();
+        if (Double.isNaN(frame.value) || frame.value == lastFrame) {
+            return new ObjectObservation[0];
+        }
+        lastFrame = frame.value;
         double latencySeconds = (LimelightHelpers.getLatency_Pipeline(name) + LimelightHelpers.getLatency_Capture(name)) / 1000.0;
-        double timestamp = Timer.getFPGATimestamp() - latencySeconds;
-        inputs.objectObservations = Arrays.stream(LimelightHelpers.getRawDetections(name))
-                .map(detection -> toObject(detection, timestamp))
-                .toArray(ObjectObservation[]::new);
+        double timestamp = frame.timestamp / 1e6 - latencySeconds;
+
+        RawDetection[] detections = LimelightHelpers.getRawDetections(name);
+        if (detections.length > 0) {
+            return Arrays.stream(detections)
+                    .map(detection -> toObject(detection, timestamp))
+                    .toArray(ObjectObservation[]::new);
+        }
+        if (hasTarget && kColorPipeline.equals(LimelightHelpers.getCurrentPipelineType(name))) {
+            return new ObjectObservation[] {new ObjectObservation(timestamp, 0, LimelightHelpers.getTX(name),
+                    LimelightHelpers.getTY(name), LimelightHelpers.getTA(name), 1.0)};
+        }
+        return new ObjectObservation[0];
     }
 
     private static void addObservation(List<PoseObservation> poses, PoseEstimate estimate, PoseSource source) {

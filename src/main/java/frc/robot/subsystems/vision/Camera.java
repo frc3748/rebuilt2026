@@ -46,7 +46,7 @@ public class Camera {
     public static Camera of(CameraConfig config, RobotState state) {
         CameraIO io = switch (Constants.kMode) {
             case REAL -> config.type().create(config);
-            case SIM -> new CameraIOPhotonSim(config, () -> state.getSimRobot().getLatestFieldToRobot());
+            case SIM -> new CameraIOPhotonSim(config, state.getSimRobot());
             case REPLAY -> new CameraIO() {};
         };
         return new Camera(config, io);
@@ -69,9 +69,27 @@ public class Camera {
 
         measurements.clear();
         objects.clear();
+        if (config.estimatesPose()) {
+            estimatePose(state);
+        }
+        if (config.detectsWith(pipeline)) {
+            for (ObjectObservation observation : inputs.objectObservations) {
+                locate(observation, state).ifPresent(objects::add);
+            }
+        }
+        if (config.canDetectObjects()) {
+            Logger.recordOutput(logKey + "/Objects", objects.stream()
+                    .map(DetectedObject::fieldPosition)
+                    .toArray(Translation2d[]::new));
+        }
+        if (Visuals.enabled()) {
+            Visuals.record(logKey + "/CameraPose", new Pose3d(robot).plus(config.robotToCamera()));
+        }
+    }
+
+    private void estimatePose(RobotState state) {
         List<Pose2d> accepted = new ArrayList<>();
         List<Pose2d> rejected = new ArrayList<>();
-
         for (PoseObservation observation : inputs.poseObservations) {
             Pose2d pose = observation.robotPose().toPose2d().plus(config.reportedPoseOffset());
             if (isValid(observation, pose, state)) {
@@ -81,22 +99,15 @@ public class Camera {
                 rejected.add(pose);
             }
         }
-        for (ObjectObservation observation : inputs.objectObservations) {
-            locate(observation, state).ifPresent(objects::add);
-        }
 
         Logger.recordOutput(logKey + "/AcceptedPoses", accepted.toArray(Pose2d[]::new));
         Logger.recordOutput(logKey + "/RejectedPoses", rejected.toArray(Pose2d[]::new));
         if (Visuals.enabled()) {
-            Visuals.record(logKey + "/CameraPose", new Pose3d(robot).plus(config.robotToCamera()));
             Visuals.record(logKey + "/Tags", Arrays.stream(inputs.tagIds)
                     .mapToObj(FieldConstants.TAG_LAYOUT::getTagPose)
                     .flatMap(Optional::stream)
                     .toArray(Pose3d[]::new));
         }
-        Logger.recordOutput(logKey + "/Objects", objects.stream()
-                .map(DetectedObject::fieldPosition)
-                .toArray(Translation2d[]::new));
     }
 
     private boolean isValid(PoseObservation observation, Pose2d pose, RobotState state) {

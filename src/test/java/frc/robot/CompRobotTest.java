@@ -138,7 +138,8 @@ class CompRobotTest {
             }
         };
         CameraConfig config = new CameraConfig("Test", "test", CameraConfig.Type.PHOTON)
-                .robotToCamera(new Transform3d(new Translation3d(0, 0, 1), new Rotation3d(0, Math.toRadians(45), 0)));
+                .robotToCamera(new Transform3d(new Translation3d(0, 0, 1), new Rotation3d(0, Math.toRadians(45), 0)))
+                .pipelines(0, 1);
         Camera camera = new Camera(config, fake);
         camera.update(state, false);
 
@@ -148,9 +149,58 @@ class CompRobotTest {
         assertTrue(Double.isFinite(measurements.get(0).stdDevs().get(2, 0)));
         assertTrue(Double.isFinite(measurements.get(1).stdDevs().get(0, 0)));
         assertTrue(Double.isInfinite(measurements.get(1).stdDevs().get(2, 0)));
+        assertTrue(camera.getObjects().isEmpty());
 
+        camera.update(state, true);
         DetectedObject object = camera.getObjects().get(0);
         Pose2d robotNow = state.getLatestFieldToRobot().getValue();
         assertEquals(1.0, object.fieldPosition().getDistance(robotNow.getTranslation()), 1e-3);
+    }
+
+    @Test
+    void detectorCameraOnlyReportsObjects() {
+        double now = Timer.getFPGATimestamp();
+        Pose2d robot = state.getLatestFieldToRobot().getValue();
+        CameraIO fake = new CameraIO() {
+            @Override
+            public void updateInputs(CameraInputs inputs) {
+                inputs.poseObservations = new PoseObservation[] {
+                        new PoseObservation(now, new Pose3d(robot), 0.0, 2, 2.0, PoseSource.MULTI_TAG)
+                };
+                inputs.objectObservations = new ObjectObservation[] { new ObjectObservation(now, 0, 0.0, 0.0, 1.0, 1.0) };
+            }
+        };
+        CameraConfig config = new CameraConfig("Detector", "detector", CameraConfig.Type.LIMELIGHT_3)
+                .robotToCamera(new Transform3d(new Translation3d(0, 0, 1), new Rotation3d(0, Math.toRadians(45), 0)))
+                .detector(0);
+        Camera camera = new Camera(config, fake);
+        camera.update(state, false);
+
+        assertTrue(camera.getMeasurements().isEmpty());
+        DetectedObject object = camera.getObjects().get(0);
+        Pose2d approach = object.poseFrom(robot.getTranslation());
+        assertEquals(object.fieldPosition(), approach.getTranslation());
+        assertEquals(object.distanceTo(robot.getTranslation()), 1.0, 1e-3);
+        assertEquals(robot.getRotation().getRadians(), approach.getRotation().getRadians(), 1e-3);
+    }
+
+    @Test
+    void simulatedFuelCameraSeesTheFuel() throws InterruptedException {
+        state.getDrive().setPose(new Pose2d(6.5, 4.03, Rotation2d.kZero));
+        for (int i = 0; i < 40; i++) {
+            loop(1);
+            Thread.sleep(20);
+        }
+
+        assertTrue(state.getVision().seesObjects());
+        for (DetectedObject object : state.getVision().getObjects()) {
+            double error = state.getSimRobot().getGamePieces().stream()
+                    .mapToDouble(piece -> piece.toTranslation2d().getDistance(object.fieldPosition()))
+                    .min()
+                    .orElseThrow();
+            assertTrue(error < 0.1, "a detection is " + error + " m from any fuel");
+        }
+        assertEquals(state.getVision().getObjects().size(), state.getVision().getObjectPoses().size());
+        assertTrue(state.getVision().getClosestObjectPose().isPresent());
     }
 }

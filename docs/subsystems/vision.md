@@ -62,12 +62,47 @@ count, times the camera's `stdDevFactor`, times the source factors above.
 
 ## Object detection
 
-`Camera` projects each object observation onto the floor using the
-camera's robot→camera transform and the configured object height, then
-converts it to a field position using the robot pose at capture time.
-`Vision#getObjects()` returns everything seen in the last
-`kObjectMemorySeconds`, and `Vision#getClosestObject()` returns the
-nearest one.
+A camera reports objects only while it runs its detection pipeline.
+`.pipelines(tags, detection)` gives a camera both jobs, and it switches
+when `Vision` is in `OBJECTS`. `.detector(pipeline)` makes a camera that
+only detects objects, like the Limelight 3 fuel camera on COMP. Its
+pose observations are ignored.
+
+`Camera` projects each object observation onto the floor, using the
+camera's robot→camera transform and the configured object height. It
+then converts the result to a field position using the robot pose at
+capture time. `Vision` keeps everything seen in the last
+`kObjectMemorySeconds`. It merges detections closer than
+`kObjectMergeMeters` into one object, so each ball appears once.
+
+| Method | Returns |
+| --- | --- |
+| `Vision#getObjects()` | Every `DetectedObject` (timestamp, class, field position, confidence). |
+| `Vision#getObjectPoses()` | A `Pose2d` for each object, at the object and facing it from the robot. |
+| `Vision#getClosestObject()` | The object nearest the robot. There's also a version that takes a point. |
+| `Vision#getClosestObjectPose()` | The pose at the closest object, facing it from the robot. It can go straight into `AutoAlignToPoseCommand`. |
+| `Vision#seesObjects()` | Whether anything is remembered right now. |
+| `DetectedObject#poseFrom(origin)` | The pose at the object, facing it from `origin`. |
+
+These are logged as `Vision/Objects`, `Vision/ClosestObject` and
+`Vision/<name>/Objects`.
+
+On a Limelight, a neural detector pipeline reports every detection (a
+Limelight 3 needs a Google Coral for this). A color pipeline reports its
+best target as class 0. PhotonVision color targets and simulated targets
+have no class, so they count as class 0 too.
+
+Limelight detections are timed from when each frame arrives (the `hb`
+heartbeat), minus the pipeline and capture latency. Each frame is read only
+once. So even slow detectors, like CPU-only neural detection on a Limelight
+3A, place objects using the robot pose from when the image was taken.
+`kObjectMemorySeconds` (0.5 s) is longer than the time between frames on
+those, so objects don't blink out.
+
+In simulation, the balls from the fuel simulation are PhotonVision sim
+targets, so detector cameras see the real simulated balls. For speed,
+only the `kSimMaxObjects` balls nearest the robot, within
+`kSimObjectRangeMeters`, are simulated as targets each loop.
 
 ## Camera types
 
@@ -75,7 +110,7 @@ nearest one.
 
 | Type | IO | Notes |
 | --- | --- | --- |
-| `LIMELIGHT_3` | `CameraIOLimelight` | MegaTag 1 + 2. |
+| `LIMELIGHT_3` | `CameraIOLimelight` | MegaTag 1 + 2, or neural and color detection. |
 | `LIMELIGHT_3G` | `CameraIOLimelight` | MegaTag 1 + 2. |
 | `LIMELIGHT_4` | `CameraIOLimelight` | Also switches on the camera's internal IMU (`SetIMUMode(1)`). Only LL4 does this. |
 | `PHOTON` | `CameraIOPhoton` | PhotonVision. Intended for object detection this year. |
@@ -86,7 +121,7 @@ In simulation every camera uses `CameraIOPhotonSim`, whatever its type.
 
 Cameras belong to a robot. Each `RobotDefinition` returns its own list
 from `cameras()`, which is empty by default. `CompRobot` builds its
-cameras in protected methods, `chassisCamera()` and `shooterCamera()`,
+cameras in protected methods, `chassisCamera()`, `shooterCamera()` and `fuelCamera()`,
 so a robot that extends it can replace one. A new camera is one more
 method:
 

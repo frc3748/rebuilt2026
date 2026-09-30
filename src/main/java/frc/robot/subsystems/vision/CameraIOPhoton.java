@@ -58,11 +58,11 @@ public class CameraIOPhoton implements CameraIO {
                 } else {
                     objects.add(new ObjectObservation(
                             timestamp,
-                            target.getDetectedObjectClassID(),
+                            Math.max(target.getDetectedObjectClassID(), 0),
                             target.getYaw(),
                             target.getPitch(),
                             target.getArea(),
-                            target.getDetectedObjectConfidence()));
+                            target.getDetectedObjectConfidence() < 0 ? 1.0 : target.getDetectedObjectConfidence()));
                 }
             }
             if (tags.isEmpty()) {
