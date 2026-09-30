@@ -3,12 +3,25 @@ package frc.robot.util.motor;
 import org.littletonrobotics.junction.Logger;
 
 import frc.robot.Constants;
+import frc.robot.util.state.Hardware;
 
-public class Motor {
+public class Motor implements Hardware {
+    protected enum Mode {
+        STOP,
+        VOLTAGE,
+        OUTPUT,
+        VELOCITY,
+        POSITION
+    }
+
     private final String name;
     private final MotorIO io;
     private final MotorIOInputsAutoLogged inputs = new MotorIOInputsAutoLogged();
-    private double setpoint;
+
+    private Mode mode = Mode.STOP;
+    private double goal;
+    private double feedforward;
+    private int slot;
 
     public Motor(MotorConfig config) {
         this(config.name(), createIO(config));
@@ -27,55 +40,50 @@ public class Motor {
         };
     }
 
-    public void update() {
+    @Override
+    public void read() {
         io.updateInputs(inputs);
         Logger.processInputs(name, inputs);
-        Logger.recordOutput(name + "/Setpoint", setpoint);
     }
 
-    public void setVoltage(double volts) {
-        setpoint = 0.0;
-        io.setVoltage(volts);
+    @Override
+    public void write() {
+        switch (mode) {
+            case STOP -> io.stop();
+            case VOLTAGE -> io.setVoltage(goal);
+            case OUTPUT -> io.setOutput(goal);
+            case VELOCITY -> io.setVelocity(goal, feedforward);
+            case POSITION -> io.setPosition(goal, feedforward, slot);
+        }
+        Logger.recordOutput(name + "/Mode", mode.name());
+        Logger.recordOutput(name + "/Goal", goal);
     }
 
-    public void setOutput(double percent) {
-        setpoint = 0.0;
-        io.setOutput(percent);
-    }
-
-    public void setVelocity(double velocity) {
-        setVelocity(velocity, 0.0);
-    }
-
-    public void setVelocity(double velocity, double feedforwardVolts) {
-        setpoint = velocity;
-        io.setVelocity(velocity, feedforwardVolts);
-    }
-
-    public void setPosition(double position) {
-        setPosition(position, 0.0);
-    }
-
-    public void setPosition(double position, double feedforwardVolts) {
-        setPosition(position, feedforwardVolts, 0);
-    }
-
-    public void setPosition(double position, double feedforwardVolts, int slot) {
-        setpoint = position;
-        io.setPosition(position, feedforwardVolts, slot);
+    protected final void request(Mode mode, double goal, double feedforward, int slot) {
+        this.mode = mode;
+        this.goal = goal;
+        this.feedforward = feedforward;
+        this.slot = slot;
     }
 
     public void stop() {
-        setpoint = 0.0;
-        io.stop();
+        request(Mode.STOP, 0.0, 0.0, 0);
     }
 
-    public void setEncoderPosition(double position) {
-        io.setEncoderPosition(position);
+    public void setVoltage(double volts) {
+        request(Mode.VOLTAGE, volts, 0.0, 0);
+    }
+
+    public void setOutput(double percent) {
+        request(Mode.OUTPUT, percent, 0.0, 0);
     }
 
     public void setCurrentLimit(int amps) {
         io.setCurrentLimit(amps);
+    }
+
+    protected final void setEncoderPosition(double position) {
+        io.setEncoderPosition(position);
     }
 
     public double getPosition() {
@@ -90,15 +98,7 @@ public class Motor {
         return inputs.currentAmps;
     }
 
-    public double getSetpoint() {
-        return setpoint;
-    }
-
-    public boolean atPosition(double tolerance) {
-        return Math.abs(inputs.position - setpoint) < tolerance;
-    }
-
-    public boolean atVelocity(double tolerance) {
-        return Math.abs(inputs.velocity - setpoint) < tolerance;
+    public double getGoal() {
+        return goal;
     }
 }

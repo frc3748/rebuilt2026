@@ -38,8 +38,7 @@ public class Shooter extends StateMachine<Shooter.State> {
         addChildSubsystem(hood);
         addChildSubsystem(flywheel);
 
-        addOmniTransitions(State.UNDETERMINED, State.IDLE, State.HUB_TRACKING, State.PASS_TRACKING,
-                State.SHOOTING, State.PASSING, State.OUTTAKE, State.TUNING);
+        allowAllTransitions();
         registerStateCommands();
 
         for (double distance : ShooterConstants.kShotDistances) {
@@ -109,14 +108,14 @@ public class Shooter extends StateMachine<Shooter.State> {
         return flywheel.isReady();
     }
 
-    public void setOverride(ShooterSetpoint setpoint, boolean spinFlywheel) {
+    public void holdShot(ShooterSetpoint setpoint, boolean spinFlywheel) {
         flywheel.setOverride(() -> flywheel.spin(spinFlywheel ? setpoint.getShooterRPS() : 0.0));
         hood.setOverride(() -> hood.aim(setpoint));
     }
 
-    public void clearOverride() {
-        flywheel.setOverride(null);
-        hood.setOverride(null);
+    public void releaseShot() {
+        flywheel.clearOverride();
+        hood.clearOverride();
     }
 
     public Hood getHood() {
@@ -129,7 +128,7 @@ public class Shooter extends StateMachine<Shooter.State> {
 
     @Override
     protected void determineSelf() {
-        setState(State.UNDETERMINED);
+        setState(State.IDLE);
     }
 
     public enum State {

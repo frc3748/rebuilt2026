@@ -37,9 +37,9 @@ frc/robot/
 │   ├── drive/                  ← Swerve drive (AdvantageKit template, per-module IO)
 │   ├── vision/                 ← Any number of cameras feeding the pose estimator
 │   │   ├── Vision.java               ← StateMachine; loops over its cameras
-│   │   ├── Camera.java               ← Config + IO + inputs + filtering for one camera
+│   │   ├── Camera.java               ← Vendor-neutral filtering, weighting, and object projection
 │   │   ├── CameraConfig.java         ← Name, network name, robot→camera transform, std-dev factor
-│   │   ├── CameraIO.java             ← Interface every camera vendor implements (@AutoLog inputs)
+│   │   ├── CameraIO.java             ← Interface plus PoseObservation / ObjectObservation records
 │   │   ├── CameraIOLimelight.java    ← Limelight MegaTag 1 + 2
 │   │   ├── CameraIOPhoton.java       ← PhotonVision multi-tag + heading-seeded solve
 │   │   ├── CameraIOPhotonSim.java    ← PhotonVision simulation on top of CameraIOPhoton
@@ -64,7 +64,9 @@ frc/robot/
 └── util/
     ├── motor/                  ← One motor abstraction shared by every mechanism
     │   ├── MotorConfig.java          ← CAN ID, controller type, gains, limits (fluent)
-    │   ├── Motor.java                ← What subsystems hold: picks the IO for the current Mode, logs inputs
+    │   ├── SpinMotor.java            ← Velocity-controlled motor: set(speed)
+    │   ├── PosMotor.java             ← Position-controlled motor: set(position)
+    │   ├── Motor.java                ← Shared base: picks the IO for the current Mode, logs, sends once per loop
     │   ├── MotorIO.java              ← Interface (@AutoLog inputs)
     │   ├── MotorIOSpark.java         ← Spark MAX / Spark Flex
     │   └── MotorIOSim.java           ← Kinematic sim (tracks setpoints)
@@ -106,7 +108,7 @@ Three boxes nest inside each other:
 
 ## File conventions
 
-- **`<Thing>.java`** — the `StateMachine` subclass. Holds one `Motor` per physical motor and switches on its state in `update()`.
+- **`<Thing>.java`** — the `StateMachine` subclass. Holds a `SpinMotor` or `PosMotor` per physical motor and says what each state does in `applyState()`.
 - **`<Thing>Constants.java`** — a `MotorConfig` per motor, `TunableNumber` setpoints, and geometry.
 - **`util/motor/`** — the only place that talks to REV hardware or the simulator.
 - **`Camera*.java`** — the vision equivalent: a `CameraConfig` per camera and one `CameraIO` per vendor.

@@ -14,15 +14,10 @@ get logged as 3D poses for AdvantageScope.
 ## `SimulatedRobotState`
 
 [`SimulatedRobotState`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/util/SimulatedRobotState.java)
-mirrors the live `RobotState` in simulation. It tracks:
-
-- Simulated game pieces in the world (position, velocity, rotation).
-- Whether the intake currently has a piece staged (used by `IntakeIOSim`).
-- Whether the hopper currently holds a piece.
-
-This is consulted by every `*IOSim` implementation that needs to know
-about pieces — e.g., `IntakeIOSim.updateInputs` sets `inputs.pieceDetected`
-from `SimulatedRobotState.intakeHasPiece()`.
+mirrors the live `RobotState` in simulation. It holds the
+ground-truth robot pose that the simulated cameras (`CameraIOPhotonSim`)
+render AprilTags from. Mechanisms simulate through `MotorIOSim`, and game
+pieces through `FuelSim`.
 
 ## `FuelSim`
 

@@ -31,34 +31,29 @@ enum State {
 `SHAKE` is wired through `ActionCommands.shakeIntake()`, which is
 typically bound to a "did the piece get stuck?" operator button.
 
-## Auto-deploy
+## Trench constraint
 
-The intake watches its position on the field. When the robot enters a
-configured intake zone (see [`TrenchZone`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/util/TrenchZone.java)),
-the intake auto-requests `INTAKE` regardless of operator input — driver
-just has to drive to the source.
-
-This is implemented as a check inside `update()`:
+When the robot is near a trench (see [`TrenchZone`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/util/TrenchZone.java)),
+the intake extension is forced to the intake setpoint so it fits under.
+This lives in `applyConstraints()`, so it wins over every state and every
+operator override:
 
 ```java
-if (TrenchZone.intakeLowerRequired(robotState.getLatestFieldToRobot())) {
-  requestTransition(State.INTAKE);
+@Override
+protected void applyConstraints() {
+    if (TrenchZone.intakeLowerRequired(robotState)) {
+        extension.set(kIntakeSetpoint.get());
+    }
 }
 ```
 
-The auto-behavior can be bypassed with an explicit operator request to
-`STOW`.
-
 ## Operator override
 
-A `Runnable` slot lets operator code take direct control:
-
 ```java
+intake.setOverride(Intake.State.STOW);
 intake.setOverride(intake::rollIn);
+intake.clearOverride();
 ```
-
-While set, the override runs *instead of* the normal state command.
-Clear with `setOverride(null)`.
 
 ## Mechanism
 

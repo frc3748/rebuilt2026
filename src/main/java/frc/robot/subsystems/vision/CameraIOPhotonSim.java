@@ -8,6 +8,7 @@ import org.photonvision.simulation.VisionSystemSim;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.wpilibj.Timer;
 
 public class CameraIOPhotonSim extends CameraIOPhoton {
@@ -15,6 +16,7 @@ public class CameraIOPhotonSim extends CameraIOPhoton {
     private static double lastSimUpdate = -1.0;
 
     private final Supplier<Pose2d> groundTruth;
+    private final PhotonCameraSim cameraSim;
 
     public CameraIOPhotonSim(CameraConfig config, Supplier<Pose2d> groundTruth) {
         super(config);
@@ -30,7 +32,14 @@ public class CameraIOPhotonSim extends CameraIOPhoton {
         properties.setFPS(30);
         properties.setAvgLatencyMs(20);
 
-        visionSim.addCamera(new PhotonCameraSim(camera, properties), config.robotToCamera());
+        cameraSim = new PhotonCameraSim(camera, properties);
+        visionSim.addCamera(cameraSim, config.robotToCamera());
+    }
+
+    @Override
+    public void setRobotToCamera(Transform3d robotToCamera) {
+        super.setRobotToCamera(robotToCamera);
+        visionSim.adjustCamera(cameraSim, robotToCamera);
     }
 
     @Override

@@ -71,4 +71,4 @@ Before deploying with a new device:
 - [ ] Device shows up in REV Hardware Client / Phoenix Tuner X.
 - [ ] Firmware is up to date.
 - [ ] Brake/coast mode set as expected.
-- [ ] Current limit set in `*IOSpark` configuration.
+- [ ] Current limit set in the `MotorConfig` (`.currentLimit(...)`).

@@ -1,6 +1,8 @@
 package frc.robot.subsystems.vision;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.photonvision.EstimatedRobotPose;
 import org.photonvision.PhotonCamera;
@@ -9,6 +11,7 @@ import org.photonvision.targeting.PhotonPipelineResult;
 import org.photonvision.targeting.PhotonTrackedTarget;
 
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.wpilibj.Timer;
 
 public class CameraIOPhoton implements CameraIO {
@@ -21,68 +24,80 @@ public class CameraIOPhoton implements CameraIO {
     }
 
     @Override
-    public void setRobotOrientation(Rotation2d fieldToRobot, double yawRateDegreesPerSecond) {
-        estimator.addHeadingData(Timer.getFPGATimestamp(), fieldToRobot);
+    public void setRobotOrientation(Rotation2d heading, double yawRateDegreesPerSecond) {
+        estimator.addHeadingData(Timer.getFPGATimestamp(), heading);
+    }
+
+    @Override
+    public void setRobotToCamera(Transform3d robotToCamera) {
+        estimator.setRobotToCameraTransform(robotToCamera);
+    }
+
+    @Override
+    public void setPipeline(int index) {
+        camera.setPipelineIndex(index);
     }
 
     @Override
     public void updateInputs(CameraInputs inputs) {
         inputs.connected = camera.isConnected();
+        inputs.pipeline = camera.getPipelineIndex();
 
-        List<PhotonPipelineResult> results = camera.getAllUnreadResults();
-        if (results.isEmpty()) {
-            return;
+        List<PoseObservation> poses = new ArrayList<>();
+        List<ObjectObservation> objects = new ArrayList<>();
+        List<Integer> tagIds = new ArrayList<>();
+
+        for (PhotonPipelineResult result : camera.getAllUnreadResults()) {
+            double timestamp = result.getTimestampSeconds();
+            List<PhotonTrackedTarget> tags = new ArrayList<>();
+            for (PhotonTrackedTarget target : result.getTargets()) {
+                if (target.getFiducialId() >= 0) {
+                    tags.add(target);
+                    tagIds.add(target.getFiducialId());
+                } else {
+                    objects.add(new ObjectObservation(
+                            timestamp,
+                            target.getDetectedObjectClassID(),
+                            target.getYaw(),
+                            target.getPitch(),
+                            target.getArea(),
+                            target.getDetectedObjectConfidence()));
+                }
+            }
+            if (tags.isEmpty()) {
+                continue;
+            }
+
+            double averageDistance = tags.stream()
+                    .mapToDouble(target -> target.getBestCameraToTarget().getTranslation().getNorm())
+                    .average()
+                    .orElse(0.0);
+            double ambiguity = tags.size() == 1 ? tags.get(0).getPoseAmbiguity() : 0.0;
+
+            Optional<EstimatedRobotPose> multiTag = estimator.estimateCoprocMultiTagPose(result);
+            if (multiTag.isPresent()) {
+                poses.add(toObservation(multiTag.get(), ambiguity, averageDistance, PoseSource.MULTI_TAG));
+            } else {
+                estimator.estimateLowestAmbiguityPose(result).ifPresent(pose ->
+                        poses.add(toObservation(pose, ambiguity, averageDistance, PoseSource.SINGLE_TAG)));
+            }
+            estimator.estimatePnpDistanceTrigSolvePose(result).ifPresent(pose ->
+                    poses.add(toObservation(pose, ambiguity, averageDistance, PoseSource.TRIG_SOLVE)));
         }
-        PhotonPipelineResult result = results.get(results.size() - 1);
 
-        inputs.seesTarget = result.hasTargets();
-        inputs.megatagCount = 0;
-        inputs.megatag2Count = 0;
-        inputs.fiducialObservations = result.getTargets().stream()
-                .map(target -> new FiducialObservation(
-                        target.getFiducialId(),
-                        target.getYaw(),
-                        target.getPitch(),
-                        target.getPoseAmbiguity(),
-                        target.getArea()))
-                .toArray(FiducialObservation[]::new);
-        if (!inputs.seesTarget) {
-            return;
-        }
-
-        double avgDist = result.getTargets().stream()
-                .mapToDouble(target -> target.getBestCameraToTarget().getTranslation().getNorm())
-                .average()
-                .orElse(0.0);
-        double avgArea = result.getTargets().stream()
-                .mapToDouble(PhotonTrackedTarget::getArea)
-                .average()
-                .orElse(0.0);
-
-        estimator.estimateCoprocMultiTagPose(result)
-                .or(() -> estimator.estimateLowestAmbiguityPose(result))
-                .ifPresent(pose -> {
-                    inputs.megatagPoseEstimate = toEstimate(pose, avgArea);
-                    inputs.megatagCount = pose.targetsUsed.size();
-                    inputs.megatagAvgDist = avgDist;
-                    inputs.fieldToRobot3d = pose.estimatedPose;
-                });
-
-        estimator.estimatePnpDistanceTrigSolvePose(result).ifPresent(pose -> {
-            inputs.megatag2PoseEstimate = toEstimate(pose, avgArea);
-            inputs.megatag2Count = pose.targetsUsed.size();
-            inputs.megatag2AvgDist = avgDist;
-        });
+        inputs.poseObservations = poses.toArray(PoseObservation[]::new);
+        inputs.objectObservations = objects.toArray(ObjectObservation[]::new);
+        inputs.tagIds = tagIds.stream().distinct().mapToInt(Integer::intValue).toArray();
     }
 
-    private static MegatagPoseEstimate toEstimate(EstimatedRobotPose pose, double avgArea) {
-        int[] ids = pose.targetsUsed.stream().mapToInt(PhotonTrackedTarget::getFiducialId).toArray();
-        return new MegatagPoseEstimate(
-                pose.estimatedPose.toPose2d(),
+    private static PoseObservation toObservation(EstimatedRobotPose pose, double ambiguity, double averageDistance,
+            PoseSource source) {
+        return new PoseObservation(
                 pose.timestampSeconds,
-                Timer.getFPGATimestamp() - pose.timestampSeconds,
-                avgArea,
-                ids.length,
-                ids);
+                pose.estimatedPose,
+                ambiguity,
+                pose.targetsUsed.size(),
+                averageDistance,
+                source);
     }
 }

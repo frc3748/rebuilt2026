@@ -1,5 +1,7 @@
 package frc.robot.subsystems.shooter.hood;
 
+import static frc.robot.subsystems.shooter.hood.HoodConstants.*;
+
 import org.littletonrobotics.junction.Logger;
 
 import edu.wpi.first.math.geometry.Pose3d;
@@ -13,52 +15,48 @@ import frc.robot.RobotState;
 import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.util.ShooterSetpoint;
 import frc.robot.util.TrenchZone;
-import frc.robot.util.motor.Motor;
+import frc.robot.util.motor.PosMotor;
 import frc.robot.util.state.StateMachine;
 
 public class Hood extends StateMachine<Hood.State> {
-    private final RobotState state;
-    private final Motor hood = new Motor(HoodConstants.kHood);
-    private Runnable override;
-    private boolean autoOverride;
+    public enum State {
+        UNDETERMINED,
+        IDLE,
+        PASS_TRACKING,
+        HUB_TRACKING,
+        TUNING
+    }
 
-    public Hood(RobotState state) {
+    private final RobotState robotState;
+    private final PosMotor hood = new PosMotor(kHood);
+
+    public Hood(RobotState robotState) {
         super("Hood", State.UNDETERMINED, State.class);
-        this.state = state;
+        this.robotState = robotState;
+        addHardware(hood);
+        allowAllTransitions();
 
-        addOmniTransitions(State.IDLE, State.HUB_TRACKING, State.PASS_TRACKING, State.UNDETERMINED, State.TUNING);
-
-        SmartDashboard.putData("Hood Zero", Commands.runOnce(() -> hood.setEncoderPosition(HoodConstants.kMinLimit))
+        SmartDashboard.putData("Hood Zero", Commands.runOnce(() -> hood.resetPosition(kMinLimit))
                 .ignoringDisable(true)
                 .withName("Hood Zero"));
         enable();
     }
 
     @Override
+    protected void applyState(State state) {
+        switch (state) {
+            case HUB_TRACKING -> aim(robotState.getCurrentHubSetpoint());
+            case PASS_TRACKING -> aim(robotState.getCurrentPassSetpoint());
+            case TUNING -> setPos(kCustomSetpoint.get(), 0);
+            case IDLE, UNDETERMINED -> hood.stop();
+        }
+    }
+
+    @Override
     protected void update() {
-        hood.update();
-
-        if (TrenchZone.hoodLowerRequired(state)
-                && hood.getPosition() > HoodConstants.kMaxSetpointUnderTrench
-                && !autoOverride) {
-            setPos(HoodConstants.kMaxSetpointUnderTrench, 0);
-        }
-
-        if (override != null) {
-            override.run();
-        } else {
-            switch (getState()) {
-                case HUB_TRACKING -> aim(state.getCurrentHubSetpoint());
-                case PASS_TRACKING -> aim(state.getCurrentPassSetpoint());
-                case TUNING -> setPos(HoodConstants.kCustomSetpoint.get(), 0);
-                default -> stop();
-            }
-        }
-
-        Logger.recordOutput("Hood/Overriden", override != null);
         Logger.recordOutput("Hood/Pose", new Pose3d()
                 .plus(VisionConstants.kShooterToRobotCenter)
-                .plus(HoodConstants.kShooterToHood)
+                .plus(kShooterToHood)
                 .plus(new Transform3d(
                         new Translation3d(),
                         new Rotation3d(0, Units.degreesToRadians(-120) + hood.getPosition(), 0))));
@@ -69,34 +67,12 @@ public class Hood extends StateMachine<Hood.State> {
     }
 
     public void setPos(double position, double feedforward) {
-        if (TrenchZone.hoodLowerRequired(state) && position > HoodConstants.kMaxSetpointUnderTrench) {
-            position = HoodConstants.kMaxSetpointUnderTrench;
-        }
-        hood.setPosition(position, feedforward);
-    }
-
-    public void stop() {
-        hood.stop();
-    }
-
-    public void setOverride(Runnable override) {
-        this.override = override;
-    }
-
-    public void setAutoOverride(boolean autoOverride) {
-        this.autoOverride = autoOverride;
+        boolean underTrench = TrenchZone.hoodLowerRequired(robotState);
+        hood.set(underTrench ? Math.min(position, kMaxSetpointUnderTrench) : position, feedforward);
     }
 
     @Override
     protected void determineSelf() {
-        setState(State.UNDETERMINED);
-    }
-
-    public enum State {
-        UNDETERMINED,
-        IDLE,
-        PASS_TRACKING,
-        HUB_TRACKING,
-        TUNING
+        setState(State.IDLE);
     }
 }

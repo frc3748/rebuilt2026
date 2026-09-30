@@ -7,6 +7,7 @@ import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
@@ -19,9 +20,11 @@ public class VisionConstants {
 
         public static final double kLinearStdDevBaseline = 0.02;
         public static final double kAngularStdDevBaseline = 0.1;
-        public static final double kLinearStdDevMegatag2Factor = 0.5;
         public static final double kMaxYawRateRadPerSec = Units.degreesToRadians(360.0);
         public static final double kStabilityWindowSeconds = 0.1;
+        public static final double kMaxAmbiguity = 0.3;
+        public static final double kMaxZErrorMeters = 0.75;
+        public static final double kObjectMemorySeconds = 0.2;
 
         public static final Transform3d kShooterToRobotCenter = new Transform3d(
                 new Translation3d(Units.inchesToMeters(-3.290), Units.inchesToMeters(-4.750), Units.inchesToMeters(13.735 - 0.45)),
@@ -31,6 +34,7 @@ public class VisionConstants {
                 .robotToCamera(kShooterToRobotCenter.plus(new Transform3d(
                         new Translation3d(Units.inchesToMeters(4.594), Units.inchesToMeters(4.270), Units.inchesToMeters(4.181)),
                         new Rotation3d(0, Units.degreesToRadians(-20.5), 0))))
+                .reportedPoseOffset(new Transform2d(Units.inchesToMeters(4.594), Units.inchesToMeters(4.270), Rotation2d.kZero))
                 .stdDevFactor(1.3);
 
         public static final CameraConfig kChassisCamera = new CameraConfig("Chassis Camera", "limelight", CameraConfig.Type.LIMELIGHT)

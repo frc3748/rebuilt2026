@@ -33,6 +33,9 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
   private final LoggedDashboardChooser<E> stateChooser;
   private E lastChooserRequest;
 
+  private final List<Hardware> hardware = new ArrayList<>();
+  private Runnable override;
+
   public StateMachine(String name, E undeterminedState, Class<E> enumType) {
     this.enumType = enumType;
 
@@ -74,6 +77,26 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
 
   public final E getState() {
     return currentState;
+  }
+
+  protected final void addHardware(Hardware... devices) {
+    hardware.addAll(Arrays.asList(devices));
+  }
+
+  public final void setOverride(Runnable action) {
+    override = action;
+  }
+
+  public final void setOverride(E state) {
+    override = () -> applyState(state);
+  }
+
+  public final void clearOverride() {
+    override = null;
+  }
+
+  public final boolean isOverridden() {
+    return override != null;
   }
 
   public final void enable() {
@@ -156,6 +179,14 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
 
   public final void addOmniTransition(E state) {
     addOmniTransition(state, () -> {});
+  }
+
+  protected final void allowAllTransitions() {
+    for (E state : enumType.getEnumConstants()) {
+      if (state != undeterminedState) {
+        addOmniTransition(state);
+      }
+    }
   }
 
   @SafeVarargs
@@ -312,9 +343,18 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
       }
     }
 
+    hardware.forEach(Hardware::read);
     recordLogs();
     update();
 
+    if (override != null) {
+      override.run();
+    } else {
+      applyState(currentState);
+    }
+    applyConstraints();
+
+    hardware.forEach(Hardware::write);
     lastChooserRequest = chooserRequest;
   }
 
@@ -330,6 +370,7 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
     Logger.recordOutput(getName(), getCurrentFlagsAsArray());
 
     Logger.recordOutput(getName() + "/enabled", enabled);
+    Logger.recordOutput(getName() + "/overridden", override != null);
 
     logAdditionalOutputs();
   }
@@ -382,6 +423,10 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
   }
 
   protected void update() {}
+
+  protected void applyState(E state) {}
+
+  protected void applyConstraints() {}
 
   protected abstract void determineSelf();
 

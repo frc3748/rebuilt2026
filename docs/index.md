@@ -68,8 +68,8 @@ Three patterns shape almost every file:
 <ol>
   <li>
     <strong>IO layering</strong> — every subsystem talks to hardware
-    through an interface (<code>ModuleIO</code>, <code>VisionIO</code>,
-    <code>FlywheelIO</code>, …). Real implementations live alongside
+    through an interface (<code>ModuleIO</code>, <code>MotorIO</code>,
+    <code>CameraIO</code>). Real implementations live alongside
     simulator implementations; the subsystem code itself never knows
     the difference.
   </li>

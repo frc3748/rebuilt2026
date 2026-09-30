@@ -36,10 +36,7 @@ In its constructor, `RobotState` instantiates:
 - One `Drive` (with a `GyroIO` + 4× `ModuleIO`)
 - One `Vision` (with one `Camera` per `CameraConfig`)
 - One `Shooter` (owning `Hood` and `Flywheel`, each built on `Motor`)
-- One `Intake` (with `IntakeIO`)
-- One `Hopper` (with `HopperIO`)
-- One `Kicker` (with `KickerIO`)
-- One `Climb` (with `ClimbIO`)
+- One `Intake`, `Hopper`, `Kicker`, and `Climb`, each built from `SpinMotor` / `PosMotor`
 
 The choice of IO implementation comes from a single `robotState`
 integer field — see [the IO pattern]({{ '/architecture/io-pattern/' | relative_url }}).

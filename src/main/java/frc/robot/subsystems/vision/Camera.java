@@ -1,27 +1,39 @@
 package frc.robot.subsystems.vision;
 
+import static frc.robot.subsystems.vision.VisionConstants.*;
+
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.littletonrobotics.junction.Logger;
 
-import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.numbers.N1;
-import edu.wpi.first.math.numbers.N3;
+import edu.wpi.first.math.geometry.Transform2d;
+import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.util.Units;
 import frc.robot.Constants;
 import frc.robot.RobotState;
+import frc.robot.subsystems.vision.CameraIO.ObjectObservation;
+import frc.robot.subsystems.vision.CameraIO.PoseObservation;
+import frc.robot.subsystems.vision.CameraIO.PoseSource;
 
 public class Camera {
     private final CameraConfig config;
     private final CameraIO io;
     private final CameraInputsAutoLogged inputs = new CameraInputsAutoLogged();
     private final String logKey;
-    private double lastTimestamp;
+    private final Map<PoseSource, Double> lastTimestamps = new EnumMap<>(PoseSource.class);
+    private final List<VisionMeasurement> measurements = new ArrayList<>();
+    private final List<DetectedObject> objects = new ArrayList<>();
+    private int requestedPipeline = -1;
 
     public Camera(CameraConfig config, CameraIO io) {
         this.config = config;
@@ -31,92 +43,119 @@ public class Camera {
 
     public static Camera of(CameraConfig config, RobotState state) {
         CameraIO io = switch (Constants.kMode) {
-            case REAL -> switch (config.type()) {
-                case LIMELIGHT -> new CameraIOLimelight(config);
-                case PHOTON -> new CameraIOPhoton(config);
-            };
+            case REAL -> config.type().create(config);
             case SIM -> new CameraIOPhotonSim(config, () -> state.getSimRobot().getLatestFieldToRobot());
             case REPLAY -> new CameraIO() {};
         };
         return new Camera(config, io);
     }
 
-    public Optional<VisionFieldPoseEstimate> update(RobotState state) {
-        Pose2d fieldToRobot = state.getLatestFieldToRobot().getValue();
+    public void update(RobotState state, boolean detecting) {
+        int pipeline = config.pipelineFor(detecting);
+        if (config.canDetectObjects() && pipeline != requestedPipeline) {
+            io.setPipeline(pipeline);
+            requestedPipeline = pipeline;
+        }
+
+        Pose2d robot = state.getLatestFieldToRobot().getValue();
+        io.setRobotToCamera(config.robotToCamera());
         io.setRobotOrientation(
-                fieldToRobot.getRotation(),
+                robot.getRotation(),
                 Units.radiansToDegrees(state.getLatestRobotRelativeChassisSpeed().omegaRadiansPerSecond));
         io.updateInputs(inputs);
         Logger.processInputs(logKey, inputs);
 
-        Logger.recordOutput(logKey + "/CameraPose", new Pose3d(fieldToRobot).plus(config.robotToCamera()));
-        Logger.recordOutput(logKey + "/Targets", targetPoses());
+        measurements.clear();
+        objects.clear();
+        List<Pose2d> accepted = new ArrayList<>();
+        List<Pose2d> rejected = new ArrayList<>();
 
-        return config.usedForPoseEstimation() ? process(state) : Optional.empty();
+        for (PoseObservation observation : inputs.poseObservations) {
+            Pose2d pose = observation.robotPose().toPose2d().plus(config.reportedPoseOffset());
+            if (isValid(observation, pose, state)) {
+                measurements.add(toMeasurement(observation, pose));
+                accepted.add(pose);
+            } else {
+                rejected.add(pose);
+            }
+        }
+        for (ObjectObservation observation : inputs.objectObservations) {
+            locate(observation, state).ifPresent(objects::add);
+        }
+
+        Logger.recordOutput(logKey + "/CameraPose", new Pose3d(robot).plus(config.robotToCamera()));
+        Logger.recordOutput(logKey + "/AcceptedPoses", accepted.toArray(Pose2d[]::new));
+        Logger.recordOutput(logKey + "/RejectedPoses", rejected.toArray(Pose2d[]::new));
+        Logger.recordOutput(logKey + "/Tags", Arrays.stream(inputs.tagIds)
+                .mapToObj(kAprilTagLayout::getTagPose)
+                .flatMap(Optional::stream)
+                .toArray(Pose3d[]::new));
+        Logger.recordOutput(logKey + "/Objects", objects.stream()
+                .map(DetectedObject::fieldPosition)
+                .toArray(Translation2d[]::new));
     }
 
-    private Optional<VisionFieldPoseEstimate> process(RobotState state) {
-        if (!inputs.seesTarget || inputs.fiducialObservations.length == 0) {
-            return Optional.empty();
+    private boolean isValid(PoseObservation observation, Pose2d pose, RobotState state) {
+        boolean ambiguous = observation.source().rejectAmbiguous
+                && observation.tagCount() == 1
+                && observation.ambiguity() > kMaxAmbiguity;
+        boolean offField = pose.getX() < 0 || pose.getX() > fieldLength || pose.getY() < 0 || pose.getY() > fieldWidth;
+        boolean repeated = observation.timestamp() == lastTimestamps.getOrDefault(observation.source(), -1.0);
+
+        if (observation.tagCount() == 0
+                || ambiguous
+                || offField
+                || repeated
+                || pose.getTranslation().equals(Translation2d.kZero)
+                || Math.abs(observation.robotPose().getZ()) > kMaxZErrorMeters
+                || !isStable(state, observation.timestamp())) {
+            return false;
         }
-
-        boolean useMegatag2 = inputs.megatag2Count > 0;
-        if (!useMegatag2 && inputs.megatagCount <= 0) {
-            return Optional.empty();
-        }
-
-        MegatagPoseEstimate estimate = useMegatag2 ? inputs.megatag2PoseEstimate : inputs.megatagPoseEstimate;
-        if (estimate.fieldToRobot().equals(Pose2d.kZero)) {
-            return Optional.empty();
-        }
-
-        double timestamp = estimate.timestampSeconds();
-        if (timestamp == lastTimestamp || !isStable(state, timestamp)) {
-            return Optional.empty();
-        }
-        lastTimestamp = timestamp;
-
-        Rotation2d heading = inputs.megatagCount > 0
-                ? inputs.megatagPoseEstimate.fieldToRobot().getRotation()
-                : estimate.fieldToRobot().getRotation();
-        Pose2d fieldToRobot = new Pose2d(estimate.fieldToRobot().getTranslation(), heading);
-
-        return Optional.of(new VisionFieldPoseEstimate(
-                fieldToRobot, timestamp, stdDevs(useMegatag2), estimate.fiducialIds().length));
+        lastTimestamps.put(observation.source(), observation.timestamp());
+        return true;
     }
 
     private boolean isStable(RobotState state, double timestamp) {
         double yawRate = Math.abs(state
-                .getMaxAbsDriveYawAngularVelocityInRange(timestamp - VisionConstants.kStabilityWindowSeconds, timestamp)
+                .getMaxAbsDriveYawAngularVelocityInRange(timestamp - kStabilityWindowSeconds, timestamp)
                 .orElse(0.0));
-        boolean stable = yawRate < VisionConstants.kMaxYawRateRadPerSec;
-        Logger.recordOutput(logKey + "/YawRate", yawRate);
-        Logger.recordOutput(logKey + "/Stable", stable);
-        return stable;
+        return yawRate < kMaxYawRateRadPerSec;
     }
 
-    private Matrix<N3, N1> stdDevs(boolean useMegatag2) {
-        int tagCount = useMegatag2 ? inputs.megatag2Count : inputs.megatagCount;
-        double avgDist = useMegatag2 ? inputs.megatag2AvgDist : inputs.megatagAvgDist;
-
-        double factor = avgDist * avgDist / tagCount * config.stdDevFactor();
-        double linear = VisionConstants.kLinearStdDevBaseline * factor;
-        double angular = VisionConstants.kAngularStdDevBaseline * factor;
-        if (useMegatag2) {
-            linear *= VisionConstants.kLinearStdDevMegatag2Factor;
-        }
-        return VecBuilder.fill(linear, linear, angular);
+    private VisionMeasurement toMeasurement(PoseObservation observation, Pose2d pose) {
+        double distance = observation.averageTagDistance();
+        double factor = distance * distance / observation.tagCount() * config.stdDevFactor();
+        double linear = kLinearStdDevBaseline * factor * observation.source().linearStdDevFactor;
+        double angular = kAngularStdDevBaseline * factor * observation.source().angularStdDevFactor;
+        return new VisionMeasurement(pose, observation.timestamp(), VecBuilder.fill(linear, linear, angular));
     }
 
-    private Pose3d[] targetPoses() {
-        if (!inputs.seesTarget) {
-            return new Pose3d[0];
+    private Optional<DetectedObject> locate(ObjectObservation observation, RobotState state) {
+        Transform3d robotToCamera = config.robotToCamera();
+        double elevation = -robotToCamera.getRotation().getY() + Units.degreesToRadians(observation.pitchDegrees());
+        double drop = robotToCamera.getZ() - config.objectHeightMeters();
+        if (elevation >= 0 || drop <= 0) {
+            return Optional.empty();
         }
-        MegatagPoseEstimate estimate = inputs.megatag2Count > 0 ? inputs.megatag2PoseEstimate : inputs.megatagPoseEstimate;
-        return Arrays.stream(estimate.fiducialIds())
-                .mapToObj(VisionConstants.kAprilTagLayout::getTagPose)
-                .flatMap(Optional::stream)
-                .toArray(Pose3d[]::new);
+
+        double range = drop / Math.tan(-elevation);
+        Rotation2d bearing = new Rotation2d(
+                robotToCamera.getRotation().getZ() - Units.degreesToRadians(observation.yawDegrees()));
+        Translation2d robotRelative = robotToCamera.getTranslation().toTranslation2d()
+                .plus(new Translation2d(range, bearing));
+        Pose2d robot = state.getFieldToRobot(observation.timestamp())
+                .orElse(state.getLatestFieldToRobot().getValue());
+        Translation2d field = robot.transformBy(new Transform2d(robotRelative, Rotation2d.kZero)).getTranslation();
+
+        return Optional.of(new DetectedObject(observation.timestamp(), observation.classId(), field, observation.confidence()));
+    }
+
+    public List<VisionMeasurement> getMeasurements() {
+        return measurements;
+    }
+
+    public List<DetectedObject> getObjects() {
+        return objects;
     }
 
     public CameraConfig getConfig() {

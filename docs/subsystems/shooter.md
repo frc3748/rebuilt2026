@@ -36,8 +36,7 @@ the flywheel being within tolerance of its setpoint.
 ## Hood
 
 Spark MAX, MAXMotion position, gravity feedforward, soft limits. Near a
-trench the hood is clamped to `kMaxSetpointUnderTrench` unless an auto
-has set `setAutoOverride(true)`.
+trench every hood command is clamped to `kMaxSetpointUnderTrench`.
 
 ## Flywheel
 
@@ -53,8 +52,8 @@ interpolates these; in simulation it uses the funnel-clearance solve in
 
 ## Operator override
 
-`Shooter#setOverride(setpoint, spinFlywheel)` freezes the hood and
-flywheel on a captured setpoint until `clearOverride()`.
+`Shooter#holdShot(setpoint, spinFlywheel)` freezes the hood and
+flywheel on a captured setpoint until `releaseShot()`.
 
 ## Simulation
 

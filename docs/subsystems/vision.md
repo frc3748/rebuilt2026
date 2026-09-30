@@ -2,49 +2,98 @@
 layout: default
 title: Vision
 eyebrow: Subsystem
-description: Any number of cameras, each a config plus an IO, feeding the drive's pose estimator.
+description: Any number of cameras of any vendor, reporting generic pose and object observations.
 permalink: /subsystems/vision/
 ---
 
-The vision subsystem is a list of cameras. Every loop it asks each
-camera for a filtered pose estimate and hands the good ones to
-`RobotState#addVisionEstimate`, which forwards them to the drive's pose
-estimator on the real robot.
+The vision subsystem is a list of cameras. Every loop each camera reads
+its vendor-specific data into generic observations, `Camera` filters and
+weights them, and `Vision` hands the accepted poses to
+`RobotState#addVisionMeasurement`, which feeds the drive's pose estimator
+on the real robot.
 
-## The pieces
+## States
 
-| Class | Role |
+| State | Behavior |
 | --- | --- |
-| `CameraConfig` | Name, NetworkTables name, vendor type, robot→camera `Transform3d`, std-dev factor. |
-| `CameraIO` | Interface with `@AutoLog` inputs and `setRobotOrientation`. |
-| `CameraIOLimelight` | Reads MegaTag 1 and MegaTag 2 from a Limelight. |
-| `CameraIOPhoton` | PhotonVision coprocessor multi-tag solve (lowest-ambiguity fallback) plus the heading-seeded trig solve. |
-| `CameraIOPhotonSim` | `CameraIOPhoton` with a simulated camera attached. |
-| `Camera` | Owns one config, one IO, one inputs object. Filters and weights the estimate. |
-| `Vision` | Owns the cameras and forwards estimates. |
+| `APRIL_TAGS` | Every camera runs its AprilTag pipeline. |
+| `OBJECTS` | Cameras that have a detection pipeline switch to it; the rest keep estimating pose. |
+| `UNDETERMINED` | While the robot is disabled. Behaves like `APRIL_TAGS`, so the robot keeps localizing before a match. |
+
+The "Vision Disable" dashboard button stops pose estimates from reaching
+the drive until the robot reboots. Cameras keep logging.
+
+## Observations
+
+Each `CameraIO` fills `CameraInputs`:
+
+| Field | Meaning |
+| --- | --- |
+| `poseObservations` | `PoseObservation(timestamp, robotPose, ambiguity, tagCount, averageTagDistance, source)` |
+| `objectObservations` | `ObjectObservation(timestamp, classId, yawDegrees, pitchDegrees, area, confidence)` |
+| `tagIds` | Tags seen this loop. |
+
+`PoseSource` sets how much each kind of estimate is trusted:
+
+| Source | Translation | Heading | Ambiguity check |
+| --- | --- | --- | --- |
+| `MEGATAG_1` | ignored | trusted | yes |
+| `MEGATAG_2` | trusted ×0.5 | ignored | no |
+| `MULTI_TAG` | trusted | trusted | no |
+| `SINGLE_TAG` | trusted | trusted | yes |
+| `TRIG_SOLVE` | trusted ×0.5 | ignored | no |
+
+This is the old "MegaTag 2 translation, MegaTag 1 rotation" rule written
+as data, so a new vendor only has to say where its poses came from.
+
+## Filtering
+
+A pose is rejected when it has no tags, is the zero pose, is off the
+field, repeats the last timestamp for its source, has a Z error over
+`kMaxZErrorMeters`, is a single ambiguous tag from a source that checks
+ambiguity, or was captured while the chassis was spinning faster than
+`kMaxYawRateRadPerSec`. Accepted and rejected poses are both logged per
+camera.
+
+Standard deviations scale with average tag distance squared over tag
+count, times the camera's `stdDevFactor`, times the source factors above.
+
+## Object detection
+
+`Camera` projects each object observation onto the floor using the
+camera's robot→camera transform and the configured object height, then
+converts it to a field position using the robot pose at capture time.
+`Vision#getObjects()` returns everything seen in the last
+`kObjectMemorySeconds`, and `Vision#getClosestObject()` returns the
+nearest one.
 
 ## Adding a camera
 
 ```java
-public static final CameraConfig kRearCamera = new CameraConfig("Rear Camera", "photon-rear", CameraConfig.Type.PHOTON)
+public static final CameraConfig kIntakeCamera = new CameraConfig("Intake Camera", "photon-intake", CameraConfig.Type.PHOTON)
         .robotToCamera(new Transform3d(...))
+        .pipelines(0, 1)
+        .objectHeight(Units.inchesToMeters(2.25))
         .stdDevFactor(1.5);
 ```
 
-Add it to `VisionConstants.kCameras`. Adding a vendor is one new
-`CameraIO` class and one line in `Camera.of`.
+Add it to `VisionConstants.kCameras`. A camera on a moving mechanism
+passes a supplier instead: `.robotToCamera(() -> turretToCamera(turret.getAngle()))`.
 
-## Filtering
+## Adding a vendor
 
-An estimate is rejected when the camera sees no targets, the pose is
-zero, the timestamp repeats, or the chassis yaw rate over the previous
-100 ms exceeded `kMaxYawRateRadPerSec`. Translation comes from MegaTag 2,
-heading from MegaTag 1. Standard deviations scale with average tag
-distance squared over tag count, times the camera's `stdDevFactor`.
+Write one `CameraIO` that fills the three observation arrays, and add
+one constant to `CameraConfig.Type`:
+
+```java
+QUEST(CameraIOQuest::new)
+```
+
+Nothing else changes.
 
 ## Cameras on this robot
 
-| Config | Network name | Mount |
+| Config | Network name | Notes |
 | --- | --- | --- |
-| `kShooterCamera` | `limelight-turret` | On the fixed shooter, pitched up 20.5° |
-| `kChassisCamera` | `limelight` | Rear of chassis, pitched up 45°, yawed 180° |
+| `kShooterCamera` | `limelight-turret` | Fixed to the shooter. Applies the same in-code offset to its reported pose as the turret-era code did. |
+| `kChassisCamera` | `limelight` | Rear of chassis. Offsets live in the Limelight web UI. |

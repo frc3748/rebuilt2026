@@ -18,47 +18,25 @@ own encoder — current spikes and encoder position do the rest.
 
 ## States
 
-```java
-enum State {
-  UNDETERMINED,
-  STOW,    // fully retracted
-  UP,      // extended to reach height
-  DOWN,    // pulling robot up to bar
-  CLIMB    // holding final position, brake engaged
-}
-```
+| State | Behavior |
+| --- | --- |
+| `IDLE` | Motor off. |
+| `STOW` | Hold the stow setpoint. |
+| `UP` | Extend to reach the bar. |
+| `DOWN` | Pull the robot up, using the slower closed-loop slot 1. |
+| `ZEROING` | Drive gently down into the hard stop with a reduced current limit. |
 
-State flow during a climb:
+## Zeroing
 
-```
-   STOW ──▶ UP ──▶ (driver positions robot) ──▶ DOWN ──▶ CLIMB
-```
+Zeroing is a state, not a separate command. Entering `ZEROING` lowers the
+current limit and runs the motor down at `Climb/Lower Motor Output`. When
+the current passes `Climb/Zero Current Threshold`, the climb resets its
+encoder to zero and requests `STOW`. Leaving `ZEROING` for any reason
+restores the normal current limit.
 
-`CLIMB` engages brake mode on the motor to hold the robot's weight
-without consuming amps.
-
-## Detecting the end of travel
-
-There's no external sensor. Two cues tell the subsystem when the climb
-is finished:
-
-- **Encoder position.** `UP` ends when the motor reaches the extended
-  setpoint (`ClimbConstants.kExtendedPositionRad`).
-- **Current spike.** `DOWN → CLIMB` triggers when the motor stalls
-  against the rung — current crosses `ClimbConstants.kStallCurrentAmps`
-  for at least `kStallPersistenceSeconds`.
-
-If you ever need to lock out the auto-completion (for testing or a
-manual climb), call `disable()` on the subsystem.
-
-## Zero calibration
-
-A `zero()` command — usually bound to a long-press operator combo —
-runs the motor slowly *down* into the hard stop until current spikes.
-Once the motor stops moving, the encoder zero is reset.
-
-This is required after every code deploy because the motor uses a
-relative encoder.
+The robot zeroes the climb once, at the first autonomous or teleop start.
+The "Climb Zero" dashboard button and the operator Y + left trigger chord
+request `ZEROING` again.
 
 ## Mechanism
 
@@ -87,8 +65,7 @@ so you can see the climb deployment over time.
   motor isn't actually loaded. Plot `Climb/current` in AdvantageScope
   during a real attempt; pick a number that's clearly above unloaded
   draw and clearly below the breaker trip.
-- **`DOWN → CLIMB` fires too early.** Stall persistence too short. Bump
-  `kStallPersistenceSeconds` up — even 100 ms of confirmation prevents
-  noise from latching the state.
-- **Robot sags after `CLIMB`.** Brake mode isn't holding. Confirm the
-  motor is set to brake in `ClimbIOSpark`.
+- **Zeroing never finishes.** The stall threshold is above what the motor
+  draws at the hard stop. Lower `Climb/Zero Current Threshold`.
+- **Robot sags after climbing.** The climb motor idles in brake mode by
+  default (`MotorConfig`); confirm nothing calls `.coast()` on `kClimb`.

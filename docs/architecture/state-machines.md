@@ -48,65 +48,95 @@ the machine handles the rest.
   <dd>A boolean attached to the state machine that is independent of the primary state. Used for side-channels — e.g. "are we currently allowed to shoot?" — without proliferating states.</dd>
 </dl>
 
-## The minimum viable state machine
+## The periodic loop
 
-Building one looks like this:
+Every `StateMachine` runs the same loop each robot cycle, in this order:
+
+1. **Read.** Every device registered with `addHardware(...)` reads its sensors and logs its inputs.
+2. **Update.** `update()` runs for anything that is not motor output: telemetry, stall detection, deciding to request another state.
+3. **Apply the state.** If an override is set it runs; otherwise `applyState(getState())` runs. This is the only place a subsystem commands its motors.
+4. **Apply constraints.** `applyConstraints()` runs last and wins over both the state and any override. Safety rules such as "lower the intake under the trench" live here.
+5. **Write.** Every registered device sends its final command to the hardware once.
+
+Because motors only send in step 5, a constraint can replace a state's command without two conflicting CAN writes in the same loop.
+
+## A whole subsystem
 
 ```java
-public class Kicker extends StateMachine<Kicker.State> {
-  public enum State { UNDETERMINED, IDLE, SHOOT, OUTAKE }
+public class Intake extends StateMachine<Intake.State> {
+    public enum State { UNDETERMINED, STOW, IDLE, INTAKE, OUTAKE, CLIMB_TOW, SHAKE }
 
-  private final KickerIO io;
-  private final KickerIOInputsAutoLogged inputs = new KickerIOInputsAutoLogged();
+    private final SpinMotor rollers = new SpinMotor(kRollers);
+    private final PosMotor extension = new PosMotor(kExtension);
 
-  public Kicker(KickerIO io) {
-    super("Kicker", State.UNDETERMINED, State.class);
-    this.io = io;
+    public Intake(RobotState robotState) {
+        super("Intake", State.UNDETERMINED, State.class);
+        addHardware(rollers, extension);
+        allowAllTransitions();
+        enable();
+    }
 
-    registerStateCommand(State.IDLE,    run(() -> io.setVoltage(0)));
-    registerStateCommand(State.SHOOT,   run(() -> io.setVoltage(KickerConstants.kShootVolts)));
-    registerStateCommand(State.OUTAKE,  run(() -> io.setVoltage(-KickerConstants.kShootVolts)));
+    @Override
+    protected void applyState(State state) {
+        switch (state) {
+            case STOW -> goTo(kStowSetpoint.get(), 0);
+            case IDLE -> goTo(kIntakeSetpoint.get(), 0);
+            case INTAKE -> goTo(kIntakeSetpoint.get(), kIntakeRollerSpeed.get());
+            ...
+        }
+    }
 
-    addOmniTransitions(State.IDLE, State.SHOOT, State.OUTAKE);
-  }
-
-  @Override
-  public void update() {
-    io.updateInputs(inputs);
-    Logger.processInputs("Kicker", inputs);
-    super.update();
-  }
+    @Override
+    protected void applyConstraints() {
+        if (TrenchZone.intakeLowerRequired(robotState)) {
+            extension.set(kIntakeSetpoint.get());
+        }
+    }
 }
 ```
 
-That's it. To use it:
+To use it:
 
 ```java
-kicker.requestTransition(Kicker.State.SHOOT);
+intake.requestTransition(Intake.State.INTAKE);
 ```
+
+## Overrides
+
+Any machine can be overridden from the operator controller:
+
+```java
+intake.setOverride(Intake.State.STOW);   // behave like STOW no matter what is requested
+intake.setOverride(intake::rollIn);      // run a custom action instead of applyState
+intake.clearOverride();
+```
+
+The requested state keeps updating underneath, so clearing the override
+drops straight back into whatever the drivers and autos asked for.
+Constraints still apply while overridden.
 
 ## Public API of `StateMachine`
 
-The members you'll touch from outside a subsystem:
-
 | Method | What it does |
 | --- | --- |
-| `requestTransition(State)` | Request a transition; runs on the next periodic. |
-| `transitionCommand(State)` | Returns a `Command` that requests the transition and waits until it lands. Useful for `onTrue()` bindings. |
+| `requestTransition(State)` | Request a transition; lands on a following loop. |
+| `transitionCommand(State)` | A `Command` that requests the transition and waits until it lands. |
 | `getState()` | Current state. |
-| `isDetermined()` | `false` only while in `UNDETERMINED`. |
-| `isTransitioning()` | `true` while a transition command is mid-flight. |
-| `enable()` / `disable()` | Globally gate transitions. `disabledInit()` calls `disable()` on all. |
-| `setFlag(name)` / `getFlag(name)` | Side-channel booleans. |
+| `isDetermined()` / `isTransitioning()` | Lifecycle checks. |
+| `setOverride(State)` / `setOverride(Runnable)` / `clearOverride()` | Manual control. |
 
-And the ones a subclass uses when *building* its graph:
+Used inside a subclass:
 
 | Method | What it does |
 | --- | --- |
-| `addTransition(from, to, Command)` | One edge. |
-| `addOmniTransitions(states…)` | Edges from *every* state into each given state. |
-| `registerStateCommand(state, Command)` | Long-running behavior while in `state`. |
-| `addChildSubsystem(StateMachine)` | Hierarchical composition. Parent's `update()` ticks children. |
+| `addHardware(devices…)` | Register motors and sensors for the read and write steps. |
+| `allowAllTransitions()` | Every state can be reached from every other state. |
+| `addTransition(from, to, Runnable)` | One edge with an action, e.g. restoring a current limit when leaving `ZEROING`. |
+| `registerStateCommand(state, Runnable)` | Runs once on entering a state. |
+| `applyState(state)` | What the mechanism does in each state. |
+| `applyConstraints()` | Rules that always win. |
+| `update()` | Telemetry and self-transitions. |
+| `addChildSubsystem(StateMachine)` | Hierarchical composition. |
 
 ## The transition graph
 

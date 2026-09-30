@@ -46,10 +46,6 @@ public class Autos {
         return state.getShooter().transitionCommand(shooterState, false);
     }
 
-    private static Command hoodAutoOverride(RobotState state, boolean enabled) {
-        return Commands.runOnce(() -> state.getShooter().getHood().setAutoOverride(enabled));
-    }
-
     private static Command shake(RobotState state, double seconds) {
         return ActionCommands.shakeIntake(state).withTimeout(seconds);
     }
@@ -488,9 +484,7 @@ public class Autos {
                     follow(paths, "Mid Depot to Intake Depot Side Blair"),
                     Commands.parallel(
                             turn(state),
-                            hoodAutoOverride(state, true),
                             shooter(state, Shooter.State.SHOOTING)),
-                    hoodAutoOverride(state, false),
                     shake(state, 3),
                     intake(state, Intake.State.IDLE),
                     Commands.waitSeconds(1),
@@ -503,12 +497,10 @@ public class Autos {
                     follow(paths, "Mid Depot to Intake Depot Side Second Blair"),
                     Commands.parallel(
                             turn(state),
-                            hoodAutoOverride(state, true),
                             shooter(state, Shooter.State.SHOOTING)),
                     shake(state, 11),
                     intake(state, Intake.State.IDLE),
                     Commands.waitSeconds(1),
-                    hoodAutoOverride(state, false),
                     shooter(state, Shooter.State.HUB_TRACKING)));
         }
     }
@@ -537,9 +529,7 @@ public class Autos {
                     follow(paths, "Mid HP to Intake HP Side Blair"),
                     Commands.parallel(
                             turn(state),
-                            hoodAutoOverride(state, true),
                             shooter(state, Shooter.State.SHOOTING)),
-                    hoodAutoOverride(state, false),
                     shake(state, 3.5),
                     intake(state, Intake.State.IDLE),
                     Commands.waitSeconds(0.5),
@@ -552,12 +542,10 @@ public class Autos {
                     follow(paths, "Mid HP to Intake HP Side Second Blair"),
                     Commands.parallel(
                             turn(state),
-                            hoodAutoOverride(state, true),
                             shooter(state, Shooter.State.SHOOTING)),
                     shake(state, 11.5),
                     intake(state, Intake.State.IDLE),
                     Commands.waitSeconds(0.5),
-                    hoodAutoOverride(state, false),
                     shooter(state, Shooter.State.HUB_TRACKING)));
         }
     }
@@ -585,11 +573,9 @@ public class Autos {
                     follow(paths, "Mid Depot to Intake Bump"),
                     Commands.parallel(
                             turn(state),
-                            hoodAutoOverride(state, true),
                             Commands.sequence(
                                     intake(state, Intake.State.IDLE),
                                     shooter(state, Shooter.State.SHOOTING))),
-                    hoodAutoOverride(state, false),
                     shake(state, 3),
                     intake(state, Intake.State.IDLE),
                     Commands.waitSeconds(1),
@@ -601,14 +587,12 @@ public class Autos {
                     follow(paths, "Mid Depot to Intake Bump"),
                     Commands.parallel(
                             turn(state),
-                            hoodAutoOverride(state, true),
                             Commands.sequence(
                                     intake(state, Intake.State.IDLE),
                                     shooter(state, Shooter.State.SHOOTING))),
                     shake(state, 11),
                     intake(state, Intake.State.IDLE),
                     Commands.waitSeconds(1),
-                    hoodAutoOverride(state, false),
                     shooter(state, Shooter.State.HUB_TRACKING)));
         }
     }

@@ -37,7 +37,6 @@ import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
@@ -59,7 +58,7 @@ import frc.robot.subsystems.shooter.Shooter;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.subsystems.vision.VisionConstants.FieldConstants;
-import frc.robot.subsystems.vision.VisionFieldPoseEstimate;
+import frc.robot.subsystems.vision.VisionMeasurement;
 import frc.robot.util.BallTargetFactory;
 import frc.robot.util.ConcurrentTimeInterpolatableBuffer;
 import frc.robot.util.CustomAutoBuilder;
@@ -123,7 +122,6 @@ public class RobotState extends StateMachine<RobotState.State> {
     private final FuelSim fuelSim = new FuelSim();
     private double simFuelCount = 8;
     private boolean climbZeroed;
-    private boolean visionDisabled;
 
     private final ConcurrentTimeInterpolatableBuffer<Pose2d> fieldToRobot =
             ConcurrentTimeInterpolatableBuffer.createBuffer(LOOKBACK_TIME);
@@ -318,7 +316,7 @@ public class RobotState extends StateMachine<RobotState.State> {
 
         driver.x()
                 .whileTrue(ActionCommands.goToFixedPosAndShoot(this))
-                .onFalse(Commands.runOnce(shooter::clearOverride));
+                .onFalse(Commands.runOnce(shooter::releaseShot));
         driver.b().whileTrue(ActionCommands.shakeIntake(this));
 
         driver.povLeft().onTrue(drive.transitionCommand(Drive.State.TRAVERSING_AT_ANGLE));
@@ -330,52 +328,52 @@ public class RobotState extends StateMachine<RobotState.State> {
         operator.leftStick().onTrue(Commands.runOnce(this::clearOverrides));
 
         bindOperator(operator.rightStick(),
-                () -> climb.setOverride(null),
+                climb::clearOverride,
                 () -> {
-                    hopper.setOverride(null);
-                    kicker.setOverride(null);
+                    hopper.clearOverride();
+                    kicker.clearOverride();
                 },
-                () -> intake.setOverride(null),
-                shooter::clearOverride);
+                intake::clearOverride,
+                shooter::releaseShot);
 
         bindOperator(operator.leftTrigger(0.5),
                 () -> {
-                    climb.setOverride(() -> {});
-                    CommandScheduler.getInstance().schedule(climb.zero());
+                    climb.clearOverride();
+                    climb.requestTransition(Climb.State.ZEROING);
                 },
                 () -> {
-                    hopper.setOverride(hopper::stop);
-                    kicker.setOverride(kicker::stop);
+                    hopper.setOverride(Hopper.State.IDLE);
+                    kicker.setOverride(Kicker.State.IDLE);
                 },
                 () -> intake.setOverride(intake::rollIn),
-                () -> shooter.setOverride(getCurrentHubSetpoint(), true));
+                () -> shooter.holdShot(getCurrentHubSetpoint(), true));
 
         bindOperator(operator.rightTrigger(0.5),
-                () -> climb.setOverride(climb::down),
+                () -> climb.setOverride(Climb.State.DOWN),
                 () -> {
-                    hopper.setOverride(hopper::stop);
-                    kicker.setOverride(kicker::stop);
+                    hopper.setOverride(Hopper.State.IDLE);
+                    kicker.setOverride(Kicker.State.IDLE);
                 },
                 () -> intake.setOverride(intake::rollOut),
-                () -> shooter.setOverride(getCurrentPassSetpoint(), true));
+                () -> shooter.holdShot(getCurrentPassSetpoint(), true));
 
         bindOperator(operator.leftBumper(),
-                () -> climb.setOverride(climb::up),
+                () -> climb.setOverride(Climb.State.UP),
                 () -> {
-                    hopper.setOverride(hopper::shoot);
-                    kicker.setOverride(kicker::shoot);
+                    hopper.setOverride(hopper::feed);
+                    kicker.setOverride(kicker::feed);
                 },
-                () -> intake.setOverride(intake::stow),
-                () -> shooter.setOverride(getCurrentHubSetpoint(), false));
+                () -> intake.setOverride(Intake.State.STOW),
+                () -> shooter.holdShot(getCurrentHubSetpoint(), false));
 
         bindOperator(operator.rightBumper(),
-                () -> climb.setOverride(climb::stow),
+                () -> climb.setOverride(Climb.State.STOW),
                 () -> {
-                    hopper.setOverride(hopper::outtake);
-                    kicker.setOverride(kicker::outtake);
+                    hopper.setOverride(Hopper.State.OUTAKE);
+                    kicker.setOverride(Kicker.State.OUTAKE);
                 },
-                () -> intake.setOverride(intake::intake),
-                () -> shooter.setOverride(getCurrentPassSetpoint(), false));
+                () -> intake.setOverride(Intake.State.INTAKE),
+                () -> shooter.holdShot(getCurrentPassSetpoint(), false));
     }
 
     private void bindOperator(Trigger button, Runnable climbAction, Runnable feedAction, Runnable intakeAction,
@@ -394,11 +392,11 @@ public class RobotState extends StateMachine<RobotState.State> {
     }
 
     private void clearOverrides() {
-        climb.setOverride(null);
-        hopper.setOverride(null);
-        kicker.setOverride(null);
-        intake.setOverride(null);
-        shooter.clearOverride();
+        climb.clearOverride();
+        hopper.clearOverride();
+        kicker.clearOverride();
+        intake.clearOverride();
+        shooter.releaseShot();
     }
 
     @Override
@@ -505,7 +503,6 @@ public class RobotState extends StateMachine<RobotState.State> {
         setState(State.TRAVERSING);
         drive.setFieldPoses("Auto Path", new ArrayList<>());
         drive.setFieldPoses();
-        shooter.getHood().setAutoOverride(false);
         zeroClimbOnce();
     }
 
@@ -525,7 +522,7 @@ public class RobotState extends StateMachine<RobotState.State> {
     private void zeroClimbOnce() {
         if (!climbZeroed) {
             climbZeroed = true;
-            CommandScheduler.getInstance().schedule(climb.zero());
+            climb.requestTransition(Climb.State.ZEROING);
         }
     }
 
@@ -599,18 +596,10 @@ public class RobotState extends StateMachine<RobotState.State> {
         fusedFieldRelativeChassisSpeeds.set(fusedFieldRelativeSpeeds);
     }
 
-    public void addVisionEstimate(VisionFieldPoseEstimate estimate) {
-        if (visionDisabled || Constants.kMode != Mode.REAL) {
-            return;
+    public void addVisionMeasurement(VisionMeasurement measurement) {
+        if (Constants.kMode == Mode.REAL) {
+            drive.addVisionMeasurement(measurement.robotPose(), measurement.timestamp(), measurement.stdDevs());
         }
-        drive.addVisionMeasurement(
-                estimate.getVisionRobotPoseMeters(),
-                estimate.getTimestampSeconds(),
-                estimate.getVisionMeasurementStdDevs());
-    }
-
-    public void disableVision() {
-        visionDisabled = true;
     }
 
     public Map.Entry<Double, Pose2d> getLatestFieldToRobot() {
