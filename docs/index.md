@@ -102,9 +102,10 @@ Three patterns shape almost every file:
 <h2 id="quick-tour">Quick tour</h2>
 
 <p>
-The same code runs two robots, picked at boot by roboRIO serial number
+The same code runs three robots, picked by <code>Constants.kRobot</code>
 (see <a href="{{ '/architecture/robots/' | relative_url }}">Multiple Robots</a>).
-The <strong>competition robot</strong> has six subsystems; the
+The <strong>competition robot</strong> has six subsystems, the
+<strong>Competition V2</strong> robot is the same robot on new swerve modules, and the
 <strong>practice robot</strong> is a drivetrain with no cameras.
 </p>
 

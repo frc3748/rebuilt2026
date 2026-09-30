@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 
 import edu.wpi.first.hal.HAL;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
-import frc.robot.robots.RobotType;
 import frc.robot.robots.practice.PracticeRobot;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.DriveConfig;
@@ -41,10 +40,5 @@ class PracticeRobotTest {
         assertEquals(DriveConfig.GyroType.NAVX, config.gyro);
         assertEquals(DriveConfig.TurnSensor.SPARK_ABSOLUTE_ENCODER, config.turnSensor);
         assertEquals(3.5, config.maxSpeedMetersPerSec);
-    }
-
-    @Test
-    void simulationRunsTheDefaultRobot() {
-        assertEquals(Constants.kDefaultRobot, RobotType.detect());
     }
 }

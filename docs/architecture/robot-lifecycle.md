@@ -34,7 +34,7 @@ AdvantageKit subclass that wraps the loop with input recording.
 
 The constructor:
 
-1. Calls `RobotType.detect()` to find out which robot it is running on. See [Multiple Robots]({{ '/architecture/robots/' | relative_url }}).
+1. Reads `Constants.kRobot` to know which robot it is running on. See [Multiple Robots]({{ '/architecture/robots/' | relative_url }}).
 2. Records `ROBOT`, `MODE` and `ROBOT_TYPE` metadata, adds `WPILOGWriter` (writes to USB on the roboRIO) and `NT4Publisher` (streams to AdvantageScope), disables REV's `StatusLogger` auto-logging, and starts the `Logger`.
 3. Constructs `new RobotState(robotType.create())` and registers it with the [`SubsystemManager`]({{ '/architecture/subsystem-manager/' | relative_url }}).
 

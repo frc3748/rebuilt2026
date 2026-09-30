@@ -119,7 +119,7 @@ For sim-only development you don't need a robot:
 4. WPILib pops up a dialog asking which Halsim extensions to enable. Tick **Sim GUI** and **DriverStation** (the one in the list is usually labelled `halsim_ds_socket`). **Sim GUI** alone is not enough — without DriverStation you can't enable the robot.
 5. Click OK. Two windows open: the Sim GUI (joystick mappings, field, modules) and the Driver Station.
 
-The simulator runs the robot named by `Constants.kDefaultRobot`
+The simulator runs the robot named by `Constants.kRobot`
 (`COMPETITION` by default). Change it to `RobotType.PRACTICE` to
 simulate the practice drivetrain. See
 [Multiple Robots]({{ '/architecture/robots/' | relative_url }}).

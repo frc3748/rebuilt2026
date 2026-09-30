@@ -13,7 +13,7 @@ public final class Constants {
     private static final Mode kSimMode = Mode.SIM;
     public static final Mode kMode = RobotBase.isReal() ? Mode.REAL : kSimMode;
 
-    public static final RobotType kDefaultRobot = RobotType.COMPETITION;
+    public static final RobotType kRobot = RobotType.COMPETITION;
 
     private Constants() {}
 }

@@ -33,15 +33,16 @@ frc/robot/
 ├── Robot.java                  ← Extends LoggedRobot; detects the robot, sets up logging and lifecycle hooks
 ├── RobotState.java             ← Top-level state machine; builds drive, vision and superstructure, holds pose history
 ├── Controls.java               ← Driver/operator controllers, shared drive bindings, rumble
-├── Constants.java              ← Mode (REAL / SIM / REPLAY) and kDefaultRobot
+├── Constants.java              ← Mode (REAL / SIM / REPLAY) and kRobot
 │
 ├── robots/                     ← Everything robot-specific (see Multiple Robots)
-│   ├── RobotType.java                ← COMPETITION, PRACTICE; roboRIO serial detection
+│   ├── RobotType.java                ← COMPETITION, COMPETITION_V2, PRACTICE
 │   ├── RobotDefinition.java          ← name(), drive(), cameras(), createSuperstructure()
 │   ├── Superstructure.java           ← subsystems(), autos(), bindControls(), simulationPeriodic()
 │   ├── competition/                  ← CompetitionRobot, CompetitionDrive, CompetitionSuperstructure,
 │   │   │                               ActionCommands
 │   │   └── autos/                    ← CompetitionAuto, one file per auto, CustomAuto
+│   ├── competitionv2/                ← CompetitionV2Robot, CompetitionV2Drive
 │   └── practice/                     ← PracticeRobot, PracticeDrive
 │
 ├── game/                       ← 2026-game code

@@ -14,7 +14,7 @@ when the shooter fires.
 
 ## Which robot?
 
-The simulator runs `Constants.kDefaultRobot` (see
+The simulator runs `Constants.kRobot` (see
 [Multiple Robots]({{ '/architecture/robots/' | relative_url }})). The
 practice robot simulates a drivetrain only.
 

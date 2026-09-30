@@ -16,7 +16,7 @@ Everything robot-specific lives in `frc.robot.robots`. Everything else
 
 ```
 robots/
-├── RobotType.java                  ← Enum of robots, picked by roboRIO serial number
+├── RobotType.java                  ← Enum of robots; Constants.kRobot picks one
 ├── RobotDefinition.java            ← What a robot is: name, drivetrain, cameras, superstructure
 ├── Superstructure.java             ← A robot's mechanisms, autos, and button bindings
 ├── competition/
@@ -33,41 +33,20 @@ robots/
     └── PracticeDrive.java              ← DriveConfig: NavX, Spark MAX drive, Spark absolute-encoder turn
 ```
 
-## Picking a robot at boot
+## Picking a robot
 
-`Robot`'s constructor asks `RobotType` which robot it is on and hands
-that robot's definition to `RobotState`:
-
-```java
-RobotType robotType = RobotType.detect();
-Logger.recordMetadata("ROBOT_TYPE", robotType.name());
-...
-robotState = new RobotState(robotType.create());
-```
-
-Each `RobotType` entry holds a factory and, optionally, the roboRIO
-serial numbers it runs on:
+One constant picks the robot, for deploying and for the simulator:
 
 ```java
-public enum RobotType {
-    COMPETITION(CompetitionRobot::new),
-    COMPETITION_V2(CompetitionV2Robot::new),
-    PRACTICE(PracticeRobot::new);
-    ...
-}
+public static final RobotType kRobot = RobotType.COMPETITION;
 ```
 
-`RobotType.detect()`:
+Change it to `COMPETITION_V2` or `PRACTICE` before deploying to that
+robot. `Robot`'s constructor hands that robot's definition to `RobotState`:
 
-- In simulation, returns `Constants.kDefaultRobot` (currently `COMPETITION`).
-- On a roboRIO, reads `RobotController.getSerialNumber()` and returns the entry that lists that serial.
-- If no entry matches, raises a warning `Alert` (`Unknown roboRIO serial …`) and returns `Constants.kDefaultRobot`.
-
-> **Serials aren't filled in yet.** No entry lists a serial, so
-> every roboRIO currently runs `kDefaultRobot` and shows the alert. Add
-> the practice roboRIO's serial to `PRACTICE` before deploying there.
-
-To run a different robot in the simulator, change `Constants.kDefaultRobot`.
+```java
+robotState = new RobotState(Constants.kRobot.create());
+```
 
 ## `RobotDefinition`
 
@@ -145,10 +124,8 @@ NEO/Vortex). It is not the main robot yet.
 When the new chassis becomes the main robot:
 
 1. Calibrate the module zero rotations and set them in `CompetitionV2Drive`.
-2. Add its roboRIO serial to `COMPETITION_V2` in `RobotType`.
-3. Set `Constants.kDefaultRobot = RobotType.COMPETITION_V2` so the
-   simulator and unknown roboRIOs run it.
-4. If the Limelights move, override `cameras()` in `CompetitionV2Robot`.
+2. Set `Constants.kRobot = RobotType.COMPETITION_V2`.
+3. If the Limelights move, override `cameras()` in `CompetitionV2Robot`.
 
 ## The practice robot
 
@@ -176,14 +153,8 @@ CAN IDs are on the [CAN ID Map]({{ '/reference/can-ids/' | relative_url }}#pract
    your `DriveConfig`, and its cameras (`new CameraConfig[0]` if none).
 4. **Optionally write a `Superstructure`** for the robot's mechanisms,
    autos and bindings, and return it from `createSuperstructure`.
-5. **Add a `RobotType` entry** with the roboRIO serial:
-
-   ```java
-   BETA(BetaRobot::new, "03264A7B")
-   ```
-
-   The serial is shown in the "Unknown roboRIO serial" alert the first
-   time you deploy.
+5. **Add a `RobotType` entry**, `BETA(BetaRobot::new)`, and set
+   `Constants.kRobot = RobotType.BETA` to run it.
 6. **Add a test** that boots it, like `PracticeRobotTest`:
 
    ```java
@@ -206,8 +177,7 @@ The mechanism classes in `subsystems/` can be reused, but their
   competition superstructure, autos and cameras, and drives on
   `CompetitionV2Drive`.
 - **`PracticeRobotTest`** checks that the practice robot boots with only
-  a drivetrain, uses its own `DriveConfig`, and that `RobotType.detect()`
-  returns `kDefaultRobot` in simulation.
+  a drivetrain and uses its own `DriveConfig`.
 
 `build.gradle` sets `forkEvery = 1` on the `test` task, so each test
 class boots its robot in a fresh JVM.

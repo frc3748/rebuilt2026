@@ -99,10 +99,10 @@ permalink: /reference/glossary/
 <dd>A translation + rotation. <code>Pose2d</code> is field-plane (x, y, yaw); <code>Pose3d</code> adds z, pitch, roll.</dd>
 
 <dt>roboRIO</dt>
-<dd>The NI single-board computer that runs the robot code. Its serial number tells the code which robot it is on.</dd>
+<dd>The NI single-board computer that runs the robot code.</dd>
 
 <dt>RobotDefinition / RobotType</dt>
-<dd>How one codebase runs several robots. A <code>RobotDefinition</code> describes one robot; <code>RobotType</code> lists them and picks one by roboRIO serial. See <a href="{{ '/architecture/robots/' | relative_url }}">Multiple Robots</a>.</dd>
+<dd>How one codebase runs several robots. A <code>RobotDefinition</code> describes one robot; <code>RobotType</code> lists them and <code>Constants.kRobot</code> picks one. See <a href="{{ '/architecture/robots/' | relative_url }}">Multiple Robots</a>.</dd>
 
 <dt>SendableChooser</dt>
 <dd>A WPILib widget that exposes a dropdown to the dashboard. Used for auto selection and per-subsystem state overrides.</dd>
