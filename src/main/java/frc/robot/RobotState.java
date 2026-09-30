@@ -18,6 +18,7 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.Constants.Mode;
+import frc.robot.commands.autos.Autos;
 import frc.robot.game.AllianceFlip;
 import frc.robot.game.BallTargetFactory;
 import frc.robot.game.DashboardManager;
@@ -26,7 +27,6 @@ import frc.robot.game.GameState;
 import frc.robot.game.PassTargetFactory;
 import frc.robot.game.ShooterSetpoint;
 import frc.robot.robots.RobotDefinition;
-import frc.robot.robots.Superstructure;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.subsystems.vision.VisionMeasurement;
@@ -86,10 +86,9 @@ public class RobotState extends StateMachine<RobotState.State> {
         drive = new Drive(definition.drive(), this);
         vision = new Vision(this, definition.cameras());
         superstructure = definition.createSuperstructure(this);
-        dashboard = new DashboardManager(this, gameState, definition.name(), superstructure.autos());
+        dashboard = new DashboardManager(this, gameState, definition.name(), Autos.all(this));
 
-        controls.bindDrive(drive);
-        superstructure.bindControls(controls);
+        controls.bind(this);
         new Trigger(gameState::isHubActive).onChange(controls.rumble(0.5));
         CameraServer.startAutomaticCapture();
 

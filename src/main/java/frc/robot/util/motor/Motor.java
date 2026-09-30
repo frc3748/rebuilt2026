@@ -34,7 +34,9 @@ public class Motor implements Hardware {
 
     private static MotorIO createIO(MotorConfig config) {
         return switch (Constants.kMode) {
-            case REAL -> new MotorIOSpark(config);
+            case REAL -> config.controller == MotorConfig.Controller.TALON_FX
+                    ? new MotorIOTalonFX(config)
+                    : new MotorIOSpark(config);
             case SIM -> new MotorIOSim(config);
             case REPLAY -> new MotorIO() {};
         };

@@ -28,8 +28,8 @@ import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.commands.autos.AutoRoutine;
+import frc.robot.commands.autos.Autos;
 import frc.robot.robots.competition.CompetitionRobot;
-import frc.robot.robots.competition.CompetitionSuperstructure;
 import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.shooter.Shooter;
 import frc.robot.subsystems.vision.Camera;
@@ -44,13 +44,13 @@ import frc.robot.subsystems.vision.VisionMeasurement;
 
 class CompetitionRobotTest {
     private static RobotState state;
-    private static CompetitionSuperstructure robot;
+    private static Superstructure robot;
 
     @BeforeAll
     static void setup() {
         assertTrue(HAL.initialize(500, 0));
         state = new RobotState(new CompetitionRobot());
-        robot = (CompetitionSuperstructure) state.getSuperstructure();
+        robot = state.getSuperstructure();
         loop(25);
     }
 
@@ -64,11 +64,13 @@ class CompetitionRobotTest {
 
     @Test
     void subsystemsFollowRequestedStates() {
-        robot.getShooter().requestTransition(Shooter.State.SHOOTING);
-        robot.getIntake().requestTransition(Intake.State.INTAKE);
+        Shooter shooter = robot.getShooter().orElseThrow();
+        Intake intake = robot.getIntake().orElseThrow();
+        shooter.requestTransition(Shooter.State.SHOOTING);
+        intake.requestTransition(Intake.State.INTAKE);
         loop(25);
-        assertEquals(Shooter.State.SHOOTING, robot.getShooter().getState());
-        assertEquals(Intake.State.INTAKE, robot.getIntake().getState());
+        assertEquals(Shooter.State.SHOOTING, shooter.getState());
+        assertEquals(Intake.State.INTAKE, intake.getState());
     }
 
     @Test
@@ -76,7 +78,7 @@ class CompetitionRobotTest {
         Set<String> pathFiles = Arrays.stream(new File(Filesystem.getDeployDirectory(), "pathplanner/paths").list())
                 .map(file -> file.replace(".path", ""))
                 .collect(Collectors.toSet());
-        List<AutoRoutine> autos = state.getSuperstructure().autos();
+        List<AutoRoutine> autos = Autos.all(state);
         assertEquals(15, autos.size());
         for (AutoRoutine auto : autos) {
             assertFalse(auto.build().getName().endsWith("(FAILED)"), auto.name());
@@ -88,7 +90,7 @@ class CompetitionRobotTest {
 
     @Test
     void overrideWinsOverRequestedStateUntilCleared() {
-        Intake intake = robot.getIntake();
+        Intake intake = robot.getIntake().orElseThrow();
         intake.setOverride(Intake.State.STOW);
         intake.requestTransition(Intake.State.OUTAKE);
         loop(25);

@@ -1,15 +1,14 @@
-package frc.robot.robots.competition.autos;
+package frc.robot.commands.autos;
 
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import frc.robot.robots.competition.CompetitionSuperstructure;
+import frc.robot.RobotState;
 import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.shooter.Shooter;
-import frc.robot.subsystems.shooter.flywheel.Flywheel;
 
-public class DepotSideBump extends CompetitionAuto {
-    public DepotSideBump(CompetitionSuperstructure robot) {
-        super(robot, "Depot Side Bump (GAME)",
+public class DepotSideBump extends PathAuto {
+    public DepotSideBump(RobotState state) {
+        super(state, "Depot Side Bump (GAME)",
                 "Start Depot to Intake Blair",
                 "Mid Depot to Intake Bump",
                 "Start Depot Side to Intake Bump Second");
@@ -23,7 +22,7 @@ public class DepotSideBump extends CompetitionAuto {
                 Commands.parallel(
                         follow("Start Depot to Intake Blair"),
                         Commands.sequence(Commands.waitSeconds(1.3), intake(Intake.State.INTAKE))),
-                flywheel(Flywheel.State.SHOOT),
+                spinUp(),
                 follow("Mid Depot to Intake Bump"),
                 Commands.parallel(
                         turn(),
@@ -37,7 +36,7 @@ public class DepotSideBump extends CompetitionAuto {
                 Commands.parallel(
                         follow("Start Depot Side to Intake Bump Second"),
                         Commands.sequence(Commands.waitSeconds(1.3), intake(Intake.State.INTAKE))),
-                flywheel(Flywheel.State.SHOOT),
+                spinUp(),
                 follow("Mid Depot to Intake Bump"),
                 Commands.parallel(
                         turn(),

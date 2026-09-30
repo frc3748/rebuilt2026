@@ -64,6 +64,9 @@ public class ModuleIOSpark implements ModuleIO {
         this.config = config;
         ModuleConstants module = config.module(index);
         boolean useCanCoder = config.turnSensor == TurnSensor.CANCODER;
+        if (config.driveController == Controller.TALON_FX) {
+            throw new IllegalArgumentException("ModuleIOSpark drives Spark motors; Kraken swerve needs its own ModuleIO");
+        }
 
         driveSpark = config.driveController == Controller.SPARK_FLEX
                 ? new SparkFlex(module.driveCanId(), MotorType.kBrushless)

@@ -1,4 +1,4 @@
-package frc.robot.robots.competition.autos;
+package frc.robot.commands.autos;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -14,9 +14,8 @@ import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.DeferredCommand;
-import frc.robot.commands.autos.AutoRoutine;
-import frc.robot.robots.competition.ActionCommands;
-import frc.robot.robots.competition.CompetitionSuperstructure;
+import frc.robot.RobotState;
+import frc.robot.commands.ActionCommands;
 
 public class CustomAuto extends AutoRoutine {
     private static final int kLanes = 10;
@@ -25,14 +24,14 @@ public class CustomAuto extends AutoRoutine {
 
     private final List<LoggedDashboardChooser<Supplier<Command>>> steps = new ArrayList<>();
 
-    public CustomAuto(CompetitionSuperstructure robot) {
+    public CustomAuto(RobotState state) {
         super("CUSTOM AUTO (GAME)");
         List<Method> actions = actions();
         for (int i = 0; i < kLanes * kStepsPerLane; i++) {
             LoggedDashboardChooser<Supplier<Command>> chooser = new LoggedDashboardChooser<>("Auto Parallel " + i);
             chooser.addDefaultOption("None", kNone);
             for (Method action : actions) {
-                chooser.addOption(action.getName(), () -> invoke(action, robot));
+                chooser.addOption(action.getName(), () -> invoke(action, state));
             }
             steps.add(chooser);
         }
@@ -62,14 +61,14 @@ public class CustomAuto extends AutoRoutine {
         return Arrays.stream(ActionCommands.class.getMethods())
                 .filter(method -> Modifier.isStatic(method.getModifiers()))
                 .filter(method -> method.getReturnType() == Command.class)
-                .filter(method -> Arrays.equals(method.getParameterTypes(), new Class<?>[] {CompetitionSuperstructure.class}))
+                .filter(method -> Arrays.equals(method.getParameterTypes(), new Class<?>[] {RobotState.class}))
                 .sorted(Comparator.comparing(Method::getName))
                 .toList();
     }
 
-    private static Command invoke(Method action, CompetitionSuperstructure robot) {
+    private static Command invoke(Method action, RobotState state) {
         try {
-            return (Command) action.invoke(null, robot);
+            return (Command) action.invoke(null, state);
         } catch (ReflectiveOperationException e) {
             return Commands.print("Custom auto step failed: " + action.getName());
         }

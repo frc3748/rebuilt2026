@@ -1,14 +1,14 @@
-package frc.robot.robots.competition.autos;
+package frc.robot.commands.autos;
 
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import frc.robot.robots.competition.CompetitionSuperstructure;
+import frc.robot.RobotState;
 import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.shooter.Shooter;
 
-public class DepotSideToDepot extends CompetitionAuto {
-    public DepotSideToDepot(CompetitionSuperstructure robot) {
-        super(robot, "Depot Side To Depot (GAME)",
+public class DepotSideToDepot extends PathAuto {
+    public DepotSideToDepot(RobotState state) {
+        super(state, "Depot Side To Depot (GAME)",
                 "Start Depot Side to Home Depot",
                 "Home Depot to Depot",
                 "Depot Intaking",

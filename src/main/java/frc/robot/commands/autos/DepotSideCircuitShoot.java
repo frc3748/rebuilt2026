@@ -1,14 +1,14 @@
-package frc.robot.robots.competition.autos;
+package frc.robot.commands.autos;
 
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import frc.robot.robots.competition.CompetitionSuperstructure;
+import frc.robot.RobotState;
 import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.shooter.Shooter;
 
-public class DepotSideCircuitShoot extends CompetitionAuto {
-    public DepotSideCircuitShoot(CompetitionSuperstructure robot) {
-        super(robot, "Depot Side Circut Shoot (GAME)",
+public class DepotSideCircuitShoot extends PathAuto {
+    public DepotSideCircuitShoot(RobotState state) {
+        super(state, "Depot Side Circut Shoot (GAME)",
                 "Start Depot Side to Mid Intake Circut",
                 "Start Depot Side to Mid Intake Circut Second");
     }

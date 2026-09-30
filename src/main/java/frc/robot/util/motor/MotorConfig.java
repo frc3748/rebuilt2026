@@ -7,7 +7,8 @@ import java.util.function.Consumer;
 public class MotorConfig {
     public enum Controller {
         SPARK_MAX,
-        SPARK_FLEX
+        SPARK_FLEX,
+        TALON_FX
     }
 
     public record Follower(int canId, boolean inverted) {}

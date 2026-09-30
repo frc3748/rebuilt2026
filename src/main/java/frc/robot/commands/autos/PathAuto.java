@@ -1,4 +1,4 @@
-package frc.robot.robots.competition.autos;
+package frc.robot.commands.autos;
 
 import java.util.Map;
 import java.util.Optional;
@@ -14,25 +14,26 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.DeferredCommand;
+import frc.robot.RobotState;
+import frc.robot.Superstructure;
+import frc.robot.commands.ActionCommands;
 import frc.robot.commands.AutoAlignToPoseCommand;
-import frc.robot.commands.autos.AutoRoutine;
 import frc.robot.game.AllianceFlip;
-import frc.robot.robots.competition.ActionCommands;
-import frc.robot.robots.competition.CompetitionSuperstructure;
 import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.shooter.Shooter;
-import frc.robot.subsystems.shooter.flywheel.Flywheel;
 import frc.robot.util.Elastic;
 import frc.robot.util.Elastic.Notification;
 import frc.robot.util.Elastic.NotificationLevel;
 
-public abstract class CompetitionAuto extends AutoRoutine {
-    protected final CompetitionSuperstructure robot;
+public abstract class PathAuto extends AutoRoutine {
+    protected final RobotState state;
+    private final Superstructure robot;
     private Map<String, PathPlannerPath> paths = Map.of();
 
-    protected CompetitionAuto(CompetitionSuperstructure robot, String name, String... pathNames) {
+    protected PathAuto(RobotState state, String name, String... pathNames) {
         super(name, pathNames);
-        this.robot = robot;
+        this.state = state;
+        robot = state.getSuperstructure();
     }
 
     protected abstract Command routine();
@@ -57,51 +58,51 @@ public abstract class CompetitionAuto extends AutoRoutine {
                     .withLevel(NotificationLevel.ERROR));
             return;
         }
-        robot.getDrive().setPose(AllianceFlip.forAlliance(start.get()));
+        state.getDrive().setPose(AllianceFlip.forAlliance(start.get()));
     }
 
     protected Command follow(String pathName) {
         return AutoBuilder.followPath(paths.get(pathName));
     }
 
-    protected Command intake(Intake.State state) {
-        return robot.getIntake().transitionCommand(state);
+    protected Command intake(Intake.State intakeState) {
+        return robot.intakeCommand(intake -> intake.transitionCommand(intakeState));
     }
 
-    protected Command shooter(Shooter.State state) {
-        return robot.getShooter().transitionCommand(state);
+    protected Command shooter(Shooter.State shooterState) {
+        return robot.shooterCommand(shooter -> shooter.transitionCommand(shooterState));
     }
 
-    protected Command flywheel(Flywheel.State state) {
-        return robot.getFlywheel().transitionCommand(state);
+    protected Command spinUp() {
+        return robot.shooterCommand(Shooter::spinUp);
     }
 
-    protected Command requestIntake(Intake.State state) {
-        return robot.getIntake().transitionCommand(state, false);
+    protected Command requestIntake(Intake.State intakeState) {
+        return robot.intakeCommand(intake -> intake.transitionCommand(intakeState, false));
     }
 
-    protected Command requestShooter(Shooter.State state) {
-        return robot.getShooter().transitionCommand(state, false);
+    protected Command requestShooter(Shooter.State shooterState) {
+        return robot.shooterCommand(shooter -> shooter.transitionCommand(shooterState, false));
     }
 
     protected Command shake(double seconds) {
-        return ActionCommands.shakeIntake(robot).withTimeout(seconds);
+        return Commands.waitSeconds(seconds).deadlineFor(ActionCommands.shakeIntake(state));
     }
 
     protected Command aim() {
-        return ActionCommands.aimAtHub(robot);
+        return ActionCommands.aimAtHub(state);
     }
 
     protected Command turn() {
-        return ActionCommands.turnToHub(robot);
+        return ActionCommands.turnToHub(state);
     }
 
     protected Command nudge(double metersForward) {
         return new DeferredCommand(() -> {
-            Pose2d target = robot.state().getLatestFieldToRobot().getValue()
+            Pose2d target = state.getLatestFieldToRobot().getValue()
                     .plus(new Transform2d(new Translation2d(metersForward, 0), new Rotation2d()));
-            return new AutoAlignToPoseCommand(robot.getDrive(), robot.state(), target, 1);
-        }, Set.of(robot.getDrive()));
+            return new AutoAlignToPoseCommand(state.getDrive(), state, target, 1);
+        }, Set.of(state.getDrive()));
     }
 
     protected Command shootFromStart(String startPath, double shakeSeconds) {

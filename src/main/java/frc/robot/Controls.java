@@ -8,13 +8,26 @@ import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.robot.commands.ActionCommands;
 import frc.robot.subsystems.drive.Drive;
+import frc.robot.subsystems.intake.Intake;
+import frc.robot.subsystems.shooter.Shooter;
 
 public class Controls {
     private final CommandXboxController driver = new CommandXboxController(0);
     private final CommandXboxController operator = new CommandXboxController(1);
 
-    public void bindDrive(Drive drive) {
+    public void bind(RobotState state) {
+        Superstructure robot = state.getSuperstructure();
+        bindDrive(state);
+        robot.getIntake().ifPresent(intake -> bindIntake(state, intake));
+        robot.getShooter().ifPresent(shooter -> bindShooter(state, shooter));
+        bindOperator(state, robot);
+    }
+
+    private void bindDrive(RobotState state) {
+        Drive drive = state.getDrive();
         if (DriverStation.getMatchType() == MatchType.None) {
             driver.povDown().onTrue(Commands.runOnce(
                     () -> drive.setPose(new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)), drive)
@@ -25,6 +38,74 @@ public class Controls {
                 .onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
         driver.povLeft().onTrue(drive.transitionCommand(Drive.State.TRAVERSING_AT_ANGLE));
         driver.povRight().onTrue(drive.transitionCommand(Drive.State.TRAVERSING));
+        driver.povUp().whileTrue(ActionCommands.turnToHub(state));
+    }
+
+    private void bindIntake(RobotState state, Intake intake) {
+        driver.leftTrigger(0.5)
+                .onTrue(intake.transitionCommand(Intake.State.INTAKE))
+                .onFalse(intake.transitionCommand(Intake.State.IDLE));
+        driver.leftBumper().onTrue(intake.transitionCommand(Intake.State.STOW));
+        driver.a()
+                .onTrue(Commands.runOnce(() -> intake.requestTransition(Intake.State.OUTAKE)))
+                .onFalse(Commands.runOnce(() -> intake.requestTransition(Intake.State.IDLE)));
+        driver.b().whileTrue(ActionCommands.shakeIntake(state));
+    }
+
+    private void bindShooter(RobotState state, Shooter shooter) {
+        Drive drive = state.getDrive();
+        driver.rightTrigger(0.5)
+                .onTrue(Commands.sequence(
+                        Commands.runOnce(drive::stopWithX),
+                        ActionCommands.shootOrPassBasedOnPos(state)))
+                .onFalse(ActionCommands.trackBasedOnPos(state));
+        driver.a()
+                .onTrue(Commands.runOnce(() -> shooter.requestTransition(Shooter.State.OUTTAKE)))
+                .onFalse(ActionCommands.trackBasedOnPos(state));
+        driver.x()
+                .whileTrue(ActionCommands.goToFixedPosAndShoot(state))
+                .onFalse(Commands.runOnce(shooter::releaseShot));
+    }
+
+    private void bindOperator(RobotState state, Superstructure robot) {
+        operator.leftStick().onTrue(Commands.runOnce(robot::clearOverrides));
+
+        bindChord(operator.rightStick(),
+                robot.shooterAction(Shooter::releaseFeed),
+                robot.intakeAction(Intake::clearOverride),
+                robot.shooterAction(Shooter::releaseShot));
+
+        bindChord(operator.leftTrigger(0.5),
+                robot.shooterAction(Shooter::stopFeed),
+                robot.intakeAction(intake -> intake.setOverride(intake::rollIn)),
+                robot.shooterAction(shooter -> shooter.holdShot(state.getCurrentHubSetpoint(), true)));
+
+        bindChord(operator.rightTrigger(0.5),
+                robot.shooterAction(Shooter::stopFeed),
+                robot.intakeAction(intake -> intake.setOverride(intake::rollOut)),
+                robot.shooterAction(shooter -> shooter.holdShot(state.getCurrentPassSetpoint(), true)));
+
+        bindChord(operator.leftBumper(),
+                robot.shooterAction(Shooter::forceFeed),
+                robot.intakeAction(intake -> intake.setOverride(Intake.State.STOW)),
+                robot.shooterAction(shooter -> shooter.holdShot(state.getCurrentHubSetpoint(), false)));
+
+        bindChord(operator.rightBumper(),
+                robot.shooterAction(Shooter::reverseFeed),
+                robot.intakeAction(intake -> intake.setOverride(Intake.State.INTAKE)),
+                robot.shooterAction(shooter -> shooter.holdShot(state.getCurrentPassSetpoint(), false)));
+    }
+
+    private void bindChord(Trigger button, Runnable feedAction, Runnable intakeAction, Runnable shooterAction) {
+        button.onTrue(Commands.runOnce(() -> {
+            if (operator.x().getAsBoolean()) {
+                feedAction.run();
+            } else if (operator.b().getAsBoolean()) {
+                intakeAction.run();
+            } else if (operator.a().getAsBoolean()) {
+                shooterAction.run();
+            }
+        }));
     }
 
     public Command rumble(double seconds) {

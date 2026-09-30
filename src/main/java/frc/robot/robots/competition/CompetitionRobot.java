@@ -9,9 +9,11 @@ import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
 import frc.robot.RobotState;
+import frc.robot.Superstructure;
 import frc.robot.robots.RobotDefinition;
-import frc.robot.robots.Superstructure;
 import frc.robot.subsystems.drive.DriveConfig;
+import frc.robot.subsystems.intake.IntakeCompetition;
+import frc.robot.subsystems.shooter.ShooterCompetition;
 import frc.robot.subsystems.vision.CameraConfig;
 
 public class CompetitionRobot implements RobotDefinition {
@@ -44,6 +46,8 @@ public class CompetitionRobot implements RobotDefinition {
 
     @Override
     public Superstructure createSuperstructure(RobotState state) {
-        return new CompetitionSuperstructure(state);
+        return new Superstructure(state)
+                .withShooter(new ShooterCompetition(state))
+                .withIntake(new IntakeCompetition(state));
     }
 }

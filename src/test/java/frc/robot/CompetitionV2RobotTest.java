@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 
 import edu.wpi.first.hal.HAL;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
-import frc.robot.robots.competition.CompetitionSuperstructure;
 import frc.robot.robots.competitionv2.CompetitionV2Drive;
 import frc.robot.robots.competitionv2.CompetitionV2Robot;
 import frc.robot.subsystems.drive.Drive;
@@ -29,9 +28,9 @@ class CompetitionV2RobotTest {
     }
 
     @Test
-    void reusesTheCompetitionMechanismsAndAutos() {
-        assertInstanceOf(CompetitionSuperstructure.class, state.getSuperstructure());
-        assertEquals(15, state.getSuperstructure().autos().size());
+    void reusesTheCompetitionMechanismsAndCameras() {
+        assertTrue(state.getSuperstructure().getShooter().isPresent());
+        assertTrue(state.getSuperstructure().getIntake().isPresent());
         assertEquals(2, state.getDefinition().cameras().length);
     }
 

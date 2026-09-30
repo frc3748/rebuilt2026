@@ -1,14 +1,14 @@
-package frc.robot.robots.competition.autos;
+package frc.robot.commands.autos;
 
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import frc.robot.robots.competition.CompetitionSuperstructure;
+import frc.robot.RobotState;
 import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.shooter.Shooter;
 
-public class DepotSideDepotMidHalfSweep extends CompetitionAuto {
-    public DepotSideDepotMidHalfSweep(CompetitionSuperstructure robot) {
-        super(robot, "Depot Side Depot Mid Half Sweep (GAME)",
+public class DepotSideDepotMidHalfSweep extends PathAuto {
+    public DepotSideDepotMidHalfSweep(RobotState state) {
+        super(state, "Depot Side Depot Mid Half Sweep (GAME)",
                 "Start Depot Side to Depot",
                 "Depot Intaking",
                 "Depot to Mid Under Trench",
