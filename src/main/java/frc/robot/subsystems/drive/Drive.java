@@ -389,7 +389,7 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
   }
 
   @AutoLogOutput(key = "SwerveChassisSpeeds/Measured")
-  private ChassisSpeeds getChassisSpeeds() {
+  public ChassisSpeeds getChassisSpeeds() {
     return kinematics.toChassisSpeeds(getModuleStates());
   }
 
@@ -416,6 +416,10 @@ public class Drive extends StateMachine<Drive.State> implements DriveIO {
 
   public Rotation2d getRotation() {
     return getPose().getRotation();
+  }
+
+  public Rotation2d getGyroRotation() {
+    return rawGyroRotation;
   }
 
   public void setPose(Pose2d pose) {

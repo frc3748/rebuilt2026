@@ -25,11 +25,11 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.subsystems.drive.Drive;
+import frc.robot.subsystems.drive.DriveConfig;
+import frc.robot.subsystems.drive.HeadingLock;
 
 public class DriveCommands {
     private static final double kDeadband = 0.1;
-    private static final double kAngleP = 8.0;
-    private static final double kAngleD = 0.0;
     private static final double kFeedforwardStartDelaySeconds = 2.0;
     private static final double kFeedforwardRampVoltsPerSecond = 0.1;
     private static final double kWheelRadiusMaxVelocity = 0.25;
@@ -57,19 +57,26 @@ public class DriveCommands {
             DoubleSupplier manualOmega,
             Supplier<Rotation2d> autoRotationGoal,
             Supplier<Drive.State> stateSupplier) {
+        DriveConfig config = drive.getConfig();
         ProfiledPIDController angleController = new ProfiledPIDController(
-                kAngleP, 0, kAngleD,
-                new TrapezoidProfile.Constraints(drive.getConfig().maxAngularSpeed(), drive.getConfig().maxAngularAcceleration()));
+                config.aimP, 0, config.aimD,
+                new TrapezoidProfile.Constraints(config.maxAngularSpeed(), config.maxAngularAcceleration()));
         angleController.enableContinuousInput(-Math.PI, Math.PI);
-        DogLog.tunable("Auto Turn", kAngleP, angleController::setP);
+        DogLog.tunable("Auto Turn", config.aimP, angleController::setP);
+        HeadingLock headingLock = new HeadingLock(
+                config, drive::getGyroRotation, () -> drive.getChassisSpeeds().omegaRadiansPerSecond);
 
         return Commands.run(() -> {
             double omega;
+            double raw = MathUtil.applyDeadband(manualOmega.getAsDouble(), kDeadband);
             if (stateSupplier.get() == Drive.State.TRAVERSING_AT_ANGLE) {
+                headingLock.release();
                 omega = angleController.calculate(drive.getRotation().getRadians(), autoRotationGoal.get().getRadians());
-            } else {
-                double raw = MathUtil.applyDeadband(manualOmega.getAsDouble(), kDeadband);
+            } else if (raw != 0.0) {
+                headingLock.release();
                 omega = Math.copySign(raw * raw, raw) * drive.getMaxAngularSpeedRadPerSec();
+            } else {
+                omega = headingLock.hold();
             }
 
             Translation2d linear = getLinearVelocityFromJoysticks(x.getAsDouble(), y.getAsDouble());
@@ -78,7 +85,10 @@ public class DriveCommands {
                     linear.getY() * drive.getMaxLinearSpeedMetersPerSec(),
                     omega);
             drive.runVelocity(ChassisSpeeds.fromFieldRelativeSpeeds(speeds, fieldHeading(drive)));
-        }, drive).beforeStarting(() -> angleController.reset(drive.getRotation().getRadians()));
+        }, drive).beforeStarting(() -> {
+            angleController.reset(drive.getRotation().getRadians());
+            headingLock.release();
+        });
     }
 
     public static Command feedforwardCharacterization(Drive drive) {

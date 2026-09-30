@@ -25,7 +25,8 @@ driver controller in `Controls`:
 
 - Left stick → field-relative translation. Deadband 0.1, squared, scaled to `drive.getMaxLinearSpeedMetersPerSec()` (the slow limit in `SLOW`).
 - Right stick X → rotation. Deadband 0.1, squared, scaled to `drive.getMaxAngularSpeedRadPerSec()`.
-- In `TRAVERSING_AT_ANGLE` (and `SLOW`, which maps to it), a profiled PID drives the heading to `autoRotationGoal` — `Drive#getAimRotationForHub()` — instead of the right stick. Its kP is tunable as `Auto Turn`.
+- Right stick inside the deadband → heading lock. `HeadingLock` captures the gyro heading (`Drive#getGyroRotation()`) once the measured yaw rate is below `headingLockCaptureRadPerSec`, then returns a PID correction toward it. Its kP is tunable as `Drive/Heading Lock kP`, and it logs `Drive/HeadingLock/Target` and `Drive/HeadingLock/ErrorDegrees`. Touching the stick, aiming, or restarting the command releases the lock.
+- In `TRAVERSING_AT_ANGLE` (and `SLOW`, which maps to it), a profiled PID drives the heading to `autoRotationGoal` — `Drive#getAimRotationForHub()` — instead of the right stick. Its gains are `aimP`/`aimD` in `DriveConfig`, and its kP is tunable as `Auto Turn`.
 - Field-relative frame flips 180° on the red alliance.
 
 ## Characterization

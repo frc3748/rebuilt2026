@@ -84,6 +84,13 @@ public class DriveConfig {
     public PathConstraints pathConstraints = new PathConstraints(
             4.8, 5.0, Units.degreesToRadians(360), Units.degreesToRadians(360));
 
+    public double aimP = 8.0;
+    public double aimD = 0.0;
+    public double headingLockP = 5.0;
+    public double headingLockD = 0.0;
+    public double headingLockToleranceRadians = Units.degreesToRadians(1);
+    public double headingLockCaptureRadPerSec = Units.degreesToRadians(10);
+
     public double driveToPointP = 4.0;
     public double driveToPointHeadingP = 3.0;
     public double metersTolerance = Units.inchesToMeters(1);

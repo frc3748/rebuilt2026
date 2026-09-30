@@ -50,6 +50,7 @@ subclasses it and overwrites fields in the constructor. `Drive`,
 | Gains | `driveKp`…`driveKv`, `driveSparkKv`, `turnKp`…`turnKv`, and the `…Sim…` gains for `ModuleIOSim` |
 | Limits | `maxSpeedMetersPerSec`, `slowSpeedMetersPerSec`, `maxLinearAcceleration`, current limits |
 | PathPlanner | `robotMassKg`, `robotMOI`, `wheelCOF`, `pathTranslationPid`, `pathRotationPid`, `pathConstraints` |
+| Heading | `aimP`, `aimD` (aiming in `TRAVERSING_AT_ANGLE`), `headingLockP`, `headingLockD`, `headingLockToleranceRadians`, `headingLockCaptureRadPerSec` |
 | Auto-align | `driveToPointP`, `driveToPointHeadingP`, and four tolerances |
 
 Helpers compute the rest: `moduleTranslations()`, `driveBaseRadius()`,
@@ -123,6 +124,7 @@ The default command is `DriveCommands.smartDrive(...)`:
 
 - Left stick → field-relative translation, squared, up to `getMaxLinearSpeedMetersPerSec()`.
 - Right stick X → rotation, squared.
+- Right stick released → `HeadingLock` holds the heading. It waits until the robot's yaw rate drops under `headingLockCaptureRadPerSec`, saves the gyro heading, and PID-corrects any drift back to it (errors under `headingLockToleranceRadians` are ignored). It follows the raw gyro, so pose resets and vision corrections don't move it.
 - In `TRAVERSING_AT_ANGLE` and `SLOW`, a profiled PID holds `getAimRotationForHub()` instead.
 
 The shared bindings (slow mode, aim, heading reset) are listed under
