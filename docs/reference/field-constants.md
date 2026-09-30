@@ -27,7 +27,7 @@ you'll reach for most often.
 | Tag size | Standard FRC 6.5″ |
 | Family | AprilTag 36h11 |
 
-The `kValidTagIds` list is what `VisionSubsystem` will accept. Tags
+The `kValidTagIds` list is what `Vision` will accept. Tags
 outside that list are silently rejected even if Limelight reports
 them — this rejects misidentified or invalid detections.
 

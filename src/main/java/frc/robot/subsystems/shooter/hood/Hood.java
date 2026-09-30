@@ -1,129 +1,99 @@
 package frc.robot.subsystems.shooter.hood;
 
-import java.util.function.Consumer;
-
 import org.littletonrobotics.junction.Logger;
 
-import dev.doglog.DogLog;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.WaitUntilCommand;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.RobotState;
 import frc.robot.subsystems.vision.VisionConstants;
+import frc.robot.util.ShooterSetpoint;
 import frc.robot.util.TrenchZone;
+import frc.robot.util.motor.Motor;
 import frc.robot.util.state.StateMachine;
 
 public class Hood extends StateMachine<Hood.State> {
     private final RobotState state;
-    private final HoodIO hoodIO;
-    private final HoodIOInputsAutoLogged inputs = new HoodIOInputsAutoLogged();
-    private double tunedSetpoint = 0.0;
-    private Consumer<Object> override;
-    private boolean autoOverride = false;
+    private final Motor hood = new Motor(HoodConstants.kHood);
+    private Runnable override;
+    private boolean autoOverride;
 
-
-
-    public Hood(HoodIO hoodIO, RobotState state) {
+    public Hood(RobotState state) {
         super("Hood", State.UNDETERMINED, State.class);
-
-        DogLog.tunable("Hood/Custom Setpoint", tunedSetpoint, newSetpoint -> tunedSetpoint = newSetpoint);
-
         this.state = state;
-        this.hoodIO = hoodIO;
-        registerStateTransitions();
-        registerStateCommands();
+
+        addOmniTransitions(State.IDLE, State.HUB_TRACKING, State.PASS_TRACKING, State.UNDETERMINED, State.TUNING);
+
+        SmartDashboard.putData("Hood Zero", Commands.runOnce(() -> hood.setEncoderPosition(HoodConstants.kMinLimit))
+                .ignoringDisable(true)
+                .withName("Hood Zero"));
         enable();
     }
 
-    public void registerStateTransitions() {
-        addOmniTransitions(State.IDLE, State.HUB_TRACKING, State.PASS_TRACKING, State.UNDETERMINED, State.TUNING);
-    }
+    @Override
+    protected void update() {
+        hood.update();
 
-    public void registerStateCommands() {
-
-    }
-
-    public void setPos(double position, double ff) {
-        if (TrenchZone.hoodLowerRequired(state) && position > HoodConstants.kHoodMaxSetpointUnderTrench) {
-            position = HoodConstants.kHoodMaxSetpointUnderTrench;
+        if (TrenchZone.hoodLowerRequired(state)
+                && hood.getPosition() > HoodConstants.kMaxSetpointUnderTrench
+                && !autoOverride) {
+            setPos(HoodConstants.kMaxSetpointUnderTrench, 0);
         }
 
-        hoodIO.setHoodPosition(position, ff);
+        if (override != null) {
+            override.run();
+        } else {
+            switch (getState()) {
+                case HUB_TRACKING -> aim(state.getCurrentHubSetpoint());
+                case PASS_TRACKING -> aim(state.getCurrentPassSetpoint());
+                case TUNING -> setPos(HoodConstants.kCustomSetpoint.get(), 0);
+                default -> stop();
+            }
+        }
+
+        Logger.recordOutput("Hood/Overriden", override != null);
+        Logger.recordOutput("Hood/Pose", new Pose3d()
+                .plus(VisionConstants.kShooterToRobotCenter)
+                .plus(HoodConstants.kShooterToHood)
+                .plus(new Transform3d(
+                        new Translation3d(),
+                        new Rotation3d(0, Units.degreesToRadians(-120) + hood.getPosition(), 0))));
+    }
+
+    public void aim(ShooterSetpoint setpoint) {
+        setPos(setpoint.getHoodRadians(), setpoint.getHoodFF());
+    }
+
+    public void setPos(double position, double feedforward) {
+        if (TrenchZone.hoodLowerRequired(state) && position > HoodConstants.kMaxSetpointUnderTrench) {
+            position = HoodConstants.kMaxSetpointUnderTrench;
+        }
+        hood.setPosition(position, feedforward);
     }
 
     public void stop() {
-        hoodIO.stopHood();
+        hood.stop();
     }
 
-    public Command waitForShootReady(double tolerance) {
-        return new WaitUntilCommand(() -> {
-            return Math.abs(state.getCurrentHubSetpoint().getHoodRadians() - hoodIO.getHoodPosition()) < tolerance;
-        });
-    }
-
-    public Command waitForPassReady(double tolerance) {
-        return new WaitUntilCommand(() -> {
-            return Math.abs(state.getCurrentPassSetpoint().getHoodRadians() - hoodIO.getHoodPosition()) < tolerance;
-        });
-    }
-
-    @Override
-    public void update() {
-        hoodIO.updateInputs(inputs);
-        Logger.processInputs("Hood", inputs);
-
-        { // HOOD POS SETTER
-
-            if (TrenchZone.hoodLowerRequired(state) && hoodIO.getHoodPosition() > HoodConstants.kHoodMaxSetpointUnderTrench && !autoOverride) {
-                setPos(HoodConstants.kHoodMaxSetpointUnderTrench, 0);
-            }
-
-            if (override != null) {
-                override.accept(null);
-            } else if (getState() == State.HUB_TRACKING) {
-                setPos(state.getCurrentHubSetpoint().getHoodRadians(), state.getCurrentHubSetpoint().getHoodFF());
-            } else if (getState() == State.PASS_TRACKING) {
-                setPos(state.getCurrentPassSetpoint().getHoodRadians(), state.getCurrentPassSetpoint().getHoodFF());
-            } else if (getState() == State.TUNING) {
-                setPos(tunedSetpoint, 0);
-            } else {
-                stop();
-            }
-        }
-
-        Logger.recordOutput("Hood/Pose",
-                new Pose3d()
-                        .plus(VisionConstants.kTurretToRobotCenter)
-                        .plus(new Transform3d(
-                                new Translation3d(),
-                                new Rotation3d(0, 0, state.getShooter().getTurret().getDesiredPos())))
-                        .plus(HoodConstants.turretToHood)
-                        .plus(new Transform3d(
-                                new Translation3d(),
-                                new Rotation3d(0, Units.degreesToRadians(-120) + inputs.desiredPos, 0))));
-        Logger.recordOutput("Hood/Overriden", override!=null);
-    }
-
-    @Override
-    public void determineSelf() {
-        setState(State.UNDETERMINED);
-    }
-
-    public void setOverride(Consumer<Object> override) {
+    public void setOverride(Runnable override) {
         this.override = override;
     }
 
-    public void setAutoOverride(boolean newOverride) {
-        autoOverride = newOverride;
+    public void setAutoOverride(boolean autoOverride) {
+        this.autoOverride = autoOverride;
+    }
+
+    @Override
+    protected void determineSelf() {
+        setState(State.UNDETERMINED);
     }
 
     public enum State {
         UNDETERMINED,
-
         IDLE,
         PASS_TRACKING,
         HUB_TRACKING,

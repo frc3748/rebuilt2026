@@ -9,21 +9,12 @@ import java.util.List;
 import edu.wpi.first.math.geometry.Translation3d;
 import frc.robot.subsystems.vision.VisionConstants;
 
-/**
- * Contains basic functions that are used often.
- */
 public class Util {
     public static final double kEpsilon = 1e-12;
 
-    /**
-     * Prevent this class from being instantiated.
-     */
     private Util() {
     }
 
-    /**
-     * Limits the given input to the given magnitude.
-     */
     public static double limit(double v, double maxMagnitude) {
         return limit(v, -maxMagnitude, maxMagnitude);
     }
@@ -40,9 +31,6 @@ public class Util {
         return inRange(v, -maxMagnitude, maxMagnitude);
     }
 
-    /**
-     * Checks if the given input is within the range (min, max), both exclusive.
-     */
     public static boolean inRange(double v, double min, double max) {
         return v > min && v < max;
     }

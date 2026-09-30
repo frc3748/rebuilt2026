@@ -38,7 +38,7 @@ public class MathHelpers {
 
         double segmentLengthSqr = segment.getX() * segment.getX() + segment.getY() * segment.getY();
 
-        if (segmentLengthSqr == 0.0) { // start and end are the same point
+        if (segmentLengthSqr == 0.0) {
             return 0.0;
         }
 
@@ -49,11 +49,11 @@ public class MathHelpers {
     public static double distanceToLineSegment(
             Translation2d query, Translation2d start, Translation2d end) {
         double t = reverseInterpolate(query, start, end);
-        if (t < 0.0) { // closest point is before start
+        if (t < 0.0) {
             return query.getDistance(start);
-        } else if (t > 1.0) { // closest point is after end
+        } else if (t > 1.0) {
             return query.getDistance(end);
-        } else { // closest point is within the segment
+        } else {
             Translation2d segment = end.minus(start);
             Translation2d closestPoint = start.plus(segment.times(t));
             return query.getDistance(closestPoint);

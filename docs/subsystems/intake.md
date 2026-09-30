@@ -51,10 +51,10 @@ The auto-behavior can be bypassed with an explicit operator request to
 
 ## Operator override
 
-A `Consumer<Intake>` slot lets operator code take direct control:
+A `Runnable` slot lets operator code take direct control:
 
 ```java
-intake.setOverride(i -> i.directVoltage(operatorAxis.getAsDouble()));
+intake.setOverride(intake::rollIn);
 ```
 
 While set, the override runs *instead of* the normal state command.

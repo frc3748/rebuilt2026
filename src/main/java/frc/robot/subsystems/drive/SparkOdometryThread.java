@@ -1,10 +1,3 @@
-// Copyright (c) 2021-2026 Littleton Robotics
-// http://github.com/Mechanical-Advantage
-//
-// Use of this source code is governed by a BSD
-// license that can be found in the LICENSE file
-// at the root directory of this project.
-
 package frc.robot.subsystems.drive;
 
 import com.revrobotics.REVLibError;
@@ -17,12 +10,6 @@ import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.function.DoubleSupplier;
 
-/**
- * Provides an interface for asynchronously reading high-frequency measurements to a set of queues.
- *
- * <p>This version includes an overload for Spark signals, which checks for errors to ensure that
- * all measurements in the sample are valid.
- */
 public class SparkOdometryThread {
   private final List<SparkBase> sparks = new ArrayList<>();
   private final List<DoubleSupplier> sparkSignals = new ArrayList<>();
@@ -51,7 +38,6 @@ public class SparkOdometryThread {
     }
   }
 
-  /** Registers a Spark signal to be read from the thread. */
   public Queue<Double> registerSignal(SparkBase spark, DoubleSupplier signal) {
     Queue<Double> queue = new ArrayBlockingQueue<>(20);
     Drive.odometryLock.lock();
@@ -65,7 +51,6 @@ public class SparkOdometryThread {
     return queue;
   }
 
-  /** Registers a generic signal to be read from the thread. */
   public Queue<Double> registerSignal(DoubleSupplier signal) {
     Queue<Double> queue = new ArrayBlockingQueue<>(20);
     Drive.odometryLock.lock();
@@ -78,7 +63,6 @@ public class SparkOdometryThread {
     return queue;
   }
 
-  /** Returns a new queue that returns timestamp values for each sample. */
   public Queue<Double> makeTimestampQueue() {
     Queue<Double> queue = new ArrayBlockingQueue<>(20);
     Drive.odometryLock.lock();
@@ -91,13 +75,10 @@ public class SparkOdometryThread {
   }
 
   private void run() {
-    // Save new data to queues
     Drive.odometryLock.lock();
     try {
-      // Get sample timestamp
       double timestamp = RobotController.getFPGATime() / 1e6;
 
-      // Read Spark values, mark invalid in case of error
       double[] sparkValues = new double[sparkSignals.size()];
       boolean isValid = true;
       for (int i = 0; i < sparkSignals.size(); i++) {
@@ -107,7 +88,6 @@ public class SparkOdometryThread {
         }
       }
 
-      // If valid, add values to queues
       if (isValid) {
         for (int i = 0; i < sparkSignals.size(); i++) {
           sparkQueues.get(i).offer(sparkValues[i]);

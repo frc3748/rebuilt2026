@@ -50,7 +50,7 @@ re-executes with identical inputs.
 
 Outputs (anything *computed*): poses, setpoints, error values,
 3D mechanism poses for AdvantageScope visualization. Convention: use
-the subsystem name as the prefix (`"Shooter/TurretAngle"`).
+the subsystem name as the prefix (`"Shooter/DistanceToTarget"`).
 
 ## DogLog
 
@@ -98,8 +98,8 @@ Bad candidates: anything that fires every loop.
 For AdvantageScope's 3D field view:
 
 - **Pose2d output keyed `"…/Pose"`** shows the robot on the 2D field.
-- **Pose3d arrays** show jointed mechanisms (climb, turret, hood).
-- The `TurretVisualizer` utility logs the turret + both Limelight
+- **Pose3d arrays** show jointed mechanisms (climb, intake, hood).
+- `ShotVisualizer` logs the predicted shot trajectory, and each `Camera` logs its own
   cameras as `Pose3d`s so you can verify your transforms are right.
 
 For SmartDashboard / Shuffleboard:

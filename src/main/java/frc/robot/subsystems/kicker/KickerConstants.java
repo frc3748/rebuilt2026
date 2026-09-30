@@ -1,32 +1,18 @@
 package frc.robot.subsystems.kicker;
 
-public class KickerConstants {
+import frc.robot.util.TunableNumber;
+import frc.robot.util.motor.MotorConfig;
+import frc.robot.util.motor.MotorConfig.Controller;
 
-    public static final int kKickerCanID = 42;
+public final class KickerConstants {
+    public static final MotorConfig kKicker = new MotorConfig("Kicker", 42, Controller.SPARK_MAX)
+            .currentLimit(40)
+            .conversion(1.0 / 3.0, 1.0 / 3.0 / 60.0)
+            .pid(0.025, 0, 0)
+            .maxMotion(100000, 100000, 0);
 
+    public static final TunableNumber kShootSpeed = new TunableNumber("Kicker/Shot Speed", -40);
+    public static final TunableNumber kOuttakeSpeed = new TunableNumber("Kicker/Outtake Speed", 30);
 
-    // Kicker PID
-    public static final double kKickerP = 0.025;
-    public static final double kKickerI = 0;
-    public static final double kKickerD = 0;
-    public static final double kKickerMaxAccel = 100000;
-    public static final double kKickerCruiseVel = 100000;
-    public static final double kKickerDeviationErr = 0;
-
-
-    // factors
-    public static final double kKickerPositionConversionFactor = 1.0/3.0;
-    public static final double kKickerVelocityConversionFactor = (1.0/3.0)/60.0;
-
-
-    // Configuration
-    public static final boolean kKickerinverted = false;
-    public static final int kKickerCurrentLimit = 40;
-
-
-    // setpoints
-    public static final double kKickerShootSpeed = -40;
-    public static final double kKickerOutakeSpeed = 30;
-    
-    
+    private KickerConstants() {}
 }

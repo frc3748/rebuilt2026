@@ -2,61 +2,47 @@ package frc.robot.util;
 
 import static edu.wpi.first.units.Units.Meters;
 
-import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.util.Units;
 import frc.robot.RobotState;
 import frc.robot.subsystems.vision.VisionConstants;
+import frc.robot.subsystems.vision.VisionConstants.FieldConstants;
 
 public class TrenchZone {
-
-    // meters
-    static double HOOD_LOWER_RADIUS = 0.8;
-    static double INTAKE_LOWER_RADIUS = 1.0;
-    
+    private static final double kHoodLowerRadius = 0.8;
+    private static final double kIntakeLowerRadius = 1.0;
 
     public static double getDistanceToClosestTrench(RobotState state) {
-        Pose2d robotPose = state.getLatestFieldToRobot().getValue();
-        Translation2d robotTranslation = robotPose.getTranslation();
+        Translation2d robot = state.getLatestFieldToRobot().getValue().getTranslation();
 
-        double bottomTrenchY = VisionConstants.FieldConstants.TRENCH_CENTER.in(Meters);
-        double topTrenchY = VisionConstants.FieldConstants.FIELD_WIDTH.in(Meters)
-                - VisionConstants.FieldConstants.TRENCH_CENTER.in(Meters);
+        double nearY = FieldConstants.TRENCH_CENTER.in(Meters);
+        double farY = FieldConstants.FIELD_WIDTH.in(Meters) - nearY;
+        double allianceX = FieldConstants.TRENCH_BUMP_X.in(Meters);
+        double opponentX = FieldConstants.FIELD_LENGTH.in(Meters) - allianceX;
 
-        double allianceTrenchXCenter = VisionConstants.FieldConstants.TRENCH_BUMP_X.in(Meters);
-        double opponentTrenchXCenter = VisionConstants.FieldConstants.FIELD_LENGTH.in(Meters)
-                - VisionConstants.FieldConstants.TRENCH_BUMP_X.in(Meters);
-
-        Translation2d[] trenchCenters = {
-                new Translation2d(allianceTrenchXCenter, bottomTrenchY),
-                new Translation2d(allianceTrenchXCenter, topTrenchY),
-                new Translation2d(opponentTrenchXCenter, bottomTrenchY),
-                new Translation2d(opponentTrenchXCenter, topTrenchY)
+        Translation2d[] trenches = {
+                new Translation2d(allianceX, nearY),
+                new Translation2d(allianceX, farY),
+                new Translation2d(opponentX, nearY),
+                new Translation2d(opponentX, farY)
         };
 
-        double minDistance = Double.MAX_VALUE;
-        for (Translation2d trenchPoint : trenchCenters) {
-            double distance = robotTranslation.getDistance(trenchPoint);
-            if (distance < minDistance) {
-                minDistance = distance;
-            }
+        double closest = Double.MAX_VALUE;
+        for (Translation2d trench : trenches) {
+            closest = Math.min(closest, robot.getDistance(trench));
         }
-
-        return minDistance;
+        return closest;
     }
 
     public static double getDistanceToClosestShootingPose(RobotState state) {
-        Pose2d robotPose = state.getLatestFieldToRobot().getValue();
-        Translation2d robotTranslation = robotPose.getTranslation().plus(VisionConstants.kTurretCameraToRobotCenter.getTranslation());
-
-        double blueHub = VisionConstants.kBlueHubPose.toTranslation2d().getDistance(robotTranslation);
-        double redHub = VisionConstants.kRedHubPose.toTranslation2d().getDistance(robotTranslation);
-
+        Translation2d shooter = state.getLatestFieldToRobot().getValue().getTranslation()
+                .plus(VisionConstants.kShooterToRobotCenter.getTranslation().toTranslation2d());
+        double blueHub = VisionConstants.kBlueHubPose.toTranslation2d().getDistance(shooter);
+        double redHub = VisionConstants.kRedHubPose.toTranslation2d().getDistance(shooter);
         return Math.min(blueHub, redHub);
     }
 
     public static boolean intakeLowerRequired(RobotState state) {
-        return getDistanceToClosestTrench(state) < INTAKE_LOWER_RADIUS;
+        return getDistanceToClosestTrench(state) < kIntakeLowerRadius;
     }
 
     public static boolean driveRotationOverrideRequired(RobotState state) {
@@ -64,7 +50,6 @@ public class TrenchZone {
     }
 
     public static boolean hoodLowerRequired(RobotState state) {
-        return getDistanceToClosestTrench(state) < HOOD_LOWER_RADIUS;
+        return getDistanceToClosestTrench(state) < kHoodLowerRadius;
     }
-
 }

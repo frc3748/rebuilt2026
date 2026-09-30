@@ -13,10 +13,8 @@ import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.subsystems.vision.VisionConstants.FieldConstants;
 
 public class PassTargetFactory {
-
-    // All are BLUE primary.
     final static double kFarWingX = VisionConstants.kFieldLengthMeters - Units.inchesToMeters(231.2);
-    final static double kFarWingPoopBuffer = Units.inchesToMeters(72); // popsitive = further away from driver
+    final static double kFarWingPoopBuffer = Units.inchesToMeters(72);
 
     final static double kLineDrivePoopHeight = Units.inchesToMeters(36.0);
 
@@ -25,7 +23,6 @@ public class PassTargetFactory {
 
     public static final Translation3d PASSING_SPOT_RIGHT = new Translation3d(
                 Inches.of(90), FieldConstants.FIELD_WIDTH.div(2).minus(Inches.of(85)), Meter.of(kLineDrivePoopHeight));
-
 
     public static Translation3d generate(RobotState robotState) {
         var fieldToRobot = robotState.getLatestFieldToRobot().getValue();

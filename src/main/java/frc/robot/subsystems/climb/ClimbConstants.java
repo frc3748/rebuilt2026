@@ -1,56 +1,33 @@
 package frc.robot.subsystems.climb;
 
-import edu.wpi.first.math.geometry.Pose3d;
-import edu.wpi.first.math.geometry.Rotation3d;
-import edu.wpi.first.math.geometry.Transform3d;
-import edu.wpi.first.math.geometry.Translation3d;
-import edu.wpi.first.math.util.Units;
+import frc.robot.util.TunableNumber;
+import frc.robot.util.motor.MotorConfig;
+import frc.robot.util.motor.MotorConfig.Controller;
 
-public class ClimbConstants {
+public final class ClimbConstants {
+    public static final int kCurrentLimit = 50;
 
-    public static final int kClimbCanID = 13;
+    public static final MotorConfig kClimb = new MotorConfig("Climb", 13, Controller.SPARK_FLEX)
+            .currentLimit(kCurrentLimit)
+            .conversion(1.0 / 16.0, 1.0 / 16.0 / 60.0)
+            .pid(20, 0, 0)
+            .maxMotion(4000, 7000, 0.05)
+            .slot1(gains -> {
+                gains.kP = 7;
+                gains.maxAccel = 600;
+                gains.cruiseVel = 600;
+            });
 
-    // Climb PID
-    public static final double kClimbP = 20;
-    public static final double kClimbI = 0;
-    public static final double kClimbD = 0;
+    public static final TunableNumber kStowSetpoint = new TunableNumber("Climb/Stow Setpoint", 0);
+    public static final TunableNumber kUpSetpoint = new TunableNumber("Climb/Up Setpoint", 4.1);
+    public static final TunableNumber kDownSetpoint = new TunableNumber("Climb/Down Setpoint", 1.5);
 
-    public static final double kClimbMaxAccel = 4000;
-    public static final double kClimbCruiseVel = 7000;
-    public static final double kClimbDeviationErr = 0.05;
+    public static final TunableNumber kZeroCurrentLimit = new TunableNumber("Climb/Lower Current Limit", 30);
+    public static final TunableNumber kZeroMotorOutput = new TunableNumber("Climb/Lower Motor Output", -0.08);
+    public static final TunableNumber kZeroCurrentThreshold = new TunableNumber("Climb/Zero Current Threshold", 30);
 
-    public static final double kClimbActionP = 7;
+    public static final int kLeftSensorId = 1;
+    public static final int kRightSensorId = 2;
 
-    public static final double kClimbActionMaxAccel = 600;
-    public static final double kClimbActionCruiseVel = 600;
-
-    public static final double kClimbSimP = 0.002;
-    public static final double kClimbSimD = 0;
-
-    public static final double kClimberBaseHeight = 0.4;
-
-    // factors
-    public static final double kClimbPositionConversionFactor = 1.0 / 16.0;
-    public static final double kClimbVelocityConversionFactor = (1.0 / 16.0) / 60.0;
-
-    // Configuration
-    public static final boolean kClimbinverted = false;
-    public static final int kClimbCurrentLimit = 50;
-
-    // setpoints
-    public static final double kClimbStowPos = 0;
-    public static final double kClimbUpPos = 4.1;
-    public static final double kClimbDownPos = 1.5;
-
-    public static final double kLowerCurrentLimit = 30;
-    public static final double kLowerMotorOutput = -0.08;
-    public static final double kZeroCurrentThreshold = 30;
-
-    public static final int kBeamBreakerIdOne = 1;
-    public static final int kBeamBreakerIdTwo = 2;
-
-
-    public static final Transform3d climbOrigin = new Transform3d(new Translation3d(
-        Units.inchesToMeters(0.938), Units.inchesToMeters(12.733), Units.inchesToMeters(1.621)
-    ), new Rotation3d());
+    private ClimbConstants() {}
 }

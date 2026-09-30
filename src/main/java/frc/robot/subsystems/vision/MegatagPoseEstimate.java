@@ -7,16 +7,6 @@ import frc.robot.util.MathHelpers;
 
 import java.nio.ByteBuffer;
 
-/**
- * Represents a robot pose estimate using multiple AprilTags (Megatag).
- *
- * @param fieldToRobot The estimated robot pose on the field
- * @param timestampSeconds The timestamp when this estimate was captured
- * @param latency Processing latency in seconds
- * @param avgTagArea Average area of detected tags
- * @param quality Quality score of the pose estimate (0-1)
- * @param fiducialIds IDs of fiducials used for this estimate
- */
 public record MegatagPoseEstimate(
         Pose2d fieldToRobot,
         double timestampSeconds,
@@ -25,7 +15,6 @@ public record MegatagPoseEstimate(
         double quality,
         int[] fiducialIds)
         {
-
     public MegatagPoseEstimate {
         if (fieldToRobot == null) {
             fieldToRobot = MathHelpers.kPose2dZero;
@@ -35,7 +24,6 @@ public record MegatagPoseEstimate(
         }
     }
 
-    /** Converts a Limelight pose estimate to a MegatagPoseEstimate. */
     public static MegatagPoseEstimate fromLimelight(LimelightHelpers.PoseEstimate poseEstimate) {
         Pose2d fieldToRobot = poseEstimate.pose;
         if (fieldToRobot == null) {
@@ -59,7 +47,6 @@ public record MegatagPoseEstimate(
     public static final MegatagPoseEstimateStruct struct = new MegatagPoseEstimateStruct();
 
     public static class MegatagPoseEstimateStruct implements Struct<MegatagPoseEstimate> {
-
         @Override
         public Class<MegatagPoseEstimate> getTypeClass() {
             return MegatagPoseEstimate.class;

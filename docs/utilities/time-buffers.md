@@ -24,7 +24,7 @@ control loop:
    for ~20 ms, and arrives at `t + 20ms`. To fuse it correctly, you
    need the robot pose at `t`, not the pose at `t + 20ms`.
 2. **Aiming a moving robot.** The shot is fired at time `t + release`.
-   To aim correctly, the turret needs the pose at `t + release`, not
+   To aim correctly, the shooter needs the pose at `t + release`, not
    the pose now.
 
 Both reduce to: *given a timestamp, what was/will be the value?* The
@@ -48,12 +48,11 @@ WPILib already provides interpolation for).
 
 ## Used by `RobotState`
 
-Three buffers live in
+Two kinds of buffer live in
 [`RobotState`]({{ '/architecture/robot-state/' | relative_url }}):
 
 ```java
 ConcurrentTimeInterpolatableBuffer<Pose2d>           fieldToRobotBuffer;
-ConcurrentTimeInterpolatableBuffer<Rotation2d>       turretAngleBuffer;
 ConcurrentTimeInterpolatableBuffer<ChassisSpeeds>    driveSpeedsBuffer;
 ```
 
@@ -65,7 +64,7 @@ from the relevant subsystem is added. Consumers query by timestamp.
 ### Vision fusion at capture time
 
 ```java
-// In VisionSubsystem
+// In Camera
 double captureTime = limelight.getCaptureTimestamp();
 Pose2d odoPoseAtCapture = robotState.getFieldToRobotAtTime(captureTime);
 // Fuse vision pose with odoPoseAtCapture as the reference frame.
@@ -81,16 +80,6 @@ Pose2d predictedPose = robotState.getPredictedFieldToRobot(releaseTime);
 
 Prediction uses the latest pose plus the latest `ChassisSpeeds`
 integrated forward.
-
-### Correct turret yaw against the camera
-
-```java
-Rotation2d turretAtCapture = robotState.getTurretAngleBuffer()
-                                       .getSample(captureTime);
-Rotation2d turretNow       = turret.getAngle();
-Rotation2d delta            = turretNow.minus(turretAtCapture);
-// Adjust the vision-reported target angle by delta.
-```
 
 ## Implementation notes
 

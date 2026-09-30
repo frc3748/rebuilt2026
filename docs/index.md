@@ -10,7 +10,7 @@ description: The 2026 robot code for FRC Team 3748 — a state-machine driven, h
   <h1>Rebuilt&nbsp;2026</h1>
   <p class="lede">
     A hardware-abstracted, state-machine driven Java codebase for FRC.
-    Swerve drive, vision-fused odometry, a turreted shooter, automatic
+    Swerve drive, vision-fused odometry, a fixed shooter, automatic
     pathing, and a tunable simulator — all logged through AdvantageKit.
   </p>
   <div class="hero-actions">
@@ -47,7 +47,7 @@ description: The 2026 robot code for FRC Team 3748 — a state-machine driven, h
   </a>
   <a class="card" href="{{ '/subsystems/shooter/' | relative_url }}">
     <h3>Shooter</h3>
-    <p>Turret, hood, and flywheel — a child-subsystem composite.</p>
+    <p>Hood and flywheel — a child-subsystem composite.</p>
   </a>
   <a class="card" href="{{ '/subsystems/vision/' | relative_url }}">
     <h3>Vision</h3>
@@ -103,8 +103,8 @@ Three patterns shape almost every file:
 <thead><tr><th>Subsystem</th><th>What it does</th></tr></thead>
 <tbody>
 <tr><td><a href="{{ '/subsystems/drive/' | relative_url }}">Drive</a></td><td>Four swerve modules, 28″×28″, max ~5.27 m/s.</td></tr>
-<tr><td><a href="{{ '/subsystems/vision/' | relative_url }}">Vision</a></td><td>Turret + chassis Limelights, Megatag2 pose fusion.</td></tr>
-<tr><td><a href="{{ '/subsystems/shooter/' | relative_url }}">Shooter</a></td><td>Composite of turret, hood, and flywheel.</td></tr>
+<tr><td><a href="{{ '/subsystems/vision/' | relative_url }}">Vision</a></td><td>Any number of cameras, each a config plus an IO.</td></tr>
+<tr><td><a href="{{ '/subsystems/shooter/' | relative_url }}">Shooter</a></td><td>Composite of hood and flywheel; the drive aims the robot.</td></tr>
 <tr><td><a href="{{ '/subsystems/intake/' | relative_url }}">Intake</a></td><td>Pivoting arm that pulls game pieces from the floor.</td></tr>
 <tr><td><a href="{{ '/subsystems/hopper/' | relative_url }}">Hopper</a></td><td>Carries pieces from intake to shooter; jam-aware.</td></tr>
 <tr><td><a href="{{ '/subsystems/kicker/' | relative_url }}">Kicker</a></td><td>Pushes the piece the final inch into the flywheel.</td></tr>

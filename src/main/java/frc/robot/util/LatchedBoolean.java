@@ -1,11 +1,5 @@
 package frc.robot.util;
 
-/**
- * An iterative boolean latch.
- * <p>
- * Returns true once if and only if the value of newValue changes from false to
- * true.
- */
 public class LatchedBoolean {
     private boolean mLast = false;
 

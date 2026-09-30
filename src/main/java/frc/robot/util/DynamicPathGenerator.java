@@ -17,8 +17,6 @@ import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.subsystems.drive.DriveConstants;
 
 public class DynamicPathGenerator {
-    
-
     private static PathConstraints getConstraints(boolean f) {
         return DriveConstants.pathConstraint;
     }
@@ -36,13 +34,7 @@ public class DynamicPathGenerator {
     }
 
     public static Command pathfindAuto(Pose2d desiredPose, Optional<PathConstraints> constraint) {
-        // boolean isRed = DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red;
-
-        // if (isRed) {
-        //     return AutoBuilder.pathfindToPoseFlipped(desiredPose, pathConstraints);
-        // } else {
             return AutoBuilder.pathfindToPose(desiredPose, getConstraints(constraint));
-        // }
     }
 
     public static Command pathfindAuto(Pose2d desiredPose) {

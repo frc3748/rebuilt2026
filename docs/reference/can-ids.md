@@ -40,7 +40,6 @@ CTRE bus, so no conflict.
 | Flywheel master | (see `FlywheelConstants`) | `FlywheelConstants` |
 | Flywheel follower | (see `FlywheelConstants`) | `FlywheelConstants` |
 | Hood motor | (see `HoodConstants`) | `HoodConstants` |
-| Turret motor | (see `TurretConstants`) | `TurretConstants` |
 
 ## Intake / Hopper / Kicker
 

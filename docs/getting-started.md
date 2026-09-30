@@ -202,7 +202,6 @@ mapping for our asset bundle:
 | Hopper | `NT/AdvantageKit/RealOutputs/Hopper/Roller` | One `Pose3d` for the conveyor angle. |
 | Kicker | `NT/AdvantageKit/RealOutputs/Kicker/ComponentPose` | One `Pose3d`. |
 | Climb | `NT/AdvantageKit/RealOutputs/Climb/ComponentPoses` | Array of `Pose3d` for the two elevator stages. |
-| Turret | `NT/AdvantageKit/RealOutputs/Shooter/Turret/ComponentPose` | One `Pose3d`. |
 | Hood | `NT/AdvantageKit/RealOutputs/Shooter/Hood/ComponentPose` | One `Pose3d`. |
 | Flywheel (cosmetic spin) | `NT/AdvantageKit/RealOutputs/Shooter/Flywheel/ComponentPose` | One `Pose3d`. |
 | Game pieces (fuel) | `NT/AdvantageKit/RealOutputs/MapleSim/Fuel` | Array of `Pose3d` — already logged by `MapleSimPhysics`. |

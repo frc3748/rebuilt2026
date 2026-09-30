@@ -102,7 +102,7 @@ selected command runs in `autonomousInit()`.
 
 `RobotState` maintains
 [`ConcurrentTimeInterpolatableBuffer`]({{ '/utilities/time-buffers/' | relative_url }})
-instances for pose, turret angle, and drive velocity history. These
+instances for pose and drive velocity history. These
 buffers let the shooter aim at where the target *was* when a vision
 frame was taken, not where the camera currently points.
 

@@ -57,7 +57,7 @@ permalink: /reference/glossary/
 <dd>The interface-based hardware abstraction pattern used throughout the codebase. See <a href="{{ '/architecture/io-pattern/' | relative_url }}">The IO Layer Pattern</a>.</dd>
 
 <dt>Limelight</dt>
-<dd>A networked camera with built-in AprilTag detection. The robot has two — one on the turret, one on the chassis.</dd>
+<dd>A networked camera with built-in AprilTag detection. The robot has two — one on the fixed shooter, one on the chassis.</dd>
 
 <dt>LimelightHelpers</dt>
 <dd>A small NetworkTables wrapper that exposes Limelight reads as Java methods. Lives in <code>util/</code>.</dd>

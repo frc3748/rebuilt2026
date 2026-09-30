@@ -93,5 +93,5 @@ bugs.
 - **Intake never sees a piece.** Intake geometry isn't registered, or
   the bounding volume is wrong. Check `FuelSim.registerIntakeGeometry`
   args.
-- **Shots always miss.** Verify the turret-to-robot transform matches
+- **Shots always miss.** Verify `kShooterToRobotCenter` matches
   what real hardware uses — the sim uses the same `VisionConstants`.

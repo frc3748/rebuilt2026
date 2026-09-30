@@ -1,71 +1,60 @@
 package frc.robot.subsystems.kicker;
 
-import java.util.function.Consumer;
-
 import org.littletonrobotics.junction.Logger;
 
-import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.RobotState;
-import frc.robot.util.GetTuned;
+import frc.robot.util.motor.Motor;
 import frc.robot.util.state.StateMachine;
 
-public class Kicker extends StateMachine<Kicker.State> implements KickerIO {
-
+public class Kicker extends StateMachine<Kicker.State> {
     private final RobotState state;
-    private final KickerIO kickerIO;
-    private final KickerIOInputsAutoLogged inputs = new KickerIOInputsAutoLogged();
+    private final Motor kicker = new Motor(KickerConstants.kKicker);
+    private Runnable override;
 
-    private Consumer<Object> override;
-
-    public Kicker(KickerIO kickerIO, RobotState state) {
+    public Kicker(RobotState state) {
         super("Kicker", State.UNDETERMINED, State.class);
-        this.kickerIO = kickerIO;
         this.state = state;
-        registerStateTransitions();
-        registerStateCommands();
+        addOmniTransitions(State.UNDETERMINED, State.IDLE, State.SHOOT, State.OUTAKE);
         enable();
     }
 
     @Override
-    public void update() {
-        kickerIO.updateInputs(inputs);
-        Logger.processInputs("Kicker", inputs);
+    protected void update() {
+        kicker.update();
 
         if (override != null) {
-            override.accept(null);
-        } else if (getState() == State.SHOOT) {
-            if (state.getShooter().getFlywheel().isReady()) { // && state.getShooter().getTurret().isReady()) {
-                shoot();
-            } else {
-                stop();
-            }
-        } else if (getState() == State.OUTAKE) {
-            outtake();
+            override.run();
         } else {
-            stop();
+            switch (getState()) {
+                case SHOOT -> {
+                    if (state.getShooter().isReady()) {
+                        shoot();
+                    } else {
+                        stop();
+                    }
+                }
+                case OUTAKE -> outtake();
+                default -> stop();
+            }
         }
 
         Logger.recordOutput("Kicker/Overriden", override != null);
     }
 
     public void shoot() {
-        kickerIO.setKickerSpeed(GetTuned.getNumber("Kicker/Shot Speed", KickerConstants.kKickerShootSpeed));
-
+        kicker.setVelocity(KickerConstants.kShootSpeed.get());
     }
 
     public void outtake() {
-        kickerIO.setKickerSpeed(GetTuned.getNumber("Kicker/Outtake Speed", KickerConstants.kKickerOutakeSpeed));
+        kicker.setVelocity(KickerConstants.kOuttakeSpeed.get());
     }
 
     public void stop() {
-        kickerIO.setKickerSpeed(0);
+        kicker.setVelocity(0);
     }
 
-    private void registerStateTransitions() {
-        addOmniTransitions(State.UNDETERMINED, State.IDLE, State.SHOOT, State.OUTAKE);
-    }
-
-    private void registerStateCommands() {
+    public void setOverride(Runnable override) {
+        this.override = override;
     }
 
     @Override
@@ -73,19 +62,10 @@ public class Kicker extends StateMachine<Kicker.State> implements KickerIO {
         setState(State.IDLE);
     }
 
-    public void setOverride(Consumer<Object> override) {
-        this.override = override;
-    }
-
     public enum State {
         UNDETERMINED,
-
         IDLE,
         SHOOT,
         OUTAKE
-
-        // flags
-
     }
-
 }

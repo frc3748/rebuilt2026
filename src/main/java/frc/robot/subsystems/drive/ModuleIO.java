@@ -1,10 +1,3 @@
-// Copyright (c) 2021-2026 Littleton Robotics
-// http://github.com/Mechanical-Advantage
-//
-// Use of this source code is governed by a BSD
-// license that can be found in the LICENSE file
-// at the root directory of this project.
-
 package frc.robot.subsystems.drive;
 
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -31,18 +24,13 @@ public interface ModuleIO {
     public Rotation2d[] odometryTurnPositions = new Rotation2d[] {};
   }
 
-  /** Updates the set of loggable inputs. */
   public default void updateInputs(ModuleIOInputs inputs) {}
 
-  /** Run the drive motor at the specified open loop value. */
   public default void setDriveOpenLoop(double output) {}
 
-  /** Run the turn motor at the specified open loop value. */
   public default void setTurnOpenLoop(double output) {}
 
-  /** Run the drive motor at the specified velocity. */
   public default void setDriveVelocity(double velocityRadPerSec) {}
 
-  /** Run the turn motor to the specified rotation. */
   public default void setTurnPosition(Rotation2d rotation) {}
 }

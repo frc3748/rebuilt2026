@@ -80,7 +80,7 @@ A WPILib `SwerveDrivePoseEstimator` fuses three inputs:
 1. **Module odometry** — every loop, the 250 Hz samples are batched
    and replayed in time order.
 2. **Vision** — `Drive#addVisionMeasurement(Pose2d, double timestamp,
-   Matrix stdDevs)` is called by `VisionSubsystem` whenever a Megatag
+   Matrix stdDevs)` is called by `Vision` whenever a Megatag
    estimate arrives.
 3. **Gyro** — the Pigeon 2 yaw provides absolute heading reference.
 
@@ -119,7 +119,7 @@ state.
 ```java
 Pose2d getPose();
 void   setPose(Pose2d pose);                            // teleport — usually only auto init
-void   addVisionMeasurement(Pose2d, double t, Matrix);  // from VisionSubsystem
+void   addVisionMeasurement(Pose2d, double t, Matrix);  // from Vision
 void   runSetpoint(ChassisSpeeds speeds);               // field-relative
 void   runCharacterization(double volts);               // for SysId
 Rotation2d getAimRotationForHub();                      // shortest-path heading toward hub

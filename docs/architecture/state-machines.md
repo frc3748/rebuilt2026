@@ -128,13 +128,13 @@ just doesn't happen. You'll see the rejected request in the log.
 ## Hierarchical composition
 
 The shooter is the showcase example. `Shooter` extends `StateMachine<Shooter.State>`
-and owns three child machines: `Turret`, `Hood`, `Flywheel`. Each
+and owns two child machines: `Hood` and `Flywheel`. Each
 child is added with `addChildSubsystem()`. When `Shooter` enters
 `HUB_TRACKING`, its state command requests `HUB_TRACKING` on each
 child. Each child runs its own state command independently.
 
 This means the shooter's state machine doesn't have to know about
-turret PID — it just orchestrates intent.
+hood PID — it just orchestrates intent.
 
 ## Logging
 

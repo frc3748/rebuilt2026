@@ -31,7 +31,7 @@ double       distanceTo(Pose2d a, Pose2d b);
 Rotation2d   angleTo(Pose2d from, Translation2d target);
 ```
 
-The 2D ↔ 3D helpers are used heavily by vision and turret math because
+The 2D ↔ 3D helpers are used heavily by vision and shot math because
 shooting is inherently 3D but the drive lives in 2D.
 
 ## `MathHelpers`

@@ -47,7 +47,7 @@ through.
 ## Coordination with the shooter
 
 `Hopper` doesn't decide when to shoot — it just exposes the `SHOOT`
-state. The `Shooter` parent enters `SHOOTING` only once turret, hood,
+state. The `Shooter` parent enters `SHOOTING` only once hood
 and flywheel report ready, *then* requests `Hopper.SHOOT`. The two
 machines run independently and the parent orchestrates the timing.
 

@@ -12,29 +12,27 @@ import frc.robot.subsystems.vision.VisionConstants;
 import org.littletonrobotics.junction.Logger;
 
 public class BallTargetFactory {
-
     static InterpolatingTreeMap<Double, Double> heightMap = new InterpolatingTreeMap<Double, Double>(
             InverseInterpolator.forDouble(), Interpolator.forDouble());
-    static { // TODO fix (distance meters, vertical offsetMeters)
-        double scale = 0.5; // scaling factor to raise shot to hub height
+    static {
+        double scale = 0.5;
 
-        heightMap.put(5.34, 5.34 * Math.tan(Math.toRadians(27)) * scale); // ~3.82
-        heightMap.put(4.90, 4.90 * Math.tan(Math.toRadians(26)) * scale); // ~3.35
-        heightMap.put(4.44, 4.44 * Math.tan(Math.toRadians(25.5)) * scale); // ~2.97
-        heightMap.put(4.05, 4.05 * Math.tan(Math.toRadians(25)) * scale); // ~2.65
-        heightMap.put(3.74, 3.74 * Math.tan(Math.toRadians(24)) * scale); // ~2.34
-        heightMap.put(3.42, 3.42 * Math.tan(Math.toRadians(23)) * scale); // ~2.03
-        heightMap.put(3.06, 3.06 * Math.tan(Math.toRadians(22)) * scale); // ~1.74
-        heightMap.put(2.73, 2.73 * Math.tan(Math.toRadians(20.5)) * scale); // ~1.43
-        heightMap.put(2.45, 2.45 * Math.tan(Math.toRadians(19.5)) * scale); // ~1.22
-        heightMap.put(2.14, 2.14 * Math.tan(Math.toRadians(18)) * scale); // ~0.98
-        heightMap.put(1.86, 1.86 * Math.tan(Math.toRadians(17)) * scale); // ~0.80
-        heightMap.put(1.55, 1.55 * Math.tan(Math.toRadians(15)) * scale); // ~0.58
-
+        heightMap.put(5.34, 5.34 * Math.tan(Math.toRadians(27)) * scale);
+        heightMap.put(4.90, 4.90 * Math.tan(Math.toRadians(26)) * scale);
+        heightMap.put(4.44, 4.44 * Math.tan(Math.toRadians(25.5)) * scale);
+        heightMap.put(4.05, 4.05 * Math.tan(Math.toRadians(25)) * scale);
+        heightMap.put(3.74, 3.74 * Math.tan(Math.toRadians(24)) * scale);
+        heightMap.put(3.42, 3.42 * Math.tan(Math.toRadians(23)) * scale);
+        heightMap.put(3.06, 3.06 * Math.tan(Math.toRadians(22)) * scale);
+        heightMap.put(2.73, 2.73 * Math.tan(Math.toRadians(20.5)) * scale);
+        heightMap.put(2.45, 2.45 * Math.tan(Math.toRadians(19.5)) * scale);
+        heightMap.put(2.14, 2.14 * Math.tan(Math.toRadians(18)) * scale);
+        heightMap.put(1.86, 1.86 * Math.tan(Math.toRadians(17)) * scale);
+        heightMap.put(1.55, 1.55 * Math.tan(Math.toRadians(15)) * scale);
     }
     static InterpolatingTreeMap<Double, Double> distanceOffsetMap = new InterpolatingTreeMap<>(
             InverseInterpolator.forDouble(), Interpolator.forDouble());
-    static { // TODO fix (distance meters, lateral offset)
+    static {
         distanceOffsetMap.put(1.4, Units.inchesToMeters(0.0));
         distanceOffsetMap.put(3.0, Units.inchesToMeters(0.0));
     }
@@ -42,7 +40,6 @@ public class BallTargetFactory {
     static Double kXDistanceOffset = Units.inchesToMeters(0);
 
     public static Translation3d generate(RobotState robotState) {
-        // uncomment to calibrate shooter to center of the face above the goal
         var speakerPose = robotState.isRedAlliance() ? VisionConstants.kRedHubPose
                 : VisionConstants.kBlueHubPose;
 
@@ -50,7 +47,6 @@ public class BallTargetFactory {
                 robotState.getLatestFieldToRobot().getValue().getTranslation());
 
         double distanceOffset = distanceOffsetMap.get(distance);
-        // Do math in blue alliance, we flip for red.
         var offSet = new Translation2d(kXDistanceOffset, -distanceOffset);
 
         if (robotState.isRedAlliance()) {

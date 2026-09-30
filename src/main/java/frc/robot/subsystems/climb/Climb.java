@@ -1,137 +1,87 @@
 package frc.robot.subsystems.climb;
 
-import java.util.function.Consumer;
-
 import org.littletonrobotics.junction.Logger;
-import org.littletonrobotics.junction.mechanism.LoggedMechanism2d;
-import org.littletonrobotics.junction.mechanism.LoggedMechanismLigament2d;
-import org.littletonrobotics.junction.mechanism.LoggedMechanismRoot2d;
-
-import com.revrobotics.spark.ClosedLoopSlot;
 
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
-import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj.util.Color8Bit;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.InstantCommand;
-import frc.robot.RobotState;
-import frc.robot.commands.ActionCommands;
+import frc.robot.Constants;
+import frc.robot.Constants.Mode;
 import frc.robot.util.Elastic;
 import frc.robot.util.Elastic.Notification;
-import frc.robot.util.GetTuned;
+import frc.robot.util.motor.Motor;
 import frc.robot.util.state.StateMachine;
 
-public class Climb extends StateMachine<Climb.State> implements ClimbIO {
-
-    private final RobotState state;
-    private final ClimbIO climbIO;
-    private final ClimbIOInputsAutoLogged inputs = new ClimbIOInputsAutoLogged();
+public class Climb extends StateMachine<Climb.State> {
+    private final Motor climb = new Motor(ClimbConstants.kClimb);
+    private final BeamBreakerIO leftSensor = newSensor(ClimbConstants.kLeftSensorId);
+    private final BeamBreakerIO rightSensor = newSensor(ClimbConstants.kRightSensorId);
     private final BeamBreakerInputsAutoLogged leftInputs = new BeamBreakerInputsAutoLogged();
     private final BeamBreakerInputsAutoLogged rightInputs = new BeamBreakerInputsAutoLogged();
-    private final LoggedMechanism2d climbMechanism = new LoggedMechanism2d(3, 4);
+    private Runnable override;
 
-    private final BeamBreakerIO leftSensor;
-    private final BeamBreakerIO rightSensor;
-
-    private final LoggedMechanismLigament2d climbElevatorExtension;
-    private Consumer<Object> override;
-
-    public Climb(ClimbIO climbIO, BeamBreakerIO leftSensor, BeamBreakerIO rightSensor, RobotState state) {
+    public Climb() {
         super("Climb", State.UNDETERMINED, State.class);
-        this.climbIO = climbIO;
-        this.state = state;
-        this.leftSensor = leftSensor;
-        this.rightSensor = rightSensor;
-
-        LoggedMechanismRoot2d climbRoot = climbMechanism.getRoot("Climber", 1.85, 0);
-        LoggedMechanismLigament2d climbElevatorBase = climbRoot
-                .append(new LoggedMechanismLigament2d("elevator", ClimbConstants.kClimberBaseHeight, 90)); // TODO
-                                                                                                           // conversion
-                                                                                                           // because
-                                                                                                           // its not in
-                                                                                                           // meters!
-        climbElevatorExtension = climbElevatorBase
-                .append(new LoggedMechanismLigament2d("extension", 0, 0, 10, new Color8Bit(255, 0, 0)));
-
-        registerStateTransitions();
-        registerStateCommands();
-        enable();
-
+        addOmniTransitions(State.STOW, State.IDLE, State.UP, State.DOWN);
         SmartDashboard.putData("Climb Zero", zero().withName("Climb Zero"));
+        enable();
+    }
+
+    private static BeamBreakerIO newSensor(int canId) {
+        return Constants.kMode == Mode.REAL ? new BeamBreakerTOF(canId) : new BeamBreakerIO() {};
     }
 
     @Override
-    public void update() {
-        climbIO.updateInputs(inputs);
+    protected void update() {
+        climb.update();
         leftSensor.updateInputs(leftInputs);
         rightSensor.updateInputs(rightInputs);
+        Logger.processInputs("Climb/Left Sensor", leftInputs);
+        Logger.processInputs("Climb/Right Sensor", rightInputs);
 
-        Logger.processInputs("Climb", inputs);
-        Logger.processInputs("Left Sensor", leftInputs);
-        Logger.processInputs("Right Sensor", rightInputs);
-
-        climbElevatorExtension.setLength(inputs.desiredPos);
-        Logger.recordOutput("Climb/Mechanism", climbMechanism);
-
-        Logger.recordOutput("Climb/Pose",
-                new Pose3d()
-                        .plus(new Transform3d()).plus(
-                                new Transform3d(
-                                        new Translation3d(0, 0,
-                                                inputs.desiredPos * ClimbConstants.kClimbPositionConversionFactor),
-                                        new Rotation3d())));
-
-        if (override!= null) {
-            override.accept(null);   
+        if (override != null) {
+            override.run();
+        } else {
+            switch (getState()) {
+                case STOW -> stow();
+                case UP -> up();
+                case DOWN -> down();
+                default -> stop();
+            }
         }
-        else if (getState() == State.STOW) {
-            stow();
-        } else if (getState() == State.IDLE) {
-            stop();
-        } else if (getState() == State.UP) {
-            up();
-        } else if (getState() == State.DOWN) {
-            down();
-        }
-        Logger.recordOutput("Climb/Overriden", override!=null);
+
+        Logger.recordOutput("Climb/Overriden", override != null);
+        Logger.recordOutput("Climb/Pose", new Pose3d(
+                new Translation3d(0, 0, climb.getPosition() / 16.0),
+                new Rotation3d()));
     }
 
     public void stow() {
-        climbIO.setClimbPosition(GetTuned.getNumber("Climb/Stow Setpoint", ClimbConstants.kClimbStowPos));
+        climb.setPosition(ClimbConstants.kStowSetpoint.get());
     }
 
     public void up() {
-        climbIO.setClimbPosition(GetTuned.getNumber("Climb/Up Setpoint", ClimbConstants.kClimbUpPos));
-
+        climb.setPosition(ClimbConstants.kUpSetpoint.get());
     }
 
     public void down() {
-        climbIO.setClimbPosition(GetTuned.getNumber("Climb/Down Setpoint", ClimbConstants.kClimbDownPos),
-                ClosedLoopSlot.kSlot1);
+        climb.setPosition(ClimbConstants.kDownSetpoint.get(), 0, 1);
     }
 
     public void stop() {
-        climbIO.stopClimb();
+        climb.stop();
     }
 
     public Command zero() {
-        return run(() -> {
-            climbIO.setMotorOutput(GetTuned.getNumber("Climb/Lower Motor Output", ClimbConstants.kLowerMotorOutput));
-        })
-                .beforeStarting(() -> {
-                    climbIO.setCurrentLimit(
-                            GetTuned.getNumber("Climb/Lower Current Limit", ClimbConstants.kLowerCurrentLimit));
-                })
-                .until(() -> inputs.currentAmps > GetTuned.getNumber("Climb/Zero Current Threshold",
-                        ClimbConstants.kZeroCurrentThreshold))
-                .finallyDo(interrupted -> {
-                    climbIO.stopClimb();
-                    climbIO.zeroEncoder();
-                    climbIO.setCurrentLimit(ClimbConstants.kClimbCurrentLimit);
+        return run(() -> climb.setOutput(ClimbConstants.kZeroMotorOutput.get()))
+                .beforeStarting(() -> climb.setCurrentLimit((int) ClimbConstants.kZeroCurrentLimit.get()))
+                .until(() -> climb.getCurrentAmps() > ClimbConstants.kZeroCurrentThreshold.get())
+                .finallyDo(() -> {
+                    climb.stop();
+                    climb.setEncoderPosition(0);
+                    climb.setCurrentLimit(ClimbConstants.kCurrentLimit);
                     requestTransition(State.STOW);
                     Elastic.sendNotification(
                             new Notification().withTitle("Climb Zero").withDescription("Climb has been zeroed!"));
@@ -139,22 +89,14 @@ public class Climb extends StateMachine<Climb.State> implements ClimbIO {
     }
 
     public double getLeftSensorDistance() {
-        return leftSensor.getDistance();
+        return leftInputs.distanceMeters;
     }
 
     public double getRightSensorDistance() {
-        return rightSensor.getDistance();
+        return rightInputs.distanceMeters;
     }
 
-    private void registerStateTransitions() {
-        addOmniTransitions(State.STOW, State.IDLE, State.UP, State.DOWN);
-    }
-
-    private void registerStateCommands() {
-
-    }
-
-    public void setOverride(Consumer<Object> override) {
+    public void setOverride(Runnable override) {
         this.override = override;
     }
 
@@ -165,13 +107,9 @@ public class Climb extends StateMachine<Climb.State> implements ClimbIO {
 
     public enum State {
         UNDETERMINED,
-
         STOW,
         IDLE,
         UP,
-        DOWN,
-        // flags
-
+        DOWN
     }
-
 }

@@ -51,7 +51,7 @@ Examples:
 
 - `Drive/Module/Drive/kP`
 - `Shooter/Flywheel/MaxRPS`
-- `Vision/Turret/StdDevFactor`
+- `Shooter/Gravity Funnel InchesPerSec2`
 - `AutoAlign/Translation/kP`
 
 Names need to be stable — changing one loses the dashboard value

@@ -1,8 +1,12 @@
 package frc.robot.commands;
 
+import org.littletonrobotics.junction.Logger;
+
+import dev.doglog.DogLog;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
@@ -11,223 +15,152 @@ import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.RobotState;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.DriveConstants;
-import frc.robot.util.MathHelpers;
-import org.littletonrobotics.junction.Logger;
-import dev.doglog.DogLog;
 
 public class AutoAlignToPoseCommand extends Command {
-        private ProfiledPIDController driveController;
-        private final ProfiledPIDController thetaController = new ProfiledPIDController(
-                        DriveConstants.kDriveToPointHeadingP,
-                        0.0,
-                        0.0,
-                        new TrapezoidProfile.Constraints(
-                                        DriveConstants.kMaxAngularSpeed,
-                                        DriveConstants.kMaxAngularAcceleration),
-                        0.02);
-        private Drive driveSubsystem;
-        private RobotState robotState;
-        private double driveErrorAbs;
-        private double thetaErrorAbs;
-        private double ffMinRadius = 0.0, ffMaxRadius = 0.1; // change this maybe?
-        private Pose2d targetLocation;
+    public enum AlignType {
+        DEFAULT,
+        ROTATION,
+        TRANSLATION
+    }
 
-        private double metersTolerance = DriveConstants.metersTolerance;
-        private double radiansTolerance = DriveConstants.radiansTolerance;
-        private double metersAccelTolerance = DriveConstants.metersAccelTolerance;
-        private double radAccelTolerance = DriveConstants.radAccelTolerance;
+    private static final double kFeedforwardMinRadius = 0.0;
+    private static final double kFeedforwardMaxRadius = 0.1;
 
-        private AlignType autoAlignType;
+    private final Drive drive;
+    private final RobotState state;
+    private final Pose2d target;
+    private final AlignType alignType;
+    private final ProfiledPIDController driveController;
+    private final ProfiledPIDController thetaController = new ProfiledPIDController(
+            DriveConstants.kDriveToPointHeadingP,
+            0.0,
+            0.0,
+            new TrapezoidProfile.Constraints(DriveConstants.kMaxAngularSpeed, DriveConstants.kMaxAngularAcceleration),
+            0.02);
 
-        public AutoAlignToPoseCommand(
-                        Drive driveSubsystem,
-                        RobotState robotState,
-                        Pose2d targetLocation,
-                        double constraintFactor) {
-                this(driveSubsystem, robotState, targetLocation, constraintFactor, AlignType.DEFAULT);
+    private double metersTolerance = DriveConstants.metersTolerance;
+    private double radiansTolerance = DriveConstants.radiansTolerance;
+    private double metersAccelTolerance = DriveConstants.metersAccelTolerance;
+    private double radAccelTolerance = DriveConstants.radAccelTolerance;
+
+    public AutoAlignToPoseCommand(Drive drive, RobotState state, Pose2d target, double constraintFactor) {
+        this(drive, state, target, constraintFactor, AlignType.DEFAULT);
+    }
+
+    public AutoAlignToPoseCommand(Drive drive, RobotState state, Pose2d target, double constraintFactor,
+            AlignType alignType) {
+        this.drive = drive;
+        this.state = state;
+        this.target = target;
+        this.alignType = alignType;
+        driveController = new ProfiledPIDController(
+                DriveConstants.kDriveToPointP,
+                0.0,
+                0.0,
+                new TrapezoidProfile.Constraints(
+                        DriveConstants.maxSpeedMetersPerSec * constraintFactor,
+                        DriveConstants.kMaxLinearAcceleration * constraintFactor),
+                0.02);
+        thetaController.enableContinuousInput(-Math.PI, Math.PI);
+        addRequirements(drive);
+
+        DogLog.tunable("Auto Align/Drive kP", DriveConstants.kDriveToPointP, driveController::setP);
+        DogLog.tunable("Auto Align/Turn kP", DriveConstants.kDriveToPointHeadingP, thetaController::setP);
+        DogLog.tunable("Auto Align/Meters Tolerance", metersTolerance, value -> {
+            metersTolerance = value;
+            applyTolerances();
+        });
+        DogLog.tunable("Auto Align/Radians Tolerance", radiansTolerance, value -> {
+            radiansTolerance = value;
+            applyTolerances();
+        });
+        DogLog.tunable("Auto Align/Meters Accel Tolerance", metersAccelTolerance, value -> {
+            metersAccelTolerance = value;
+            applyTolerances();
+        });
+        DogLog.tunable("Auto Align/Radians Accel Tolerance", radAccelTolerance, value -> {
+            radAccelTolerance = value;
+            applyTolerances();
+        });
+    }
+
+    @Override
+    public void initialize() {
+        Pose2d current = state.getLatestFieldToRobot().getValue();
+        ChassisSpeeds fieldSpeeds = state.getLatestMeasuredFieldRelativeChassisSpeeds();
+        Rotation2d toTarget = target.getTranslation().minus(current.getTranslation()).getAngle();
+        double closingVelocity = -new Translation2d(-fieldSpeeds.vxMetersPerSecond, fieldSpeeds.vyMetersPerSecond)
+                .rotateBy(toTarget.unaryMinus())
+                .getX();
+
+        driveController.reset(current.getTranslation().getDistance(target.getTranslation()), Math.min(0.0, closingVelocity));
+        driveController.setTolerance(0.04);
+        thetaController.reset(current.getRotation().getRadians(),
+                state.getLatestRobotRelativeChassisSpeed().omegaRadiansPerSecond);
+        thetaController.setTolerance(Units.degreesToRadians(2.0));
+
+        drive.setFieldPoses(current, target);
+        drive.setTargetPose(target);
+    }
+
+    @Override
+    public void execute() {
+        Pose2d current = state.getLatestFieldToRobot().getValue();
+        Logger.recordOutput("DriveToPose/currentPose", current);
+        Logger.recordOutput("DriveToPose/targetPose", target);
+
+        double distance = current.getTranslation().getDistance(target.getTranslation());
+        double ffScaler = MathUtil.clamp(
+                (distance - kFeedforwardMinRadius) / (kFeedforwardMaxRadius - kFeedforwardMinRadius), 0.0, 1.0);
+        if (alignType == AlignType.ROTATION) {
+            distance = 0;
+            ffScaler = 1;
+        }
+        Logger.recordOutput("DriveToPose/ffScaler", ffScaler);
+
+        double driveVelocityScalar = driveController.getSetpoint().velocity * ffScaler
+                + driveController.calculate(distance, 0.0);
+        if (distance < driveController.getPositionTolerance()) {
+            driveVelocityScalar = 0.0;
         }
 
-        public AutoAlignToPoseCommand(
-                        Drive driveSubsystem,
-                        RobotState robotState,
-                        Pose2d targetLocation,
-                        double constraintFactor,
-                        AlignType alignType) {
-                this.driveSubsystem = driveSubsystem;
-                this.targetLocation = targetLocation;
-                this.robotState = robotState;
-                this.autoAlignType = alignType;
-                this.driveController = new ProfiledPIDController(
-                                DriveConstants.kDriveToPointP,
-                                0.0,
-                                0.0,
-                                new TrapezoidProfile.Constraints(
-                                                DriveConstants.maxSpeedMetersPerSec * constraintFactor,
-                                                DriveConstants.kMaxLinearAcceleration
-                                                                * constraintFactor),
-                                0.02);
-                addRequirements(driveSubsystem);
-                thetaController.enableContinuousInput(-Math.PI, Math.PI);
-
-                DogLog.tunable("Auto Align/Drive kP", DriveConstants.kDriveToPointP, newkP -> {
-                        this.driveController.setP(newkP);
-                });
-
-                DogLog.tunable("Auto Align/Turn kP", DriveConstants.kDriveToPointHeadingP, newkP -> {
-                        thetaController.setP(newkP);
-                });
-
-                DogLog.tunable("Auto Align/Meters Tolerance", metersTolerance, newMetersTolerance -> {
-                        metersTolerance = newMetersTolerance;
-                        setTolerance();
-                });
-
-                DogLog.tunable("Auto Align/Radians Tolerance", radiansTolerance, newRadiansTolerance -> {
-                        radiansTolerance = newRadiansTolerance;
-                        setTolerance();
-                });
-
-                DogLog.tunable("Auto Align/Meters Accel Tolerance", metersAccelTolerance, newMetersAccelTolerance -> {
-                        metersAccelTolerance = newMetersAccelTolerance;
-                        setTolerance();
-                });
-
-                DogLog.tunable("Auto Align/Radians Accel Tolerance", radAccelTolerance, newRadAccelTolerance -> {
-                        radAccelTolerance = newRadAccelTolerance;
-                        setTolerance();
-                });
+        double thetaVelocity = thetaController.getSetpoint().velocity * ffScaler
+                + thetaController.calculate(current.getRotation().getRadians(), target.getRotation().getRadians());
+        double thetaError = Math.abs(current.getRotation().minus(target.getRotation()).getRadians());
+        if (thetaError < thetaController.getPositionTolerance()) {
+            thetaVelocity = 0.0;
         }
 
-        @Override
-        public void initialize() {
-                // arm center is the same as the robot center when stowed, so can use field to
-                // robot
-                Pose2d currentPose = robotState.getLatestFieldToRobot().getValue();
+        Rotation2d awayFromTarget = current.getTranslation().minus(target.getTranslation()).getAngle();
+        Translation2d driveVelocity = new Translation2d(driveVelocityScalar, awayFromTarget);
 
-                driveController.reset(
-                                currentPose.getTranslation().getDistance(targetLocation.getTranslation()),
-                                Math.min(
-                                                0.0,
-                                                -new Translation2d(
-                                                                -robotState.getLatestMeasuredFieldRelativeChassisSpeeds().vxMetersPerSecond,
-                                                                robotState.getLatestMeasuredFieldRelativeChassisSpeeds().vyMetersPerSecond)
-                                                                .rotateBy(
-                                                                                targetLocation
-                                                                                                .getTranslation()
-                                                                                                .minus(
-                                                                                                                robotState
-                                                                                                                                .getLatestFieldToRobot()
-                                                                                                                                .getValue()
-                                                                                                                                .getTranslation())
-                                                                                                .getAngle()
-                                                                                                .unaryMinus())
-                                                                .getX()));
-                thetaController.reset(
-                                currentPose.getRotation().getRadians(),
-                                robotState.getLatestRobotRelativeChassisSpeed().omegaRadiansPerSecond);
-                thetaController.setTolerance(Units.degreesToRadians(2.0));
-
-                driveController.setTolerance(0.04);
-                driveSubsystem.setFieldPoses(robotState.getLatestFieldToRobot().getValue(), targetLocation);
-                driveSubsystem.setTargetPose(targetLocation);
+        if (alignType == AlignType.ROTATION) {
+            driveVelocity = new Translation2d();
+        }
+        if (alignType == AlignType.TRANSLATION) {
+            thetaVelocity = 0;
         }
 
-        @Override
-        public void execute() {
-                Pose2d currentPose = robotState.getLatestFieldToRobot().getValue();
+        drive.runVelocity(ChassisSpeeds.fromFieldRelativeSpeeds(
+                driveVelocity.getX(), driveVelocity.getY(), thetaVelocity, current.getRotation()));
+    }
 
-                Logger.recordOutput("DriveToPose/currentPose", currentPose);
-                Logger.recordOutput("DriveToPose/targetLocation", targetLocation.toString());
-                Logger.recordOutput("DriveToPose/targetPose", targetLocation);
+    @Override
+    public void end(boolean interrupted) {
+        drive.runVelocity(new ChassisSpeeds());
+    }
 
-                double currentDistance = currentPose.getTranslation().getDistance(targetLocation.getTranslation());
+    @Override
+    public boolean isFinished() {
+        return switch (alignType) {
+            case ROTATION -> thetaController.atGoal();
+            case TRANSLATION -> driveController.atGoal();
+            case DEFAULT -> driveController.atGoal() && thetaController.atGoal();
+        };
+    }
 
-                double ffScaler = MathUtil.clamp(
-                                (currentDistance - ffMinRadius) / (ffMaxRadius - ffMinRadius), 0.0, 1.0);
-
-                if (autoAlignType.equals(AlignType.ROTATION)) {
-                        currentDistance = 0;
-                        ffScaler = 1;
-                }
-
-                driveErrorAbs = currentDistance;
-                Logger.recordOutput("DriveToPose/ffScaler", ffScaler);
-                double driveVelocityScalar = driveController.getSetpoint().velocity * ffScaler
-                                + driveController.calculate(driveErrorAbs, 0.0);
-                if (currentDistance < driveController.getPositionTolerance())
-                        driveVelocityScalar = 0.0;
-
-                double angleToTarget = -targetLocation.getTranslation().minus(currentPose.getTranslation()).getAngle()
-                                .getRadians();
-
-                // Calculate theta speed
-                double goalAngle = targetLocation.getRotation().getRadians();
-
-                // 3. Calculate velocity
-                double thetaVelocity = (thetaController.getSetpoint().velocity * ffScaler)
-                                + thetaController.calculate(
-                                                currentPose.getRotation().getRadians(),
-                                                goalAngle);
-
-                thetaErrorAbs = Math.abs(
-                                currentPose.getRotation().minus(targetLocation.getRotation()).getRadians());
-                if (thetaErrorAbs < thetaController.getPositionTolerance())
-                        thetaVelocity = 0.0;
-
-                // Command speeds
-                var driveVelocity = MathHelpers.pose2dFromRotation(
-                                currentPose
-                                                .getTranslation()
-                                                .minus(targetLocation.getTranslation())
-                                                .getAngle())
-                                .transformBy(
-                                                MathHelpers.transform2dFromTranslation(
-                                                                new Translation2d(driveVelocityScalar, 0.0)))
-                                .getTranslation();
-
-                if (autoAlignType.equals(AlignType.ROTATION)) { // USELESS
-                        driveVelocity = new Translation2d();
-                }
-
-                if (autoAlignType.equals(AlignType.TRANSLATION)) {
-                        thetaVelocity = 0;
-                }
-                driveSubsystem.runVelocity(
-                                ChassisSpeeds.fromFieldRelativeSpeeds(
-                                                driveVelocity.getX(),
-                                                driveVelocity.getY(),
-                                                thetaVelocity,
-                                                currentPose.getRotation()));
-        }
-
-        @Override
-        public void end(boolean interrupted) {
-                driveSubsystem.runVelocity(new ChassisSpeeds());
-        }
-
-        @Override
-        public boolean isFinished() {
-
-                if (autoAlignType.equals(AlignType.ROTATION)) {
-                        return targetLocation.equals(null) || thetaController.atGoal();
-                }
-
-                if (autoAlignType.equals(AlignType.TRANSLATION)) {
-                        return targetLocation.equals(null) || driveController.atGoal();
-                }
-
-                return targetLocation.equals(null)
-                                || (driveController.atGoal() && thetaController.atGoal());
-        }
-
-        private void setTolerance() {
-                driveController.setTolerance(metersTolerance, metersAccelTolerance);
-                thetaController.setTolerance(radiansTolerance, radAccelTolerance);
-        }
-
-        public enum AlignType {
-                DEFAULT,
-                ROTATION,
-                TRANSLATION
-        }
+    private void applyTolerances() {
+        driveController.setTolerance(metersTolerance, metersAccelTolerance);
+        thetaController.setTolerance(radiansTolerance, radAccelTolerance);
+    }
 }

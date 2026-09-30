@@ -28,7 +28,7 @@ public class CustomAutoBuilder extends AutoCommands.AutoClass {
 
         for (int x = 0; x < 100; x++) {
             LoggedDashboardChooser<Supplier<Command>> chooser = new LoggedDashboardChooser<>("Auto Parallel " + x);
-            
+
             chooser.addDefaultOption("None", () -> new InstantCommand().withName("None"));
 
             for (Method method : ActionCommands.class.getDeclaredMethods()) {
@@ -92,7 +92,7 @@ public class CustomAutoBuilder extends AutoCommands.AutoClass {
                         PathPlannerPath path = findPathByName(cmd.getName());
                         if (path != null) {
                             displayPaths.add(path);
-                            break; 
+                            break;
                         }
                     }
                 }

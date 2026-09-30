@@ -34,8 +34,8 @@ mid-shot.
 In its constructor, `RobotState` instantiates:
 
 - One `Drive` (with a `GyroIO` + 4× `ModuleIO`)
-- One `VisionSubsystem` (with 1+ `VisionIO`)
-- One `Shooter` (with `TurretIO`, `HoodIO`, `FlywheelIO`)
+- One `Vision` (with one `Camera` per `CameraConfig`)
+- One `Shooter` (owning `Hood` and `Flywheel`, each built on `Motor`)
 - One `Intake` (with `IntakeIO`)
 - One `Hopper` (with `HopperIO`)
 - One `Kicker` (with `KickerIO`)
@@ -51,7 +51,7 @@ The rest of the code accesses subsystems through `RobotState`:
 | Method | Returns |
 | --- | --- |
 | `getDrive()` | `Drive` |
-| `getVision()` | `VisionSubsystem` |
+| `getVision()` | `Vision` |
 | `getShooter()` | `Shooter` |
 | `getIntake()` | `Intake` |
 | `getHopper()` | `Hopper` |
@@ -69,15 +69,12 @@ compensation lives in the kinematic buffers.
 
 ## Kinematic buffers
 
-`RobotState` holds three
+`RobotState` holds two
 [`ConcurrentTimeInterpolatableBuffer`]({{ '/utilities/time-buffers/' | relative_url }})
 instances, each with ~1s of history:
 
 - **`fieldToRobotBuffer`** — pose history. Lets vision measurements
   fuse at the timestamp they were taken, not received.
-- **`turretAngleBuffer`** — turret yaw history. Lets the turret's
-  vision pipeline correct for the angle the turret was at when the
-  frame was captured.
 - **`driveSpeedsBuffer`** — chassis velocity history. Used by the
   shooter solver to compensate for robot motion at release time.
 

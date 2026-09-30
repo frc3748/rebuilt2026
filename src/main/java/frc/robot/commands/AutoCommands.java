@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.path.GoalEndState;
@@ -15,258 +17,172 @@ import com.pathplanner.lib.path.PathPlannerPath;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Transform2d;
-import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.util.Units;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.DeferredCommand;
-import edu.wpi.first.wpilibj2.command.InstantCommand;
-import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
-import edu.wpi.first.wpilibj2.command.PrintCommand;
-import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
-import edu.wpi.first.wpilibj2.command.WaitCommand;
 import frc.robot.RobotState;
+import frc.robot.commands.autos.Autos;
 import frc.robot.subsystems.drive.DriveConstants;
 import frc.robot.subsystems.vision.VisionConstants;
-import frc.robot.commands.autos.Autos;
-import frc.robot.commands.autos.AutosConstants;
-import frc.robot.util.CustomAutoBuilder;
 import frc.robot.util.DynamicPathGenerator;
 import frc.robot.util.Elastic;
 import frc.robot.util.Elastic.Notification;
 import frc.robot.util.Elastic.NotificationLevel;
-import java.util.function.Supplier;
-
 
 public class AutoCommands {
-
     public static class AutoClass {
-        public String[] sequentialPathStrings;
+        public String[] sequentialPathStrings = new String[0];
         public String name;
 
         public Command getCommand(RobotState state) {
-            return new PrintCommand("Unfilled");
+            return Commands.print("Unfilled");
         }
 
         public List<PathPlannerPath> getAutoDisplayList(RobotState state) {
             try {
-                Map<String, PathPlannerPath> pathMap = getMapPath(sequentialPathStrings);
-
-                return new ArrayList<>(pathMap.values());
+                return new ArrayList<>(getMapPath(sequentialPathStrings).values());
             } catch (Exception e) {
                 return new ArrayList<>();
             }
         }
 
-        public void setRobotPoseToStartingPath(PathPlannerPath path, RobotState state) {
-            Optional<Alliance> ourAlliance = DriverStation.getAlliance();
-
-            if (ourAlliance.isPresent()) {
-                if (path.getStartingHolonomicPose().isEmpty()) {
-                    Elastic.sendNotification(new Notification().withTitle("Path Error")
-                            .withDescription("Unable to set pose").withLevel(NotificationLevel.ERROR));
-                }
-
-                Pose2d startPos = path.getStartingHolonomicPose().get();
-                if (ourAlliance.get().equals(Alliance.Red)) {
-                    startPos = RobotState.flipPoseForRed(startPos);
-                }
-
-                state.getDrive().setPose(startPos);
-            } else {
-                Elastic.sendNotification(new Notification().withTitle("Alliance Error")
-                        .withDescription("Unable to set pose").withLevel(NotificationLevel.ERROR));
+        protected Command build(RobotState state, Function<Map<String, PathPlannerPath>, Command> steps) {
+            try {
+                Map<String, PathPlannerPath> paths = getMapPath(sequentialPathStrings);
+                return Commands.sequence(
+                        Commands.runOnce(() -> setRobotPoseToStartingPath(paths.get(sequentialPathStrings[0]), state)),
+                        steps.apply(paths))
+                        .withName(name);
+            } catch (Exception e) {
+                return Commands.print("Failed to generate command: " + e.getMessage()).withName(name + " (FAILED)");
             }
         }
-    }
 
-    // // DONT FORGET THIS
-    // private static final List<AutoClass> availableAutos = List.of(
-    // new testAuto(),
-    // new waypointTestAuto(),
-    // new pathfindingTemplate()
-    // // new depotAuto(),
-    // // new rightHPFuel(),
-    // // new Autos.centerHPClimb(),
-    // // new Autos.centerHPFuel(),
-    // // new Autos.centerLeftDepotClimb(),
-    // // new Autos.centerRightHPClimb(),
-    // // new Autos.leftDepotClimb(),
-    // // new Autos.leftDepotFuel(),
-    // // new Autos.rightFuelClimb(),
-    // // new Autos.rightHPFuel(),
-    // // new outpostAuto()
-    // );
+        protected Command afterAuto(RobotState state, String baseName, Command next) {
+            return getAutoByName(state, baseName).get().getCommand(state).andThen(next).withName(name);
+        }
+
+        protected void setRobotPoseToStartingPath(PathPlannerPath path, RobotState state) {
+            if (path.getStartingHolonomicPose().isEmpty()) {
+                Elastic.sendNotification(new Notification()
+                        .withTitle("Path Error")
+                        .withDescription("Unable to set pose")
+                        .withLevel(NotificationLevel.ERROR));
+                return;
+            }
+            Pose2d start = path.getStartingHolonomicPose().get();
+            state.getDrive().setPose(state.isRedAlliance() ? RobotState.flipPoseForRed(start) : start);
+        }
+    }
 
     private static final List<AutoClass> availableAutos = initializeAutos();
 
     private static List<AutoClass> initializeAutos() {
         List<AutoClass> autos = new ArrayList<>();
-
         autos.add(new testAuto());
         autos.add(new waypointTestAuto());
         autos.add(new pathfindingTemplate());
 
-        Class<?>[] innerClasses = Autos.class.getDeclaredClasses();
-        for (Class<?> clazz : innerClasses) {
+        for (Class<?> clazz : Autos.class.getDeclaredClasses()) {
             if (AutoClass.class.isAssignableFrom(clazz)) {
                 try {
-                    AutoClass instance = (AutoClass) clazz.getDeclaredConstructor().newInstance();
-                    if (autos.stream().noneMatch(a -> a.getClass().equals(clazz))) {
-                        autos.add(instance);
-                    }
+                    autos.add((AutoClass) clazz.getDeclaredConstructor().newInstance());
                 } catch (Exception e) {
                     System.out.println("Skipping " + clazz.getSimpleName() + ": " + e.getMessage());
                 }
             }
         }
-
         return autos;
     }
 
     public static Optional<AutoClass> getAutoByName(RobotState state, String name) {
-        if (name == "CUSTOM AUTO (GAME)") {
+        if ("CUSTOM AUTO (GAME)".equals(name)) {
             return Optional.of(state.getCustomAutoBuilder());
         }
-        for (AutoClass auto : availableAutos) {
-            if (auto.name.equals(name)) {
-                return Optional.of(auto);
-            }
-        }
-
-        return Optional.empty();
+        return availableAutos.stream().filter(auto -> auto.name.equals(name)).findFirst();
     }
 
-    public static Map<String, PathPlannerPath> getMapPath(String[] sequentialPathStrings) throws Exception {
-        Map<String, PathPlannerPath> pathMap = new HashMap<>();
-
-        for (String pathName : sequentialPathStrings) {
-            PathPlannerPath path = PathPlannerPath.fromPathFile(pathName);
-            pathMap.put(pathName, path);
+    public static Map<String, PathPlannerPath> getMapPath(String[] pathNames) throws Exception {
+        Map<String, PathPlannerPath> paths = new HashMap<>();
+        for (String pathName : pathNames) {
+            paths.put(pathName, PathPlannerPath.fromPathFile(pathName));
         }
-
-        return pathMap;
+        return paths;
     }
 
     public static class testAuto extends AutoClass {
         public testAuto() {
-            this.name = "Apple (GAME)";
-            this.sequentialPathStrings = new String[] { "TESTONE" };
+            name = "Apple (GAME)";
+            sequentialPathStrings = new String[] { "TESTONE" };
         }
 
         @Override
         public Command getCommand(RobotState state) {
-            try {
-
-                Map<String, PathPlannerPath> pathMap = getMapPath(sequentialPathStrings);
-
-                return new ParallelCommandGroup(
-                        new InstantCommand(
-                                () -> setRobotPoseToStartingPath(pathMap.get(sequentialPathStrings[0]), state)),
-                        AutoBuilder.followPath(pathMap.get("TESTONE")),
-                        new SequentialCommandGroup(
-                                new WaitCommand(1),
-                                new InstantCommand(() -> {
-                                    // state.getShooter().requestTransition(State.SHOOTING);
-                                })))
-                        .withName(name);
-            } catch (Exception e) {
-                return new PrintCommand("Failed to generate command: " + e.getMessage()).withName(name + " (FAILED)");
-            }
+            return build(state, paths -> AutoBuilder.followPath(paths.get("TESTONE")));
         }
     }
 
     public static class waypointTestAuto extends AutoClass {
-        PathPlannerPath waypointGeneratedPath;
+        private final PathPlannerPath path = ActionCommands.waypointTestPath();
 
         public waypointTestAuto() {
-            this.name = "WAYPOINT (GAME)";
-            this.sequentialPathStrings = new String[] {};
-            waypointGeneratedPath = ActionCommands.waypointTestPath();
+            name = "WAYPOINT (GAME)";
         }
 
         @Override
         public Command getCommand(RobotState state) {
-            return new ParallelCommandGroup(
-                    AutoBuilder.followPath(waypointGeneratedPath),
-                    new SequentialCommandGroup(
-                            new WaitCommand(1),
-                            new InstantCommand()))
-                    .withName(name);
+            return AutoBuilder.followPath(path).withName(name);
         }
 
         @Override
         public List<PathPlannerPath> getAutoDisplayList(RobotState state) {
-            List<PathPlannerPath> pathList = new ArrayList<>();
-
-            if (waypointGeneratedPath != null) {
-                pathList.add(waypointGeneratedPath);
-            }
-
-            return pathList;
+            return List.of(path);
         }
     }
 
     public static class pathfindingTemplate extends AutoClass {
-
-        List<Supplier<Command>> pathfindAutos;
-        List<Pose2d> goalPoses;
-
-        PathConstraints constraints = DriveConstants.pathConstraint;
-        // Pose2d goalPose = new Pose2d(5, 5, Rotation2d.fromDegrees(180));
+        private final List<Supplier<Command>> pathfindCommands = new ArrayList<>();
+        private final List<Pose2d> goalPoses = new ArrayList<>();
+        private final PathConstraints constraints = DriveConstants.pathConstraint;
 
         public pathfindingTemplate() {
-            this.name = "Pathfinding (GAME)";
-            this.sequentialPathStrings = new String[] {};
-
-            pathfindAutos = new ArrayList<>();
-            goalPoses = new ArrayList<>();
+            name = "Pathfinding (GAME)";
 
             Pose2d goalPose = new Pose2d(6, 5, Rotation2d.fromDegrees(180));
-            pathfindAutos.add(() -> DynamicPathGenerator.pathfindAuto(goalPose));
+            pathfindCommands.add(() -> DynamicPathGenerator.pathfindAuto(goalPose));
             goalPoses.add(goalPose);
 
             Pose2d depotGoalPose = new Pose2d(
                     VisionConstants.Outpost.centerPoint.getX(),
                     VisionConstants.Outpost.centerPoint.getY(),
-                    Rotation2d.fromDegrees(0) // intake looking at the place?
-            );
-            pathfindAutos.add(() -> DynamicPathGenerator.pathfindAuto(new Pose2d()));
+                    Rotation2d.fromDegrees(0));
+            pathfindCommands.add(() -> DynamicPathGenerator.pathfindAuto(new Pose2d()));
             goalPoses.add(depotGoalPose);
         }
 
         @Override
         public Command getCommand(RobotState state) {
-            
-            return new SequentialCommandGroup(
-                    new InstantCommand(() -> state.getDrive().setPose(
-                        new Pose2d()
-                        // new Pose2d(state.getDrive().getPose().getX(), state.getDrive().getPose().getY(), Rotation2d.fromDegrees(0))
-                    )), // knowing the init rot is VERY important, dont interfere with pos
-                    new DeferredCommand(() -> pathfindAutos.get(0).get(), Set.of(state.getDrive())),
-                    new DeferredCommand(() -> pathfindAutos.get(1).get(), Set.of(state.getDrive()))
-                    ).withName(name);
+            return Commands.sequence(
+                    Commands.runOnce(() -> state.getDrive().setPose(new Pose2d())),
+                    new DeferredCommand(() -> pathfindCommands.get(0).get(), Set.of(state.getDrive())),
+                    new DeferredCommand(() -> pathfindCommands.get(1).get(), Set.of(state.getDrive())))
+                    .withName(name);
         }
 
         @Override
         public List<PathPlannerPath> getAutoDisplayList(RobotState state) {
-            List<PathPlannerPath> pathList = new ArrayList<>();
-
-            pathList.add(DynamicPathGenerator.getPathFromWaypoints(PathPlannerPath.waypointsFromPoses(
-                    state.getLatestFieldToRobot().getValue(),
-                    goalPoses.get(0)), Optional.of(this.constraints),
-                    new IdealStartingState(0, state.getLatestFieldToRobot().getValue().getRotation()),
-                    new GoalEndState(0, goalPoses.get(0).getRotation())));
-
-            pathList.add(DynamicPathGenerator.getPathFromWaypoints(PathPlannerPath.waypointsFromPoses(
-                    goalPoses.get(0),
-                    goalPoses.get(1)), Optional.of(this.constraints),
-                    new IdealStartingState(0, goalPoses.get(0).getRotation()),
-                    new GoalEndState(0, goalPoses.get(1).getRotation())));
-
-            return pathList;
+            Pose2d robot = state.getLatestFieldToRobot().getValue();
+            return List.of(
+                    DynamicPathGenerator.getPathFromWaypoints(
+                            PathPlannerPath.waypointsFromPoses(robot, goalPoses.get(0)),
+                            Optional.of(constraints),
+                            new IdealStartingState(0, robot.getRotation()),
+                            new GoalEndState(0, goalPoses.get(0).getRotation())),
+                    DynamicPathGenerator.getPathFromWaypoints(
+                            PathPlannerPath.waypointsFromPoses(goalPoses.get(0), goalPoses.get(1)),
+                            Optional.of(constraints),
+                            new IdealStartingState(0, goalPoses.get(0).getRotation()),
+                            new GoalEndState(0, goalPoses.get(1).getRotation())));
         }
     }
 }

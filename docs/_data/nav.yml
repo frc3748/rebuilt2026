@@ -36,7 +36,7 @@
     - { title: "Tuning (GetTuned)", url: "/utilities/get-tuned/" }
     - { title: "Time Buffers", url: "/utilities/time-buffers/" }
     - { title: "Shooter Setpoint", url: "/utilities/shooter-setpoint/" }
-    - { title: "Turret Calculator", url: "/utilities/turret-calculator/" }
+    - { title: "Shot Calculator", url: "/utilities/shot-calculator/" }
     - { title: "Path Generation", url: "/utilities/path-generation/" }
     - { title: "Simulation", url: "/utilities/simulation/" }
     - { title: "Driver Feedback (Elastic)", url: "/utilities/elastic/" }
