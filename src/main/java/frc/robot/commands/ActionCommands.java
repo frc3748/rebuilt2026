@@ -87,5 +87,15 @@ public final class ActionCommands {
         }, requirements);
     }
 
+    public static Command toggleFixedShot(RobotState state) {
+        return Commands.runOnce(() -> state.getSuperstructure().getShooter().ifPresent(shooter -> {
+            if (shooter.isHoldingShot()) {
+                shooter.releaseShot();
+            } else {
+                shooter.holdShot(kFixedShotSpeed.get(), kFixedShotHood.get(), kFixedShotHoodFF.get());
+            }
+        }));
+    }
+
     private ActionCommands() {}
 }

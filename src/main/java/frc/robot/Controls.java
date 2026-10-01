@@ -112,6 +112,19 @@ public class Controls {
         }));
     }
 
+    public Command pulse(double seconds) {
+        return Commands.repeatingSequence(
+                Commands.runOnce(() -> setRumble(1.0)), Commands.waitSeconds(0.15),
+                Commands.runOnce(() -> setRumble(0.0)), Commands.waitSeconds(0.15))
+                .withTimeout(seconds)
+                .finallyDo(() -> setRumble(0.0));
+    }
+
+    public Command driverBuzz(double seconds) {
+        return Commands.startEnd(() -> driver.getHID().setRumble(RumbleType.kRightRumble, 0.6),
+                () -> driver.getHID().setRumble(RumbleType.kRightRumble, 0.0)).withTimeout(seconds);
+    }
+
     public Command rumble(double seconds) {
         return Commands.startEnd(() -> setRumble(1.0), () -> setRumble(0.0)).withTimeout(seconds);
     }

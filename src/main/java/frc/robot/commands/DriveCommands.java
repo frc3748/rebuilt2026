@@ -62,7 +62,8 @@ public class DriveCommands {
                 config.aimP, 0, config.aimD,
                 new TrapezoidProfile.Constraints(config.maxAngularSpeed(), config.maxAngularAcceleration()));
         angleController.enableContinuousInput(-Math.PI, Math.PI);
-        new TunableNumber("Auto Turn", config.aimP).onChange(angleController::setP);
+        TunableNumber.field("Drive/Aim kP", config, "aimP").onChange(angleController::setP);
+        TunableNumber.field("Drive/Aim kD", config, "aimD").onChange(angleController::setD);
         HeadingLock headingLock = new HeadingLock(
                 config, drive::getGyroRotation, () -> drive.getChassisSpeeds().omegaRadiansPerSecond);
 

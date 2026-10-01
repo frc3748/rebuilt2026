@@ -33,12 +33,12 @@
 
 - title: Utilities
   items:
-    - { title: "Tuning (TunableNumber)", url: "/utilities/tunable-number/" }
+    - { title: "Tuning", url: "/utilities/tunable-number/" }
     - { title: "Time Buffers", url: "/utilities/time-buffers/" }
     - { title: "Shooter Setpoint", url: "/utilities/shooter-setpoint/" }
     - { title: "Shot Calculator", url: "/utilities/shot-calculator/" }
     - { title: "Simulation", url: "/utilities/simulation/" }
-    - { title: "Driver Feedback (Elastic)", url: "/utilities/elastic/" }
+    - { title: "Driver Dashboard (Cockpit)", url: "/utilities/cockpit/" }
 
 - title: Reference
   items:

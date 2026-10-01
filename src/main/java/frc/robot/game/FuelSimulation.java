@@ -14,8 +14,8 @@ import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.LinearVelocity;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Commands;
+import frc.robot.util.cockpit.Cockpit;
 
 public class FuelSimulation {
     public record Robot(double widthMeters, double lengthMeters, double bumperHeightMeters, double launchHeightMeters) {}
@@ -47,10 +47,10 @@ public class FuelSimulation {
             Logger.recordOutput("FuelSim/Acquired", ++acquired);
         });
 
-        SmartDashboard.putData(Commands.runOnce(() -> {
+        Cockpit.button("resetFuel", "Reset fuel", Cockpit.Tab.TEST, Commands.runOnce(() -> {
             sim.clearFuel();
             sim.spawnStartingFuel();
-        }).withName("Reset Fuel").ignoringDisable(true));
+        }).ignoringDisable(true));
     }
 
     public boolean launch(LinearVelocity velocity, Angle launchAngle) {

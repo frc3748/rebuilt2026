@@ -6,6 +6,7 @@ import static edu.wpi.first.units.Units.Radians;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
@@ -16,6 +17,8 @@ import edu.wpi.first.math.interpolation.InverseInterpolator;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.Distance;
 import frc.robot.game.ShotCalculator.ShotData;
+import frc.robot.util.TunableNumber;
+import frc.robot.util.tuning.Source;
 
 public class ShooterConstants {
     public Transform3d shooterToRobotCenter = new Transform3d(
@@ -29,6 +32,9 @@ public class ShooterConstants {
             new InterpolatingTreeMap<>(InverseInterpolator.forDouble(), ShotData::interpolate);
     public final InterpolatingDoubleTreeMap timeOfFlightMap = new InterpolatingDoubleTreeMap();
     public final List<Double> shotDistances = new ArrayList<>();
+    private final List<ShotRow> rows = new ArrayList<>();
+
+    private record ShotRow(double distance, double exitVelocity, double hood, double timeOfFlight, Source source) {}
 
     public ShooterConstants() {
         addShot(1.409409, 8.7, 0.0, 0.162001034483);
@@ -53,11 +59,32 @@ public class ShooterConstants {
         shotMap.put(distanceMeters, new ShotData(MetersPerSecond.of(exitVelocityMetersPerSec), Radians.of(hoodRadians)));
         timeOfFlightMap.put(distanceMeters, timeOfFlightSeconds + timeOfFlightOffsetSeconds);
         shotDistances.add(distanceMeters);
+        rows.add(new ShotRow(distanceMeters, exitVelocityMetersPerSec, hoodRadians, timeOfFlightSeconds,
+                Source.caller(ShooterConstants.class, "addShot", "addShot", 0)));
+    }
+
+    public void tune() {
+        TunableNumber offset = TunableNumber.field("Shot Table/Time of Flight Offset", this, "timeOfFlightOffsetSeconds");
+        for (ShotRow row : rows) {
+            String prefix = String.format(Locale.ROOT, "Shot Table/%.2f m/", row.distance());
+            TunableNumber velocity = new TunableNumber(prefix + "Exit Velocity", row.exitVelocity(), row.source().withArgument(1));
+            TunableNumber hood = new TunableNumber(prefix + "Hood", row.hood(), row.source().withArgument(2)).degrees();
+            TunableNumber timeOfFlight = new TunableNumber(prefix + "Time of Flight", row.timeOfFlight(), row.source().withArgument(3));
+            Runnable apply = () -> {
+                shotMap.put(row.distance(), new ShotData(MetersPerSecond.of(velocity.get()), Radians.of(hood.get())));
+                timeOfFlightMap.put(row.distance(), timeOfFlight.get() + offset.get());
+            };
+            velocity.onChange(value -> apply.run());
+            hood.onChange(value -> apply.run());
+            timeOfFlight.onChange(value -> apply.run());
+            offset.onChange(value -> apply.run());
+        }
     }
 
     public void clearShots() {
         shotMap.clear();
         timeOfFlightMap.clear();
         shotDistances.clear();
+        rows.clear();
     }
 }

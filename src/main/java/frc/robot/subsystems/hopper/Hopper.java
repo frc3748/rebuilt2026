@@ -31,8 +31,8 @@ public class Hopper extends StateMachine<Hopper.State> {
         this.constants = constants;
         this.shooterReady = shooterReady;
         hopper = new SpinMotor(constants.motor);
-        shootSpeed = new TunableNumber("Hopper/Shoot Speed", constants.shootSpeed);
-        outtakeSpeed = new TunableNumber("Hopper/Outtake Speed", constants.outtakeSpeed);
+        shootSpeed = TunableNumber.field("Hopper/Shoot Speed", constants, "shootSpeed");
+        outtakeSpeed = TunableNumber.field("Hopper/Outtake Speed", constants, "outtakeSpeed");
         addHardware(hopper);
         allowAllTransitions();
         enable();

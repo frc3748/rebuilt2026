@@ -2,6 +2,8 @@ package frc.robot.util.motor;
 
 import org.littletonrobotics.junction.Logger;
 
+import edu.wpi.first.wpilibj.Alert;
+import edu.wpi.first.wpilibj.Alert.AlertType;
 import frc.robot.Constants;
 import frc.robot.util.state.Hardware;
 
@@ -14,9 +16,15 @@ public class Motor implements Hardware {
         POSITION
     }
 
+    private static final double kHotCelsius = 80.0;
+    private static final double kOverheatedCelsius = 95.0;
+
     private final String name;
     private final MotorIO io;
     private final double selfTestPosition;
+    private final Alert disconnectedAlert;
+    private final Alert hotAlert;
+    private final Alert overheatedAlert;
     private final MotorIOInputsAutoLogged inputs = new MotorIOInputsAutoLogged();
 
     private Mode mode = Mode.STOP;
@@ -36,6 +44,10 @@ public class Motor implements Hardware {
         this.name = name;
         this.io = io;
         this.selfTestPosition = selfTestPosition;
+        String label = name.substring(name.lastIndexOf('/') + 1);
+        disconnectedAlert = new Alert(label + " motor disconnected", AlertType.kWarning);
+        hotAlert = new Alert(label + " motor is hot", AlertType.kWarning);
+        overheatedAlert = new Alert(label + " motor is overheating", AlertType.kError);
     }
 
     private static MotorIO createIO(MotorConfig config) {
@@ -52,6 +64,9 @@ public class Motor implements Hardware {
     public void read() {
         io.updateInputs(inputs);
         Logger.processInputs(name, inputs);
+        disconnectedAlert.set(!inputs.connected && Constants.kMode == Constants.Mode.REAL);
+        hotAlert.set(inputs.tempCelsius >= kHotCelsius && inputs.tempCelsius < kOverheatedCelsius);
+        overheatedAlert.set(inputs.tempCelsius >= kOverheatedCelsius);
     }
 
     @Override
@@ -112,6 +127,10 @@ public class Motor implements Hardware {
 
     public String getName() {
         return name;
+    }
+
+    public boolean isConnected() {
+        return inputs.connected;
     }
 
     public double getSelfTestPosition() {

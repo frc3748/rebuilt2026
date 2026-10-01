@@ -6,6 +6,7 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.simulation.DCMotorSim;
+import frc.robot.util.TunableNumber;
 
 public class ModuleIOSim implements ModuleIO {
   private final DCMotorSim driveSim;
@@ -16,6 +17,8 @@ public class ModuleIOSim implements ModuleIO {
   private final DriveConfig config;
   private final PIDController driveController;
   private final PIDController turnController;
+  private final TunableNumber driveKs;
+  private final TunableNumber driveKv;
   private double driveFFVolts = 0.0;
   private double driveAppliedVolts = 0.0;
   private double turnAppliedVolts = 0.0;
@@ -32,6 +35,12 @@ public class ModuleIOSim implements ModuleIO {
         config.turnGearbox);
 
     turnController.enableContinuousInput(-Math.PI, Math.PI);
+    TunableNumber.field("Drive Sim/kP", config, "driveSimP").onChange(driveController::setP);
+    TunableNumber.field("Drive Sim/kD", config, "driveSimD").onChange(driveController::setD);
+    TunableNumber.field("Turn Sim/kP", config, "turnSimP").onChange(turnController::setP);
+    TunableNumber.field("Turn Sim/kD", config, "turnSimD").onChange(turnController::setD);
+    driveKs = TunableNumber.field("Drive Sim/kS", config, "driveSimKs");
+    driveKv = TunableNumber.field("Drive Sim/kV", config, "driveSimKv");
   }
 
   @Override
@@ -86,7 +95,7 @@ public class ModuleIOSim implements ModuleIO {
   @Override
   public void setDriveVelocity(double velocityRadPerSec) {
     driveClosedLoop = true;
-    driveFFVolts = config.driveSimKs * Math.signum(velocityRadPerSec) + config.driveSimKv * velocityRadPerSec;
+    driveFFVolts = driveKs.get() * Math.signum(velocityRadPerSec) + driveKv.get() * velocityRadPerSec;
     driveController.setSetpoint(velocityRadPerSec);
   }
 

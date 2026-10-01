@@ -25,5 +25,5 @@ once per loop and return the cached setpoint for the rest of it.
 Each solve goes through `state.getShotCalculator()`. On the real robot
 the robot's shot map in `ShooterConstants` is interpolated and the
 target is led using its time-of-flight map (tunable live under
-`TOF Tuning/<distance>`). In simulation the funnel-clearance solve is
+`Shot Table/<distance>/Time of Flight`). In simulation the funnel-clearance solve is
 used. See [Shot Calculator]({{ '/utilities/shot-calculator/' | relative_url }}).

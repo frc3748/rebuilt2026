@@ -6,6 +6,7 @@ import static frc.robot.util.SparkUtil.sparkStickyFault;
 import static frc.robot.util.SparkUtil.tryUntilOk;
 
 import java.util.Queue;
+import java.util.function.DoubleConsumer;
 import java.util.function.DoubleSupplier;
 
 import com.ctre.phoenix6.configs.CANcoderConfiguration;
@@ -34,8 +35,7 @@ import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.math.geometry.Rotation2d;
 import frc.robot.subsystems.drive.DriveConfig.ModuleConstants;
 import frc.robot.subsystems.drive.DriveConfig.TurnSensor;
-import frc.robot.util.SparkUtil;
-import frc.robot.util.motor.Gains;
+import frc.robot.util.TunableNumber;
 import frc.robot.util.motor.MotorConfig.Controller;
 
 public class ModuleIOSpark implements ModuleIO {
@@ -52,6 +52,8 @@ public class ModuleIOSpark implements ModuleIO {
     private final CANcoder canCoder;
     private final SparkClosedLoopController driveController;
     private final SparkClosedLoopController turnController;
+    private final TunableNumber driveKs;
+    private final TunableNumber driveKv;
 
     private final Queue<Double> timestampQueue;
     private final Queue<Double> drivePositionQueue;
@@ -165,12 +167,20 @@ public class ModuleIOSpark implements ModuleIO {
         }
         turnSpark.clearFaults();
 
-        SparkUtil.tune("Drive PID", driveSpark, driveConfig,
-                Gains.of(config.driveKp, config.driveKi, config.driveKd).withFeedforward(config.driveKs, config.driveKv, 0),
-                true, false);
-        SparkUtil.tune("Turn PID", turnSpark, turnConfig,
-                Gains.of(config.turnKp, config.turnKi, config.turnKd).withFeedforward(0, config.turnKv, 0),
-                true, false);
+        Runnable applyDrive = () -> driveSpark.configure(driveConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+        Runnable applyTurn = () -> turnSpark.configure(turnConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+        tune("Drive PID/kP", "driveKp", value -> driveConfig.closedLoop.p(value), applyDrive);
+        tune("Drive PID/kI", "driveKi", value -> driveConfig.closedLoop.i(value), applyDrive);
+        tune("Drive PID/kD", "driveKd", value -> driveConfig.closedLoop.d(value), applyDrive);
+        tune("Drive PID/Spark kV", "driveSparkKv", value -> driveConfig.closedLoop.feedForward.kV(value), applyDrive);
+        tune("Drive/Current Limit", "driveCurrentLimit", value -> driveConfig.smartCurrentLimit((int) value), applyDrive).integer();
+        tune("Turn PID/kP", "turnKp", value -> turnConfig.closedLoop.p(value), applyTurn);
+        tune("Turn PID/kI", "turnKi", value -> turnConfig.closedLoop.i(value), applyTurn);
+        tune("Turn PID/kD", "turnKd", value -> turnConfig.closedLoop.d(value), applyTurn);
+        tune("Turn PID/kV", "turnKv", value -> turnConfig.closedLoop.feedForward.kV(value), applyTurn);
+        tune("Turn/Current Limit", "turnCurrentLimit", value -> turnConfig.smartCurrentLimit((int) value), applyTurn).integer();
+        driveKs = TunableNumber.field("Drive PID/kS", config, "driveKs");
+        driveKv = TunableNumber.field("Drive PID/kV", config, "driveKv");
 
         timestampQueue = SparkOdometryThread.getInstance().makeTimestampQueue();
         drivePositionQueue = SparkOdometryThread.getInstance().registerSignal(driveSpark, driveEncoder::getPosition);
@@ -232,9 +242,16 @@ public class ModuleIOSpark implements ModuleIO {
 
     @Override
     public void setDriveVelocity(double velocityRadPerSec) {
-        double feedforward = config.driveKs * Math.signum(velocityRadPerSec) + config.driveKv * velocityRadPerSec;
+        double feedforward = driveKs.get() * Math.signum(velocityRadPerSec) + driveKv.get() * velocityRadPerSec;
         driveController.setSetpoint(velocityRadPerSec, ControlType.kVelocity, ClosedLoopSlot.kSlot0, feedforward,
                 ArbFFUnits.kVoltage);
+    }
+
+    private TunableNumber tune(String key, String field, DoubleConsumer edit, Runnable apply) {
+        return TunableNumber.field(key, config, field).onChange(value -> {
+            edit.accept(value);
+            apply.run();
+        });
     }
 
     @Override

@@ -35,8 +35,7 @@ public MotorConfig extension = new MotorConfig("Intake Extension", 46, Controlle
         .pid(0.09, 0, 0)
         .feedforward(0.17, 0.00131, 0)
         .cosineGravity(0.24)
-        .maxMotion(600, 130, 2)
-        .tunable(true, true);
+        .maxMotion(600, 130, 2);
 ```
 
 And the subsystem builds them from the constants object it's given and
@@ -73,8 +72,8 @@ Any `MotorConfig` can run a Kraken by passing `Controller.TALON_FX`.
 - `maxMotion(...)` becomes Motion Magic.
 - Followers run with `MotorAlignmentValue.Aligned`, or `Opposed` when
   inverted.
-- `tunable(...)` publishes the same keys as `SparkUtil.tune`, without
-  `kDeviationErr`.
+- Every gain written in the `MotorConfig` is tunable live, like on a
+  Spark (no `kDeviationErr`). See [Tuning]({{ '/utilities/tunable-number/' | relative_url }}).
 
 ## Cameras
 

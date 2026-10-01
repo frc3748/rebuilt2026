@@ -2,7 +2,7 @@
 layout: default
 title: Logging & Telemetry
 eyebrow: Architecture
-description: AdvantageKit, tunables, Elastic — how data leaves the robot.
+description: AdvantageKit, tunables, the driver dashboard — how data leaves the robot.
 permalink: /architecture/logging/
 ---
 
@@ -13,7 +13,7 @@ audiences.
 | --- | --- | --- |
 | **AdvantageKit `Logger`** | Developers | Replayable, deterministic recording of everything. |
 | **Tunables (NetworkTables)** | Developers, tuners | Values you can edit live, recorded in the log. |
-| **Elastic notifications** | Drivers | Big, glanceable toasts during a match. |
+| **Cockpit and Alerts** | Drivers | The robotTools driver dashboard: buttons, checks, gauges and problems. |
 
 ## AdvantageKit
 
@@ -88,28 +88,20 @@ value in code.
 Use it for **anything you'd want to tune at a competition without a
 rebuild** — PID gains, tolerances, fixed-pose targets, flywheel speeds.
 
-## Elastic notifications
+## Driver dashboard
 
-[`Elastic`]({{ '/utilities/elastic/' | relative_url }}) wraps the
-[Elastic dashboard's](https://frc-elastic.gitbook.io/docs) toast
-notification API:
+The drivers use the **Drive** page in robotTools. The robot fills it
+through [`Cockpit`]({{ '/utilities/cockpit/' | relative_url }}) (buttons,
+pre-match checks, gauges) and WPILib `Alert`s, which show as a red
+(error) or amber (warning) bar on every tab:
 
 ```java
-Elastic.sendNotification(new Notification()
-    .withTitle("Path Error")
-    .withDescription("Unable to set pose")
-    .withLevel(NotificationLevel.ERROR));
+private final Alert pathAlert = new Alert("Couldn't set the starting pose", AlertType.kError);
+pathAlert.set(start.isEmpty());
 ```
 
-Use it sparingly — every toast competes for the driver's attention.
-Good candidates:
-
-- Successful homing of a mechanism
-- Vision dropout / restoration
-- Alliance-color mismatch
-- An auto routine that couldn't load
-
-Bad candidates: anything that fires every loop.
+Keep alerts for things the drive team should act on: a device offline,
+a brownout, vision lost, a stuck mechanism.
 
 ## Visualization conventions
 

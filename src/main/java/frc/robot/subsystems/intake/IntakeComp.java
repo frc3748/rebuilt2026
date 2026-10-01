@@ -5,8 +5,6 @@ import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.RobotState;
 import frc.robot.game.TrenchZone;
 import frc.robot.util.TunableNumber;
@@ -31,19 +29,16 @@ public class IntakeComp extends Intake {
         this.constants = constants;
         rollers = new SpinMotor(constants.rollers);
         extension = new PosMotor(constants.extension);
-        stowSetpoint = new TunableNumber("Intake/Extension Stow Setpoint", constants.stowSetpoint);
-        intakeSetpoint = new TunableNumber("Intake/Extension Intake Setpoint", constants.intakeSetpoint);
-        outtakeSetpoint = new TunableNumber("Intake/Extension Outtake Setpoint", constants.outtakeSetpoint);
-        shakeSetpoint = new TunableNumber("Intake/Extension Shake Setpoint", constants.shakeSetpoint);
-        intakeRollerSpeed = new TunableNumber("Intake/Roller Intake Speed", constants.intakeRollerSpeed);
-        outtakeRollerSpeed = new TunableNumber("Intake/Roller Outtake Speed", constants.outtakeRollerSpeed);
+        stowSetpoint = TunableNumber.field("Intake/Extension Stow Setpoint", constants, "stowSetpoint");
+        intakeSetpoint = TunableNumber.field("Intake/Extension Intake Setpoint", constants, "intakeSetpoint");
+        outtakeSetpoint = TunableNumber.field("Intake/Extension Outtake Setpoint", constants, "outtakeSetpoint");
+        shakeSetpoint = TunableNumber.field("Intake/Extension Shake Setpoint", constants, "shakeSetpoint");
+        intakeRollerSpeed = TunableNumber.field("Intake/Roller Intake Speed", constants, "intakeRollerSpeed");
+        outtakeRollerSpeed = TunableNumber.field("Intake/Roller Outtake Speed", constants, "outtakeRollerSpeed");
 
         addHardware(rollers, extension);
         allowAllTransitions();
 
-        SmartDashboard.putData("Intake Zero", Commands.runOnce(() -> extension.resetPosition(0))
-                .ignoringDisable(true)
-                .withName("Intake Zero"));
         enable();
     }
 
@@ -84,6 +79,11 @@ public class IntakeComp extends Intake {
     protected void goTo(double extensionPosition, double rollerSpeed) {
         extension.set(extensionPosition);
         rollers.set(rollerSpeed);
+    }
+
+    @Override
+    public void zero() {
+        extension.resetPosition(0);
     }
 
     @Override

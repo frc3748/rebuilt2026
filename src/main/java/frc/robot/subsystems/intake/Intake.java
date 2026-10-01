@@ -19,4 +19,6 @@ public abstract class Intake extends StateMachine<Intake.State> {
     public abstract void rollIn();
 
     public abstract void rollOut();
+
+    public void zero() {}
 }

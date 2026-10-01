@@ -2,6 +2,9 @@ package frc.robot.util.motor;
 
 import static frc.robot.util.SparkUtil.ifOk;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.DoubleConsumer;
 import java.util.function.DoubleSupplier;
 
 import com.revrobotics.PersistMode;
@@ -31,6 +34,7 @@ public class MotorIOSpark implements MotorIO {
     private final MotorConfig config;
     private final SparkBase motor;
     private final SparkBase[] followers;
+    private final SparkBaseConfig[] followerConfigs;
     private final RelativeEncoder encoder;
     private final SparkClosedLoopController controller;
     private final SparkBaseConfig sparkConfig;
@@ -84,6 +88,7 @@ public class MotorIOSpark implements MotorIO {
         motor.clearFaults();
 
         followers = new SparkBase[config.followers.size()];
+        followerConfigs = new SparkBaseConfig[followers.length];
         for (int i = 0; i < followers.length; i++) {
             Follower follower = config.followers.get(i);
             followers[i] = newSpark(config.controller, follower.canId());
@@ -94,6 +99,7 @@ public class MotorIOSpark implements MotorIO {
                     .voltageCompensation(12.0)
                     .follow(config.canId, follower.inverted());
             followers[i].configure(followerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+            followerConfigs[i] = followerConfig;
             followers[i].clearFaults();
         }
 
@@ -101,9 +107,31 @@ public class MotorIOSpark implements MotorIO {
             encoder.setPosition(config.startingPosition);
         }
 
-        if (config.tunable) {
-            SparkUtil.tune(config.name, motor, sparkConfig, config.gains, config.tuneFeedforward, config.tuneMaxMotion);
-        }
+        tune();
+    }
+
+    private void tune() {
+        Map<String, DoubleConsumer> edits = new HashMap<>();
+        edits.put("kP", apply(value -> sparkConfig.closedLoop.p(value)));
+        edits.put("kI", apply(value -> sparkConfig.closedLoop.i(value)));
+        edits.put("kD", apply(value -> sparkConfig.closedLoop.d(value)));
+        edits.put("kS", apply(value -> sparkConfig.closedLoop.feedForward.kS(value)));
+        edits.put("kV", apply(value -> sparkConfig.closedLoop.feedForward.kV(value)));
+        edits.put("kA", apply(value -> sparkConfig.closedLoop.feedForward.kA(value)));
+        edits.put("kG", apply(value -> sparkConfig.closedLoop.feedForward.kG(value)));
+        edits.put("kCos", apply(value -> sparkConfig.closedLoop.feedForward.kCos(value)));
+        edits.put("kMaxAccel", apply(value -> sparkConfig.closedLoop.maxMotion.maxAcceleration(value)));
+        edits.put("kCruiseVel", apply(value -> sparkConfig.closedLoop.maxMotion.cruiseVelocity(value)));
+        edits.put("kDeviationErr", apply(value -> sparkConfig.closedLoop.maxMotion.allowedProfileError(value)));
+        edits.put("Current Limit", value -> setCurrentLimit((int) value));
+        MotorTuning.register(config, edits);
+    }
+
+    private DoubleConsumer apply(DoubleConsumer edit) {
+        return value -> {
+            edit.accept(value);
+            motor.configure(sparkConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+        };
     }
 
     private void applyGains(Gains gains, ClosedLoopSlot slot) {
@@ -182,6 +210,10 @@ public class MotorIOSpark implements MotorIO {
     public void setCurrentLimit(int amps) {
         sparkConfig.smartCurrentLimit(amps);
         motor.configure(sparkConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+        for (int i = 0; i < followers.length; i++) {
+            followerConfigs[i].smartCurrentLimit(amps);
+            followers[i].configure(followerConfigs[i], ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+        }
     }
 
     private static SparkBase newSpark(Controller controller, int canId) {

@@ -11,6 +11,8 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.wpilibj.Alert;
+import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.DeferredCommand;
@@ -21,9 +23,6 @@ import frc.robot.commands.AutoAlignToPoseCommand;
 import frc.robot.game.AllianceFlip;
 import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.shooter.Shooter;
-import frc.robot.util.Elastic;
-import frc.robot.util.Elastic.Notification;
-import frc.robot.util.Elastic.NotificationLevel;
 
 public abstract class PathAuto extends AutoRoutine {
     protected final RobotState state;
@@ -52,10 +51,7 @@ public abstract class PathAuto extends AutoRoutine {
     private void resetPose(PathPlannerPath path) {
         Optional<Pose2d> start = path.getStartingHolonomicPose();
         if (start.isEmpty()) {
-            Elastic.sendNotification(new Notification()
-                    .withTitle("Path Error")
-                    .withDescription("Unable to set pose")
-                    .withLevel(NotificationLevel.ERROR));
+            new Alert(name() + " couldn't set its starting pose", AlertType.kError).set(true);
             return;
         }
         state.getDrive().setPose(AllianceFlip.forAlliance(start.get()));

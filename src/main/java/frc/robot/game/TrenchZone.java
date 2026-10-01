@@ -4,12 +4,17 @@ import static edu.wpi.first.units.Units.Meters;
 
 import edu.wpi.first.math.geometry.Translation2d;
 import frc.robot.RobotState;
+import frc.robot.util.TunableNumber;
 
 public class TrenchZone {
-    private static final double kHoodLowerRadius = 0.8;
-    private static final double kIntakeLowerRadius = 1.0;
+    private static final TunableNumber kHoodLowerRadius = new TunableNumber("Trench/Hood Down Radius", 0.8);
+    private static final TunableNumber kIntakeLowerRadius = new TunableNumber("Trench/Intake Down Radius", 1.0);
 
     public static double getDistanceToClosestTrench(RobotState state) {
+        return state.getLatestFieldToRobot().getValue().getTranslation().getDistance(closestTrench(state));
+    }
+
+    public static Translation2d closestTrench(RobotState state) {
         Translation2d robot = state.getLatestFieldToRobot().getValue().getTranslation();
 
         double nearY = FieldConstants.TRENCH_CENTER.in(Meters);
@@ -24,11 +29,17 @@ public class TrenchZone {
                 new Translation2d(opponentX, farY)
         };
 
-        double closest = Double.MAX_VALUE;
+        Translation2d closest = trenches[0];
         for (Translation2d trench : trenches) {
-            closest = Math.min(closest, robot.getDistance(trench));
+            if (robot.getDistance(trench) < robot.getDistance(closest)) {
+                closest = trench;
+            }
         }
         return closest;
+    }
+
+    public static double hoodLowerRadius() {
+        return kHoodLowerRadius.get();
     }
 
     public static double getDistanceToClosestShootingPose(RobotState state) {
@@ -40,7 +51,7 @@ public class TrenchZone {
     }
 
     public static boolean intakeLowerRequired(RobotState state) {
-        return getDistanceToClosestTrench(state) < kIntakeLowerRadius;
+        return getDistanceToClosestTrench(state) < kIntakeLowerRadius.get();
     }
 
     public static boolean driveRotationOverrideRequired(RobotState state) {
@@ -48,6 +59,6 @@ public class TrenchZone {
     }
 
     public static boolean hoodLowerRequired(RobotState state) {
-        return getDistanceToClosestTrench(state) < kHoodLowerRadius;
+        return getDistanceToClosestTrench(state) < kHoodLowerRadius.get();
     }
 }

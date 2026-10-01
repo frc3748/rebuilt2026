@@ -12,14 +12,14 @@ public class HoodConstants {
     public double minLimit = Units.degreesToRadians(25.0);
     public double maxLimit = Units.degreesToRadians(50.0);
     public double maxSetpointUnderTrench = Units.degreesToRadians(25.0);
+    public double readyTolerance = Units.degreesToRadians(1.5);
 
     public MotorConfig motor = new MotorConfig("Hood", 54, Controller.SPARK_MAX)
             .currentLimit(40)
             .pid(0.8, 0, 0)
             .feedforward(0.195, 0, 0)
             .gravity(0.401)
-            .maxMotion(100000, 3000, 0)
-            .tunable(true, true);
+            .maxMotion(100000, 3000, 0);
 
     public double customSetpoint = 0.0;
 

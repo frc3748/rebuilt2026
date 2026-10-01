@@ -9,10 +9,13 @@ public class GameState {
     private static final double kTransitionStart = 130;
     private static final double kEndGameStart = 30;
     private static final double kShiftLength = 25;
+    private static final double kTeleopLength = 140;
 
     private String phase = "No Game State";
     private double secondsUntilShift;
     private boolean hubActive = true;
+    private boolean hubActiveNext = true;
+    private String[] timeline = new String[0];
     private boolean wonAuto;
 
     public void update() {
@@ -43,11 +46,46 @@ public class GameState {
         if (shiftsKnown) {
             char ourColor = alliance.get() == Alliance.Red ? 'R' : 'B';
             boolean winnerKnown = autoWinner == 'B' || autoWinner == 'R';
-            hubActive = !winnerKnown || (shift % 2 == 0) == (ourColor == autoWinner);
+            hubActive = !winnerKnown || activeInShift(shift, ourColor, autoWinner);
             wonAuto = autoWinner == ourColor;
         } else {
             hubActive = true;
         }
+
+        boolean winnerKnown = alliance.isPresent() && (autoWinner == 'B' || autoWinner == 'R');
+        char ourColor = alliance.map(color -> color == Alliance.Red ? 'R' : 'B').orElse(' ');
+        String[] shifts = new String[4];
+        for (int index = 1; index <= 4; index++) {
+            shifts[index - 1] = !winnerKnown ? "unknown" : activeInShift(index, ourColor, autoWinner) ? "active" : "inactive";
+        }
+        timeline = new String[] {
+            segment("Transition", kTeleopLength, kTransitionStart, "both"),
+            segment("1", kTransitionStart, kTransitionStart - kShiftLength, shifts[0]),
+            segment("2", kTransitionStart - kShiftLength, kTransitionStart - 2 * kShiftLength, shifts[1]),
+            segment("3", kTransitionStart - 2 * kShiftLength, kTransitionStart - 3 * kShiftLength, shifts[2]),
+            segment("4", kTransitionStart - 3 * kShiftLength, kEndGameStart, shifts[3]),
+            segment("End", kEndGameStart, 0, "both"),
+        };
+
+        if (!winnerKnown || DriverStation.isAutonomous() || inEndGame) {
+            hubActiveNext = true;
+        } else if (inTransition) {
+            hubActiveNext = activeInShift(1, ourColor, autoWinner);
+        } else {
+            hubActiveNext = shift >= 4 || activeInShift(shift + 1, ourColor, autoWinner);
+        }
+    }
+
+    private static String segment(String label, double from, double to, String state) {
+        return label + "\t" + from + "\t" + to + "\t" + state;
+    }
+
+    public String[] getTimeline() {
+        return timeline;
+    }
+
+    private static boolean activeInShift(int shift, char ourColor, char autoWinner) {
+        return (shift % 2 == 0) == (ourColor == autoWinner);
     }
 
     public String getPhase() {
@@ -60,6 +98,10 @@ public class GameState {
 
     public boolean isHubActive() {
         return hubActive;
+    }
+
+    public boolean isHubActiveNext() {
+        return hubActiveNext;
     }
 
     public boolean wonAuto() {

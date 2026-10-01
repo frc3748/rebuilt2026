@@ -1,5 +1,7 @@
 package frc.robot.commands;
 
+import java.util.Optional;
+
 import org.littletonrobotics.junction.Logger;
 
 import edu.wpi.first.math.MathUtil;
@@ -28,6 +30,7 @@ public class AutoAlignToPoseCommand extends Command {
 
     private final Drive drive;
     private final RobotState state;
+    private static Optional<Pose2d> active = Optional.empty();
     private final Pose2d target;
     private final AlignType alignType;
     private final ProfiledPIDController driveController;
@@ -83,9 +86,13 @@ public class AutoAlignToPoseCommand extends Command {
         thetaController.reset(current.getRotation().getRadians(),
                 state.getLatestRobotRelativeChassisSpeed().omegaRadiansPerSecond);
 
-        drive.setFieldPoses(current, target);
         Logger.recordOutput("DriveToPose/Target", target);
         Logger.recordOutput("DriveToPose/Active", true);
+        active = Optional.of(target);
+    }
+
+    public static Optional<Pose2d> activeTarget() {
+        return active;
     }
 
     @Override
@@ -130,6 +137,7 @@ public class AutoAlignToPoseCommand extends Command {
     @Override
     public void end(boolean interrupted) {
         Logger.recordOutput("DriveToPose/Active", false);
+        active = Optional.empty();
         drive.runVelocity(new ChassisSpeeds());
     }
 
@@ -149,10 +157,10 @@ public class AutoAlignToPoseCommand extends Command {
         final TunableNumber radiansTolerance;
 
         Tuning(DriveConfig config) {
-            driveP = new TunableNumber("Auto Align/Drive kP", config.driveToPointP);
-            turnP = new TunableNumber("Auto Align/Turn kP", config.driveToPointHeadingP);
-            metersTolerance = new TunableNumber("Auto Align/Meters Tolerance", config.metersTolerance);
-            radiansTolerance = new TunableNumber("Auto Align/Radians Tolerance", config.radiansTolerance);
+            driveP = TunableNumber.field("Auto Align/Drive kP", config, "driveToPointP");
+            turnP = TunableNumber.field("Auto Align/Turn kP", config, "driveToPointHeadingP");
+            metersTolerance = TunableNumber.field("Auto Align/Meters Tolerance", config, "metersTolerance");
+            radiansTolerance = TunableNumber.field("Auto Align/Tolerance", config, "radiansTolerance").degrees();
         }
     }
 }

@@ -5,8 +5,6 @@ import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.RobotState;
 import frc.robot.game.ShooterSetpoint;
 import frc.robot.game.TrenchZone;
@@ -28,6 +26,8 @@ public class Hood extends StateMachine<Hood.State> {
     private final HoodConstants constants;
     private final PosMotor hood;
     private final TunableNumber customSetpoint;
+    private final TunableNumber readyTolerance;
+    private final TunableNumber maxUnderTrench;
 
     public Hood(RobotState robotState, HoodConstants constants) {
         super("Hood", State.UNDETERMINED, State.class);
@@ -37,13 +37,12 @@ public class Hood extends StateMachine<Hood.State> {
                 .conversion(constants.radiansPerRotation, constants.radiansPerRotation / 60.0)
                 .softLimits(constants.minLimit, constants.maxLimit)
                 .startingPosition(constants.minLimit));
-        customSetpoint = new TunableNumber("Hood/Custom Setpoint", constants.customSetpoint);
+        customSetpoint = TunableNumber.field("Hood/Custom Setpoint", constants, "customSetpoint").degrees();
+        readyTolerance = TunableNumber.field("Hood/Ready Tolerance", constants, "readyTolerance").degrees();
+        maxUnderTrench = TunableNumber.field("Hood/Max Under Trench", constants, "maxSetpointUnderTrench").degrees();
         addHardware(hood);
         allowAllTransitions();
 
-        SmartDashboard.putData("Hood Zero", Commands.runOnce(() -> hood.resetPosition(constants.minLimit))
-                .ignoringDisable(true)
-                .withName("Hood Zero"));
         enable();
     }
 
@@ -67,13 +66,29 @@ public class Hood extends StateMachine<Hood.State> {
                         new Rotation3d(0, Units.degreesToRadians(-120) + hood.getPosition(), 0))));
     }
 
+    public void zero() {
+        hood.resetPosition(constants.minLimit);
+    }
+
+    public double getAngle() {
+        return hood.getPosition();
+    }
+
+    public double getGoal() {
+        return hood.getGoal();
+    }
+
+    public boolean isAtGoal() {
+        return hood.isAtGoal(readyTolerance.get());
+    }
+
     public void aim(ShooterSetpoint setpoint) {
         setPos(setpoint.getHoodRadians(), setpoint.getHoodFF());
     }
 
     public void setPos(double position, double feedforward) {
         boolean underTrench = TrenchZone.hoodLowerRequired(robotState);
-        hood.set(underTrench ? Math.min(position, constants.maxSetpointUnderTrench) : position, feedforward);
+        hood.set(underTrench ? Math.min(position, maxUnderTrench.get()) : position, feedforward);
     }
 
     @Override

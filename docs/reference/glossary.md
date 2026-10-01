@@ -26,6 +26,9 @@ permalink: /reference/glossary/
 <dt>CANcoder</dt>
 <dd>CTRE's absolute magnetic encoder. Used on swerve modules for the turn axis.</dd>
 
+<dt>Cockpit</dt>
+<dd>The driver dashboard, the <strong>Drive</strong> page in robotTools. The robot registers its buttons, pre-match checks and gauges through <a href="{{ '/utilities/cockpit/' | relative_url }}">Cockpit</a>. It replaced Elastic.</dd>
+
 <dt>CommandScheduler</dt>
 <dd>WPILib's central loop runner. Calls every subsystem's <code>periodic()</code> and runs any active commands.</dd>
 
@@ -34,9 +37,6 @@ permalink: /reference/glossary/
 
 <dt>DriveConfig</dt>
 <dd>A robot's drivetrain constants: gyro, motor controllers, turn sensor, CAN IDs, geometry, gains. One subclass per robot (<code>CompDrive</code>, <code>SecondaryDrive</code>, <code>PracticeDrive</code>). See <a href="{{ '/subsystems/drive/' | relative_url }}#driveconfig">Drive</a>.</dd>
-
-<dt>Elastic</dt>
-<dd>A driver dashboard. The codebase pushes toast notifications to it via <a href="{{ '/utilities/elastic/' | relative_url }}">the Elastic helper</a>.</dd>
 
 <dt>FMS</dt>
 <dd>Field Management System. The match controller at competition. Provides alliance, match time, and other match data.</dd>

@@ -14,6 +14,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 public abstract class AutoRoutine {
     private final String name;
     private final String[] pathNames;
+    private String mode = "";
 
     protected AutoRoutine(String name, String... pathNames) {
         this.name = name;
@@ -22,6 +23,15 @@ public abstract class AutoRoutine {
 
     public String name() {
         return name;
+    }
+
+    public String mode() {
+        return mode;
+    }
+
+    public AutoRoutine mode(String mode) {
+        this.mode = mode;
+        return this;
     }
 
     public abstract Command build();

@@ -1,6 +1,9 @@
 package frc.robot.util.state;
 
 import edu.wpi.first.util.sendable.Sendable;
+import edu.wpi.first.wpilibj.Alert;
+import edu.wpi.first.wpilibj.Alert.AlertType;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.*;
 import frc.robot.util.motor.Motor;
@@ -10,7 +13,6 @@ import frc.robot.util.state.transitions.TransitionBase;
 
 import java.util.*;
 import org.littletonrobotics.junction.Logger;
-import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
   private final DirectionalEnumGraph<E, TransitionBase<E>> transitionGraph;
@@ -19,6 +21,7 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
   private final HashMap<E, Command> stateCommands;
   private final Timer transitionTimer;
   private final Set<E> currentFlags;
+  private static final double STUCK_SECONDS = 2.0;
   private final double transitionTimeOut = 2;
   private final E undeterminedState;
   private E currentState;
@@ -28,8 +31,8 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
   private final Class<E> enumType;
   private final List<StateMachine<?>> subsystems;
 
-  private final LoggedDashboardChooser<E> stateChooser;
-  private E lastChooserRequest;
+  private final Alert stuckAlert;
+  private final Timer stuckTimer = new Timer();
 
   private final List<Hardware> hardware = new ArrayList<>();
   private Runnable override;
@@ -45,25 +48,12 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
     currentFlags = new HashSet<>();
     stateCommands = new HashMap<>();
     subsystems = new ArrayList<>();
-    stateChooser = new LoggedDashboardChooser<>(name + "State Chooser");
-    lastChooserRequest = undeterminedState;
-
-    initStateChooser();
+    stuckAlert = new Alert(name + " is stuck", AlertType.kWarning);
 
     setName(name);
 
     transitionGraph = new DirectionalEnumGraph<>(enumType);
     enabled = false;
-  }
-
-  private void initStateChooser() {
-    stateChooser.addDefaultOption(undeterminedState.name(), undeterminedState);
-
-    for (E state : enumType.getEnumConstants()) {
-      if (state != undeterminedState) {
-        stateChooser.addOption(state.name(), state);
-      }
-    }
   }
 
   public final List<StateMachine<?>> getChildSubsystems() {
@@ -342,15 +332,11 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
   @Override
   public final void periodic() {
     long start = System.nanoTime();
-    E chooserRequest = stateChooser.get();
 
     if (enabled) {
       updateTransitioning();
-
-      if (chooserRequest != null && lastChooserRequest != chooserRequest) {
-        requestTransition(chooserRequest);
-      }
     }
+    updateStuck();
 
     hardware.forEach(Hardware::read);
     recordLogs();
@@ -364,8 +350,22 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
     applyConstraints();
 
     hardware.forEach(Hardware::write);
-    lastChooserRequest = chooserRequest;
     Logger.recordOutput("LoopTimes/" + getName(), (System.nanoTime() - start) / 1e6);
+  }
+
+  private void updateStuck() {
+    boolean waiting = isTransitioning() && DriverStation.isEnabled() && !isOverridden();
+    if (!waiting) {
+      stuckTimer.stop();
+      stuckTimer.reset();
+    } else {
+      stuckTimer.start();
+    }
+    boolean stuck = stuckTimer.hasElapsed(STUCK_SECONDS);
+    if (stuck) {
+      stuckAlert.setText(getName() + " is stuck going to " + getCurrentTransition().getEndState().name());
+    }
+    stuckAlert.set(stuck);
   }
 
   private void recordLogs() {

@@ -1,8 +1,12 @@
 package frc.robot.util.motor;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
+
+import frc.robot.util.tuning.Source;
 
 public class MotorConfig {
     public enum Controller {
@@ -18,6 +22,7 @@ public class MotorConfig {
     final Controller controller;
     final List<Follower> followers = new ArrayList<>();
     final Gains gains = new Gains();
+    final Map<String, Source> sources = new LinkedHashMap<>();
     Gains slot1;
 
     boolean inverted;
@@ -31,9 +36,6 @@ public class MotorConfig {
     double reverseSoftLimit = Double.NaN;
     double forwardSoftLimit = Double.NaN;
     double startingPosition = Double.NaN;
-    boolean tunable;
-    boolean tuneFeedforward;
-    boolean tuneMaxMotion;
     double simVelocityLagSeconds = 0.1;
     double selfTestPosition = Double.NaN;
 
@@ -64,6 +66,7 @@ public class MotorConfig {
 
     public MotorConfig currentLimit(int amps) {
         currentLimit = amps;
+        track("currentLimit", "Current Limit");
         return this;
     }
 
@@ -77,6 +80,7 @@ public class MotorConfig {
         gains.kP = kP;
         gains.kI = kI;
         gains.kD = kD;
+        track("pid", "kP", "kI", "kD");
         return this;
     }
 
@@ -84,18 +88,21 @@ public class MotorConfig {
         gains.kS = kS;
         gains.kV = kV;
         gains.kA = kA;
+        track("feedforward", "kS", "kV", "kA");
         return this;
     }
 
     public MotorConfig gravity(double kG) {
         gains.kG = kG;
         gains.gravityIsCosine = false;
+        track("gravity", "kG");
         return this;
     }
 
     public MotorConfig cosineGravity(double kCos) {
         gains.kG = kCos;
         gains.gravityIsCosine = true;
+        track("cosineGravity", "kCos");
         return this;
     }
 
@@ -104,6 +111,7 @@ public class MotorConfig {
         gains.maxAccel = maxAccel;
         gains.cruiseVel = cruiseVel;
         gains.allowedError = allowedError;
+        track("maxMotion", "kMaxAccel", "kCruiseVel", "kDeviationErr");
         return this;
     }
 
@@ -145,15 +153,32 @@ public class MotorConfig {
         return this;
     }
 
-    public MotorConfig tunable(boolean feedforward, boolean maxMotion) {
-        tunable = true;
-        tuneFeedforward = feedforward;
-        tuneMaxMotion = maxMotion;
-        return this;
-    }
-
     public MotorConfig simVelocityLag(double seconds) {
         simVelocityLagSeconds = seconds;
         return this;
+    }
+
+    double value(String gain) {
+        return switch (gain) {
+            case "kP" -> gains.kP;
+            case "kI" -> gains.kI;
+            case "kD" -> gains.kD;
+            case "kS" -> gains.kS;
+            case "kV" -> gains.kV;
+            case "kA" -> gains.kA;
+            case "kG", "kCos" -> gains.kG;
+            case "kMaxAccel" -> gains.maxAccel;
+            case "kCruiseVel" -> gains.cruiseVel;
+            case "kDeviationErr" -> gains.allowedError;
+            case "Current Limit" -> currentLimit;
+            default -> throw new IllegalArgumentException(gain);
+        };
+    }
+
+    private void track(String call, String... names) {
+        Source source = Source.caller(MotorConfig.class, call, call, 0);
+        for (int i = 0; i < names.length; i++) {
+            sources.put(names[i], source.withArgument(i));
+        }
     }
 }

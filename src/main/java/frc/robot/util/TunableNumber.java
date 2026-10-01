@@ -4,31 +4,32 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.DoubleConsumer;
 
-import org.littletonrobotics.junction.Logger;
-import org.littletonrobotics.junction.networktables.LoggedNetworkNumber;
-
-import edu.wpi.first.wpilibj.DriverStation;
+import frc.robot.util.tuning.Source;
+import frc.robot.util.tuning.Tuning;
 
 public class TunableNumber {
     private static final List<TunableNumber> all = new ArrayList<>();
 
-    private final String key;
-    private final LoggedNetworkNumber value;
-    private final double defaultValue;
+    private final Tuning.Value value;
     private final List<DoubleConsumer> listeners = new ArrayList<>();
     private double lastSeen;
-    private boolean defaultLogged;
 
     public TunableNumber(String key, double defaultValue) {
-        this.key = key;
-        value = new LoggedNetworkNumber("/Tunable/" + key, defaultValue);
-        this.defaultValue = defaultValue;
+        this(key, defaultValue, Source.caller(TunableNumber.class, "<init>", "TunableNumber", 1));
+    }
+
+    public TunableNumber(String key, double defaultValue, Source source) {
+        value = Tuning.value(key, defaultValue, source);
         lastSeen = defaultValue;
         all.add(this);
     }
 
+    public static TunableNumber field(String key, Object owner, String field) {
+        return new TunableNumber(key, Source.read(owner, field), Source.field(owner, field));
+    }
+
     public double get() {
-        return DriverStation.isFMSAttached() ? defaultValue : value.get();
+        return value.get();
     }
 
     public TunableNumber onChange(DoubleConsumer listener) {
@@ -36,17 +37,29 @@ public class TunableNumber {
         return this;
     }
 
+    public TunableNumber integer() {
+        value.integer();
+        return this;
+    }
+
+    public TunableNumber restartToApply() {
+        value.restartToApply();
+        return this;
+    }
+
+    public TunableNumber degrees() {
+        value.display("°", Math.toDegrees(1.0));
+        return this;
+    }
+
     public static void pollAll() {
         for (TunableNumber tunable : all) {
             tunable.poll();
         }
+        Tuning.periodic();
     }
 
     private void poll() {
-        if (!defaultLogged) {
-            Logger.recordOutput("TunableDefaults/" + key, defaultValue);
-            defaultLogged = true;
-        }
         double current = get();
         if (current != lastSeen) {
             lastSeen = current;

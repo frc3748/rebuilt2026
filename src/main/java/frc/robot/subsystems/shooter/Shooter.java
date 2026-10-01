@@ -36,6 +36,18 @@ public abstract class Shooter extends StateMachine<Shooter.State> {
 
     public abstract void releaseFeed();
 
+    public void zero() {}
+
+    public void resetMultiplier() {}
+
+    public boolean isReadyToShoot() {
+        return false;
+    }
+
+    public boolean isHoldingShot() {
+        return false;
+    }
+
     public boolean isFiring() {
         return getState() == State.SHOOTING || getState() == State.PASSING;
     }

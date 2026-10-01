@@ -13,6 +13,7 @@ A bird's-eye view of where everything lives.
 ```
 rebuilt2026/
 ├── build.gradle                ← GradleRIO build, AdvantageKit annotation processor, BuildInfo, sim extensions, JUnit (forkEvery = 1)
+├── tuning.gradle               ← pullTuning: writes values saved in tuning mode into the code (runs before deploy)
 ├── settings.gradle             ← Project name
 ├── gradle/, gradlew(.bat)      ← Gradle wrapper
 ├── vendordeps/                 ← External library JSONs (Phoenix, REVLib, Studica, …)
@@ -99,13 +100,15 @@ frc/robot/
     │   ├── MotorIOTalonFX.java       ← TalonFX (Kraken, Falcon) through Phoenix 6
     │   └── MotorIOSim.java           ← Kinematic sim (tracks setpoints)
     ├── state/                  ← The state-machine framework
-    ├── TunableNumber.java            ← Dashboard-tunable constant (AdvantageKit LoggedNetworkNumber)
+    ├── TunableNumber.java            ← A tunable value; see tuning/
+    ├── tuning/                 ← Tuning mode, saved values, overrides, and where each value lives in the source
     ├── Visuals.java                  ← Records visual-only outputs, in simulation only
     ├── BatteryTracker.java           ← Battery chooser, Battery/* logs
-    ├── SparkUtil.java                ← Spark error checks and tune(), the live-gains helper
+    ├── SparkUtil.java                ← Spark error checks
     ├── ConcurrentTimeInterpolatableBuffer.java, RobotTime.java
     ├── SimulatedRobotState.java      ← Ground-truth pose in simulation
-    └── LimelightHelpers.java, Elastic.java
+    ├── cockpit/Cockpit.java          ← Buttons, checks and gauges for the robotTools dashboard
+    └── LimelightHelpers.java
 ```
 
 ## The mental model

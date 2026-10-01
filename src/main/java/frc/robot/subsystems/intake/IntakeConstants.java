@@ -11,8 +11,7 @@ public class IntakeConstants {
     public MotorConfig rollers = new MotorConfig("Intake Roller", 48, Controller.SPARK_FLEX)
             .currentLimit(80)
             .conversion(1.0, 1.0 / 60.0)
-            .pid(0.022, 0, 0)
-            .tunable(false, false);
+            .pid(0.022, 0, 0);
 
     public MotorConfig extension = new MotorConfig("Intake Extension", 46, Controller.SPARK_MAX)
             .follower(47, true)
@@ -22,8 +21,7 @@ public class IntakeConstants {
             .feedforward(0.17, 0.00131, 0)
             .cosineGravity(0.24)
             .maxMotion(600, 130, 2)
-            .selfTestPosition(-45)
-            .tunable(true, true);
+            .selfTestPosition(-45);
 
     public double stowSetpoint = -93;
     public double intakeSetpoint = 0;

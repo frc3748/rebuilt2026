@@ -5,6 +5,8 @@ import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
+import java.util.ArrayList;
+import java.util.List;
 import org.littletonrobotics.junction.Logger;
 
 public class Module {
@@ -15,6 +17,7 @@ public class Module {
 
   private final Alert driveDisconnectedAlert;
   private final Alert turnDisconnectedAlert;
+  private final Alert encoderDisconnectedAlert;
   private SwerveModulePosition[] odometryPositions = new SwerveModulePosition[] {};
 
   public Module(ModuleIO io, int index, double wheelRadiusMeters) {
@@ -28,6 +31,8 @@ public class Module {
     turnDisconnectedAlert =
         new Alert(
             "Disconnected turn motor on module " + Integer.toString(index) + ".", AlertType.kError);
+    encoderDisconnectedAlert =
+        new Alert("Disconnected turn encoder on module " + Integer.toString(index) + ".", AlertType.kError);
   }
 
   public void periodic() {
@@ -44,6 +49,23 @@ public class Module {
 
     driveDisconnectedAlert.set(!inputs.driveConnected);
     turnDisconnectedAlert.set(!inputs.turnConnected);
+    encoderDisconnectedAlert.set(!inputs.encoderConnected);
+  }
+
+  public List<String> disconnected() {
+    String[] names = {"FL", "FR", "BL", "BR"};
+    String label = index < names.length ? names[index] : "Module " + index;
+    List<String> found = new ArrayList<>();
+    if (!inputs.driveConnected) {
+      found.add(label + " drive");
+    }
+    if (!inputs.turnConnected) {
+      found.add(label + " turn");
+    }
+    if (!inputs.encoderConnected) {
+      found.add(label + " encoder");
+    }
+    return found;
   }
 
   public void runSetpoint(SwerveModuleState state) {

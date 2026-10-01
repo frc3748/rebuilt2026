@@ -144,7 +144,7 @@ teleop) and routes joystick input to the robot.
    - "Comms" and "Robot Code" indicators on the left are both green.
 
 To pick which autonomous routine runs, use the **Auto Choices**
-chooser in Elastic or SmartDashboard. See
+chooser on the robotTools **Drive** page (Pre-match tab). See
 [Autos]({{ '/commands/autos/' | relative_url }}).
 
 ## Connect AdvantageScope

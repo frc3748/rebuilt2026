@@ -68,8 +68,10 @@ and distance → time-of-flight maps, filled by `addShot` in its
 constructor. `RobotState` creates one per robot. On the real robot
 [`ShotCalculator`]({{ '/utilities/shot-calculator/' | relative_url }})
 interpolates these; in simulation it uses its funnel-clearance solve.
-`ShooterComp` publishes each time of flight as a live tunable under
-`TOF Tuning/<distance>`.
+`ShooterConstants.tune()` makes every shot-table row tunable under
+`Shot Table/<distance>/` (exit velocity, hood, time of flight), plus the
+time-of-flight offset. Saved values are written back into the
+`addShot(...)` lines.
 
 ## Operator override
 

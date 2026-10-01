@@ -8,6 +8,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.DoubleSupplier;
 
 import org.littletonrobotics.junction.Logger;
 
@@ -19,9 +20,13 @@ import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.wpilibj.Alert;
+import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.Alert.AlertType;
 import frc.robot.Constants;
 import frc.robot.RobotState;
 import frc.robot.game.FieldConstants;
+import frc.robot.util.TunableNumber;
 import frc.robot.util.Visuals;
 import frc.robot.subsystems.vision.CameraIO.ObjectObservation;
 import frc.robot.subsystems.vision.CameraIO.PoseObservation;
@@ -35,12 +40,20 @@ public class Camera {
     private final Map<PoseSource, Double> lastTimestamps = new EnumMap<>(PoseSource.class);
     private final List<VisionMeasurement> measurements = new ArrayList<>();
     private final List<DetectedObject> objects = new ArrayList<>();
+    private final List<HeadingSample> headings = new ArrayList<>();
     private int requestedPipeline = -1;
+    private double lastFixTime = Double.NEGATIVE_INFINITY;
+    private final Alert disconnectedAlert;
+    private final DoubleSupplier stdDevFactor;
 
     public Camera(CameraConfig config, CameraIO io) {
         this.config = config;
         this.io = io;
         logKey = "Vision/" + config.name();
+        disconnectedAlert = new Alert(config.name() + " disconnected", AlertType.kWarning);
+        stdDevFactor = config.stdDevSource().isKnown()
+                ? new TunableNumber("Vision/" + config.name() + " Std Dev Factor", config.stdDevFactor(), config.stdDevSource())::get
+                : config::stdDevFactor;
     }
 
     public static Camera of(CameraConfig config, RobotState state) {
@@ -66,9 +79,11 @@ public class Camera {
                 Units.radiansToDegrees(state.getLatestRobotRelativeChassisSpeed().omegaRadiansPerSecond));
         io.updateInputs(inputs);
         Logger.processInputs(logKey, inputs);
+        disconnectedAlert.set(!inputs.connected);
 
         measurements.clear();
         objects.clear();
+        headings.clear();
         if (config.estimatesPose()) {
             estimatePose(state);
         }
@@ -97,7 +112,11 @@ public class Camera {
             if (reason.isEmpty()) {
                 lastTimestamps.put(observation.source(), observation.timestamp());
                 measurements.add(toMeasurement(observation, pose));
+                lastFixTime = Timer.getFPGATimestamp();
                 accepted.add(pose);
+                if (observation.source().headingSource && isStrictHeading(observation, state)) {
+                    headings.add(new HeadingSample(observation.timestamp(), pose.getRotation()));
+                }
             } else {
                 rejected.add(pose);
                 reasons.add(reason.get());
@@ -119,7 +138,7 @@ public class Camera {
         if (observation.tagCount() == 0) {
             return Optional.of("no tags");
         }
-        if (observation.source().rejectAmbiguous && observation.tagCount() == 1 && observation.ambiguity() > kMaxAmbiguity) {
+        if (observation.source().rejectAmbiguous && observation.tagCount() == 1 && observation.ambiguity() > kMaxAmbiguity.get()) {
             return Optional.of("ambiguous");
         }
         if (pose.getX() < 0 || pose.getX() > FieldConstants.LAYOUT_LENGTH_METERS
@@ -132,13 +151,26 @@ public class Camera {
         if (pose.getTranslation().equals(Translation2d.kZero)) {
             return Optional.of("zero pose");
         }
-        if (Math.abs(observation.robotPose().getZ()) > kMaxZErrorMeters) {
+        if (Math.abs(observation.robotPose().getZ()) > kMaxZErrorMeters.get()) {
             return Optional.of("height");
         }
         if (!isStable(state, observation.timestamp())) {
             return Optional.of("spinning");
         }
+        if (observation.source() == PoseSource.MEGATAG_1 && !isStrictHeading(observation, state)) {
+            return Optional.of("not strict");
+        }
         return Optional.empty();
+    }
+
+    private boolean isStrictHeading(PoseObservation observation, RobotState state) {
+        double yawRate = Math.abs(state
+                .getMaxAbsDriveYawAngularVelocityInRange(observation.timestamp() - kStabilityWindowSeconds, observation.timestamp())
+                .orElse(0.0));
+        return observation.tagCount() >= kStrictHeadingMinTags
+                && observation.averageTagDistance() <= kStrictHeadingMaxDistanceMeters
+                && observation.ambiguity() <= kStrictHeadingMaxAmbiguity
+                && yawRate <= kStrictHeadingMaxYawRateRadPerSec;
     }
 
     private boolean isStable(RobotState state, double timestamp) {
@@ -150,9 +182,9 @@ public class Camera {
 
     private VisionMeasurement toMeasurement(PoseObservation observation, Pose2d pose) {
         double distance = observation.averageTagDistance();
-        double factor = distance * distance / observation.tagCount() * config.stdDevFactor();
-        double linear = kLinearStdDevBaseline * factor * observation.source().linearStdDevFactor;
-        double angular = kAngularStdDevBaseline * factor * observation.source().angularStdDevFactor;
+        double factor = distance * distance / observation.tagCount() * stdDevFactor.getAsDouble();
+        double linear = kLinearStdDevBaseline.get() * factor * observation.source().linearStdDevFactor;
+        double angular = kAngularStdDevBaseline.get() * factor * observation.source().angularStdDevFactor;
         return new VisionMeasurement(pose, observation.timestamp(), VecBuilder.fill(linear, linear, angular));
     }
 
@@ -182,6 +214,22 @@ public class Camera {
 
     public List<DetectedObject> getObjects() {
         return objects;
+    }
+
+    public List<HeadingSample> getHeadings() {
+        return headings;
+    }
+
+    public int tagCount() {
+        return inputs.tagIds.length;
+    }
+
+    public double secondsSinceFix() {
+        return Timer.getFPGATimestamp() - lastFixTime;
+    }
+
+    public boolean isConnected() {
+        return inputs.connected;
     }
 
     public CameraConfig getConfig() {

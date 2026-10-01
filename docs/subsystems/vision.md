@@ -46,13 +46,49 @@ Each `CameraIO` fills `CameraInputs`:
 This is the old "MegaTag 2 translation, MegaTag 1 rotation" rule written
 as data, so a new vendor only has to say where its poses came from.
 
+## Heading from MegaTag 1
+
+MegaTag 2 needs the robot's heading to be right already, so the heading
+comes from MegaTag 1, and only from frames that can't be wrong. A
+MegaTag 1 frame is rejected as "not strict" unless it sees at least
+`kStrictHeadingMinTags` (2) tags, the tags average under
+`kStrictHeadingMaxDistanceMeters` (4 m), ambiguity is under
+`kStrictHeadingMaxAmbiguity`, and the chassis is turning slower than
+`kStrictHeadingMaxYawRateRadPerSec`. `MULTI_TAG` frames (PhotonVision)
+count too.
+
+Each strict frame adds a heading sample. `Vision` keeps the last
+`kHeadingWindowSeconds` of them, and once `kHeadingSamples` (5) samples
+all agree within `kHeadingAgreementDegrees` (1°), their average is the
+heading fix:
+
+- **While disabled**, if the fix is more than
+  `kHeadingCorrectionDegrees` off, `Vision` resets the pose's rotation to
+  it. This fixes the gyro on the start line.
+- **During the match**, strict frames still go into the pose estimator,
+  so the heading keeps getting corrected by good frames only.
+- `Vision/HeadingConfirmed` turns true when the fix and the robot's
+  heading agree. The dashboard's **Heading confirmed** check waits for
+  it. Once confirmed it stays confirmed while the gyro holds the heading.
+
+If the cameras can't see two tags within 4 m from your start pose,
+the check stays red. Turn the robot past some tags while setting it up
+(it stays confirmed afterwards), or relax the limits in
+`VisionConstants`.
+
+Vision also raises alerts for the dashboard: a camera disconnected
+(warning), no accepted pose for `kNoVisionSeconds` while enabled
+(warning), and vision and odometry disagreeing by more than
+`kDisagreeMeters` (error).
+
 ## Filtering
 
 A pose is rejected when it has no tags, is the zero pose, is off the
 field, repeats the last timestamp for its source, has a Z error over
 `kMaxZErrorMeters`, is a single ambiguous tag from a source that checks
-ambiguity, or was captured while the chassis was spinning faster than
-`kMaxYawRateRadPerSec`. Accepted and rejected poses are both logged per
+ambiguity, was captured while the chassis was spinning faster than
+`kMaxYawRateRadPerSec`, or is a MegaTag 1 frame that isn't strict.
+Accepted and rejected poses are both logged per
 camera, as `Vision/<name>/AcceptedPoses` and `RejectedPoses`. In
 simulation each camera also logs its pose and the tags it sees
 (`Vision/<name>/CameraPose`, `Vision/<name>/Tags`).

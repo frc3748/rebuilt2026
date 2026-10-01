@@ -1,130 +1,135 @@
 ---
 layout: default
-title: Tuning with TunableNumber
+title: Tuning
 eyebrow: Utilities
-description: Dashboard-tunable constants and live motor gains, both built on TunableNumber.
+description: Tuning mode, live values on the real robot, Save, and the Gradle task that writes tuned values back into the code.
 permalink: /utilities/tunable-number/
 ---
 
-Anything you'd want to tune at a competition without redeploying goes
-through a `TunableNumber`. You either read it where the value is used,
-or give it a callback. Motor gains are wired up for you by
-`SparkUtil.tune` and `MotorIOTalonFX`.
+Every number you'd tune on the real robot is a `TunableNumber`. This
+covers:
 
-> **Nothing is saved.** A tuned value applies live and is gone on
-> reboot. When you find a good number, copy it into the code.
+- every motor's gains and current limit
+- setpoints and speeds
+- the shot table
+- drive, heading-lock, aim and auto-align gains
+- vision trust
+
+Turn on **tuning mode** from the Tune tab in robotTools Drive, edit
+values while the robot runs, press **Save**, and the next
+`./gradlew deploy` writes the saved values into the right Java files
+for you.
+
+## The workflow
+
+1. In robotTools Drive, open **Tune** and press **Tuning mode**. A
+   "Tuning on" light stays in the top bar on every tab.
+2. Pick a group (Flywheel, Hood, Drive, Shot Table, …) and change
+   values:
+   - Type a number and press Enter, or use the − / + buttons. Shift
+     steps 10×, and the arrow keys work too.
+   - Changes apply live and show in amber.
+   - Groups with a motor show a plot of goal against measured, with
+     current.
+   - **Spin to custom setpoint** runs the shooter's TUNING state, using
+     Flywheel/Custom Setpoint and Hood/Custom Setpoint.
+   - **Intake out** swings the intake.
+3. Press **Save**:
+   - The changed values are kept on the robot in
+     `/home/lvuser/tuning.json`, or `build/tuning-sim.json` in the
+     simulator.
+   - They survive a reboot and apply even with tuning mode off.
+   - **Revert** puts unsaved edits back.
+   - **Forget saved** drops everything saved and goes back to the code.
+4. Deploy. `./gradlew deploy` runs `pullTuning` first: it copies the
+   saved values off the robot over FTP and edits the Java files, then
+   compiles and deploys. It prints every change and anything it left
+   for you. Commit the edits.
+
+On the next boot the robot sees that the saved values match the code
+and drops them. Until then the pre-match check says how many tuned
+values aren't in the code yet.
+
+Tuning mode does nothing while the FMS is attached: matches always run
+the code plus whatever was saved.
+
+`./gradlew pullTuning` does step 4 without deploying. If no robot is
+reachable, it uses the values saved in the simulator instead; `-Psim`
+forces that. Deploy only takes values from the robot, and says so if
+the simulator has some waiting. Use `-ProbotHost=10.37.48.2` to pick an
+address, and `-PskipTuning` to deploy without pulling.
+
+## Where Save writes each value
+
+The robot records where every value came from: the file and line of the
+call (`.pid(0.5, 0, 0)`, `addShot(...)`,
+`new TunableNumber("Key", 0.8)`), or the field it was read from
+(`driveKp`). `pullTuning` uses that to find the number.
+
+| The value lives in | Tuned on | Written as |
+| --- | --- | --- |
+| The robot's own folder (`robots/comp/CompDrive.java`) | That robot | The number edited in place |
+| A shared file (`FlywheelConstants`, `DriveConfig`, …) | COMP | The number edited in place, since shared values are COMP's |
+| A shared file, or COMP's folder | SECONDARY or PRACTICE | `Tuning.override("Key", value)` in that robot's class |
+
+That matches how the robots inherit: SECONDARY takes COMP's values and
+only stores what differs. An override looks like this, and
+`pullTuning` adds the method and import if they aren't there:
+
+```java
+@Override
+public void tune() {
+    super.tune();
+    Tuning.override("Flywheel/kP", 0.6);
+}
+```
+
+What it can edit:
+
+- **A plain number:** edited directly.
+- **A unit call** (`Units.degreesToRadians(1.5)`, `Math.toRadians`,
+  `Units.inchesToMeters`): the number inside is converted.
+- **A number times a named constant from the same file**
+  (`0.006 * kWheelRadius`): the number is scaled.
+
+Anything else, like `FieldConstants.FUNNEL_RADIUS.in(Inches)`, is left
+alone and printed with the value to type in by hand. If someone changed
+a number in the code after it was tuned, it's also left alone and
+printed. Running it twice changes nothing the second time.
 
 ## `TunableNumber`
 
-[`TunableNumber`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/util/TunableNumber.java)
-wraps AdvantageKit's `LoggedNetworkNumber` at `/Tunable/<key>`:
-
 ```java
-public TunableNumber(String key, double defaultValue);
-public double get();
-public TunableNumber onChange(DoubleConsumer listener);
-public static void pollAll();
+new TunableNumber("Trench/Hood Down Radius", 0.8);              // literal: records this line
+TunableNumber.field("Flywheel/Speed Tolerance", constants, "speedTolerance");  // reads the field, records the class chain
+new TunableNumber(key, value, source);                          // explicit source (shot table, camera factor)
+
+tunable.get();                         // the live value in tuning mode, otherwise saved or code
+tunable.onChange(controller::setP);    // runs on every change, and once at startup if a saved value differs
+tunable.integer();                     // rounds (current limits)
+tunable.degrees();                     // stored in radians, shown in degrees on the Tune tab
+tunable.restartToApply();              // read once at startup (path PID); the Tune tab marks it
 ```
 
-Mechanism defaults live in the robot's constants object as plain
-fields. The subsystem builds the `TunableNumber` from that default in
-its constructor, and calls `get()` where the value is used:
+Use `get()` where the value is read each loop. Use `onChange` where it
+has to be pushed somewhere, like a controller or a motor config.
+`Robot.robotPeriodic()` calls `TunableNumber.pollAll()` first thing,
+which also publishes the catalog the Tune tab reads.
 
-```java
-// IntakeConstants
-public double stowSetpoint = -93;
+Motor gains need no code. Every gain you write in a `MotorConfig` is
+tunable under `<motor name>/<gain>`: the calls are `.pid`,
+`.feedforward`, `.gravity` / `.cosineGravity`, `.maxMotion` and
+`.currentLimit`. The Spark, Talon and sim IO apply changes live. A gain
+you never wrote, like a `kG` on a flywheel, isn't tunable; add it to the
+`MotorConfig` first.
 
-// IntakeComp constructor
-stowSetpoint = new TunableNumber("Intake/Extension Stow Setpoint", constants.stowSetpoint);
+## Logs
 
-// IntakeComp.applyState
-case STOW -> goTo(stowSetpoint.get(), 0);
-```
+- Each value is published at `/Tunable/<key>` and logged under
+  `NetworkInputs/Tunable/…`.
+- Each value's code default is logged once under `TunableDefaults/…`.
+- The Tune tab reads `Tuning/Catalog`, `Tuning/Enabled`,
+  `Tuning/Active` and `Tuning/Pending`.
 
-The key is fixed in the subsystem, so it's the same on every robot;
-only the default can differ. See
-[Per-robot constants]({{ '/architecture/robots/' | relative_url }}#per-robot-constants).
-Code that isn't per robot, such as `ActionCommands`' `FixedPos/…`
-values, declares a `static final TunableNumber` instead.
-
-Calling `get()` every loop is what picks up dashboard edits; don't copy
-the value into a plain `double` at construction.
-
-For code that needs a callback instead of polling, use `onChange`:
-
-```java
-new TunableNumber("Drive/Heading Lock kP", config.headingLockP).onChange(controller::setP);
-```
-
-`Robot.robotPeriodic()` calls `TunableNumber.pollAll()` before the
-scheduler runs, so listeners fire on the main loop, once per change.
-`SparkUtil.tune`, `MotorIOTalonFX`, `HeadingLock`, the `Auto Turn` gain
-in `DriveCommands` and `ShooterComp`'s `TOF Tuning/…` values all work
-this way.
-
-`AutoAlignToPoseCommand` creates its `Auto Align/…` tunables once, in
-a static `Tuning` shared by every instance, and reads them in
-`initialize()`, so an edit applies to the next align.
-
-## Motor gains
-
-[`SparkUtil.tune`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/util/SparkUtil.java)
-is the one helper for live Spark gains:
-
-```java
-public static void tune(String key, SparkBase spark, SparkBaseConfig config,
-                        Gains gains, boolean feedforward, boolean maxMotion);
-```
-
-It publishes `<key>/kP`, `kI` and `kD`; with `feedforward`, also `kS`,
-`kV`, `kA` and `kG` (or `kCos` for cosine gravity); with `maxMotion`,
-also `kMaxAccel`, `kCruiseVel` and `kDeviationErr`. Each edit updates
-the config and reconfigures the Spark without resetting or persisting
-parameters.
-
-You rarely call it directly. A `MotorConfig` opts in with
-`.tunable(feedforward, maxMotion)`, and `MotorIOSpark` calls
-`SparkUtil.tune(config.name(), …)` with that config's
-[`Gains`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/util/motor/Gains.java):
-
-```java
-public MotorConfig extension = new MotorConfig("Intake Extension", 46, Controller.SPARK_MAX)
-        ...
-        .tunable(true, true);   // Intake Extension/kP … kDeviationErr
-```
-
-`ModuleIOSpark` does the same for the swerve modules as `Drive PID/…`
-and `Turn PID/…`.
-
-A `TALON_FX` motor gets the same `<name>/…` keys from `MotorIOTalonFX`,
-except `kDeviationErr`. Each edit is applied to the Talon's slot 0 or
-Motion Magic config.
-
-## Key naming
-
-A `/`-separated path, starting with the subsystem or feature:
-
-- `Intake/Extension Stow Setpoint`
-- `Shooter/Gravity Funnel InchesPerSec2`
-- `FixedPos/RPS`
-- `TOF Tuning/<distance>`
-
-Keep names stable; the key is how you find the value on the dashboard.
-
-## Where values show up
-
-Tunables live under `/Tunable` in NetworkTables, so any NT client
-(Elastic, AdvantageScope, OutlineViewer) can edit them. Each value is
-also recorded in the log under `NetworkInputs/Tunable/…`, so replay
-uses the same numbers and robotTools can list every edit made mid-run.
-While the FMS is attached, `get()` returns the default and edits are
-ignored.
-
-## What to tune (and what not to)
-
-**Yes:** PID gains, tolerances, setpoints, shot and time-of-flight
-values.
-
-**No:** CAN IDs, gear ratios, geometry — they only change with the
-hardware. And nothing safety-related: the robot must be safe at the
-default value.
+robotTools still lists tunables that ended a run away from their code
+default.

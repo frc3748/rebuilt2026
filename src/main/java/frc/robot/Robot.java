@@ -9,8 +9,11 @@ import com.revrobotics.util.StatusLogger;
 
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.commands.SelfTest;
+import frc.robot.robots.RobotDefinition;
 import frc.robot.util.TunableNumber;
+import frc.robot.util.cockpit.Cockpit;
 import frc.robot.util.state.SubsystemManagerFactory;
+import frc.robot.util.tuning.Tuning;
 
 public class Robot extends LoggedRobot {
     private final RobotState robotState;
@@ -28,7 +31,10 @@ public class Robot extends LoggedRobot {
         StatusLogger.disableAutoLogging();
         Logger.start();
 
-        robotState = new RobotState(Constants.kRobot.create());
+        RobotDefinition definition = Constants.kRobot.create();
+        Tuning.boot(Constants.kRobot.name(), definition.getClass());
+        definition.tune();
+        robotState = new RobotState(definition);
         SubsystemManagerFactory.getInstance().registerSubsystem(robotState);
     }
 
@@ -36,6 +42,7 @@ public class Robot extends LoggedRobot {
     public void robotPeriodic() {
         TunableNumber.pollAll();
         CommandScheduler.getInstance().run();
+        Cockpit.update();
     }
 
     @Override

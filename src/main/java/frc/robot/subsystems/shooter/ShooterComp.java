@@ -14,6 +14,7 @@ import frc.robot.subsystems.shooter.flywheel.FlywheelConstants;
 import frc.robot.subsystems.shooter.hood.Hood;
 import frc.robot.subsystems.shooter.hood.HoodConstants;
 import frc.robot.util.TunableNumber;
+import frc.robot.util.cockpit.Cockpit;
 
 public class ShooterComp extends Shooter {
     protected final Flywheel flywheel;
@@ -21,7 +22,11 @@ public class ShooterComp extends Shooter {
     protected final Hopper hopper;
     protected final Kicker kicker;
 
+    private static final TunableNumber kAimToleranceRadians = new TunableNumber("Shooter/Aim Tolerance", Math.toRadians(2.0)).degrees();
+
     private final RobotState state;
+    private boolean ready;
+    private boolean aimed;
 
     public ShooterComp(RobotState state, FlywheelConstants flywheelConstants, HoodConstants hoodConstants,
             HopperConstants hopperConstants, KickerConstants kickerConstants) {
@@ -38,12 +43,9 @@ public class ShooterComp extends Shooter {
 
         allowAllTransitions();
         registerStateCommands();
+        registerGauges();
 
-        ShooterConstants shooter = state.getShooterConstants();
-        for (double distance : shooter.shotDistances) {
-            new TunableNumber("TOF Tuning/" + distance, shooter.timeOfFlightMap.get(distance))
-                    .onChange(tof -> shooter.timeOfFlightMap.put(distance, tof));
-        }
+        state.getShooterConstants().tune();
 
         enable();
     }
@@ -65,6 +67,19 @@ public class ShooterComp extends Shooter {
                 () -> request(Flywheel.State.TUNING, Hood.State.TUNING, Hopper.State.IDLE, Kicker.State.IDLE));
     }
 
+    private void registerGauges() {
+        Cockpit.gauge("flywheel", "Flywheel", "rps", flywheel::getSpeed, flywheel::getGoal, flywheel::isReady, this::isWorking);
+        Cockpit.gauge("hood", "Hood", "°", () -> Math.toDegrees(hood.getAngle()), () -> Math.toDegrees(hood.getGoal()),
+                hood::isAtGoal, this::isWorking);
+        Cockpit.gauge("aim", "Aim", "°", () -> Math.toDegrees(Math.abs(state.getCurrentHubSetpoint().getAzimuthRadians())),
+                () -> 0.0, () -> aimed, this::isWorking);
+        Cockpit.gauge("multiplier", "Multiplier", "×", flywheel::getMultiplier, () -> Math.abs(flywheel.getMultiplier() - 1.0) > 1e-6);
+    }
+
+    private boolean isWorking() {
+        return getState() != State.IDLE && getState() != State.UNDETERMINED;
+    }
+
     protected void request(Flywheel.State flywheelState, Hood.State hoodState, Hopper.State hopperState,
             Kicker.State kickerState) {
         flywheel.requestTransition(flywheelState);
@@ -75,6 +90,14 @@ public class ShooterComp extends Shooter {
 
     @Override
     protected void update() {
+        boolean flywheelReady = flywheel.isReady();
+        boolean hoodReady = hood.isAtGoal();
+        aimed = Math.abs(state.getCurrentHubSetpoint().getAzimuthRadians()) < kAimToleranceRadians.get();
+        ready = flywheelReady && hoodReady && aimed;
+        Logger.recordOutput("Shooter/Ready/Flywheel", flywheelReady);
+        Logger.recordOutput("Shooter/Ready/Hood", hoodReady);
+        Logger.recordOutput("Shooter/Ready/Aim", aimed);
+        Logger.recordOutput("Shooter/Ready/All", ready);
         if (getState() == State.IDLE || getState() == State.UNDETERMINED) {
             return;
         }
@@ -82,6 +105,26 @@ public class ShooterComp extends Shooter {
         Logger.recordOutput("Shooter/Setpoint/Speed", setpoint.getShooterRPS());
         Logger.recordOutput("Shooter/Setpoint/HoodAngle", setpoint.getHoodRadians());
         Logger.recordOutput("Shooter/Setpoint/AimError", setpoint.getAzimuthRadians());
+    }
+
+    @Override
+    public void zero() {
+        hood.zero();
+    }
+
+    @Override
+    public void resetMultiplier() {
+        flywheel.setMultiplier(1.0);
+    }
+
+    @Override
+    public boolean isReadyToShoot() {
+        return ready;
+    }
+
+    @Override
+    public boolean isHoldingShot() {
+        return flywheel.isOverridden();
     }
 
     @Override

@@ -216,7 +216,9 @@ public class BetaControls extends Controls {
 fields: `MotorConfig`s, setpoints, speeds and geometry. Their defaults
 are the comp values. Each subsystem takes its constants object in its
 constructor and builds its `TunableNumber`s from it, so the dashboard
-keys are the same on every robot. Derived values (the flywheel's
+keys are the same on every robot. A robot that tunes a shared value
+differently gets a `Tuning.override(...)` line in its own class (see
+[Tuning]({{ '/utilities/tunable-number/' | relative_url }})). Derived values (the flywheel's
 conversion from `radius`, the hood's conversion, soft limits and
 starting position) are applied when the subsystem is built, so changing
 one field never leaves a stale derived value.

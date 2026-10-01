@@ -1,5 +1,9 @@
 package frc.robot.util.motor;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.DoubleConsumer;
+
 import edu.wpi.first.math.MathUtil;
 
 public class MotorIOSim implements MotorIO {
@@ -23,6 +27,21 @@ public class MotorIOSim implements MotorIO {
         if (!Double.isNaN(config.startingPosition)) {
             position = config.startingPosition;
         }
+        Gains gains = config.gains;
+        Map<String, DoubleConsumer> edits = new HashMap<>();
+        edits.put("kP", value -> gains.kP = value);
+        edits.put("kI", value -> gains.kI = value);
+        edits.put("kD", value -> gains.kD = value);
+        edits.put("kS", value -> gains.kS = value);
+        edits.put("kV", value -> gains.kV = value);
+        edits.put("kA", value -> gains.kA = value);
+        edits.put("kG", value -> gains.kG = value);
+        edits.put("kCos", value -> gains.kG = value);
+        edits.put("kMaxAccel", value -> gains.maxAccel = value);
+        edits.put("kCruiseVel", value -> gains.cruiseVel = value);
+        edits.put("kDeviationErr", value -> gains.allowedError = value);
+        edits.put("Current Limit", value -> config.currentLimit = (int) value);
+        MotorTuning.register(config, edits);
     }
 
     @Override

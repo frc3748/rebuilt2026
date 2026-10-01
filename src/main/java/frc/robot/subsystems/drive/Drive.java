@@ -4,6 +4,8 @@ import static edu.wpi.first.units.Units.Seconds;
 import static edu.wpi.first.units.Units.Volts;
 
 import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.config.PIDConstants;
+import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 import com.pathplanner.lib.util.PathPlannerLogging;
 
@@ -25,15 +27,12 @@ import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
-import edu.wpi.first.util.sendable.Sendable;
-import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
-import edu.wpi.first.wpilibj.smartdashboard.Field2d;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
@@ -42,14 +41,16 @@ import frc.robot.Constants;
 import frc.robot.Constants.Mode;
 import frc.robot.RobotState;
 import frc.robot.commands.DriveCommands;
-import frc.robot.util.Elastic;
 import frc.robot.util.RobotTime;
+import frc.robot.util.TunableNumber;
 import frc.robot.game.ShotCalculator;
 import frc.robot.game.TrenchZone;
-import frc.robot.util.Elastic.Notification;
 import frc.robot.util.state.StateMachine;
+import frc.robot.util.tuning.Source;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -57,19 +58,24 @@ import org.littletonrobotics.junction.AutoLogOutput;
 import org.littletonrobotics.junction.Logger;
 
 public class Drive extends StateMachine<Drive.State> {
+  private static final double kAimTargetFreshSeconds = 0.25;
+  private Translation2d aimTarget;
+  private double aimTargetTime = Double.NEGATIVE_INFINITY;
+
   static final Lock odometryLock = new ReentrantLock();
 
   private final GyroIO gyroIO;
   private final GyroIOInputsAutoLogged gyroInputs = new GyroIOInputsAutoLogged();
 
-  public final Field2d fieldPose = new Field2d();
 
   private final Module[] modules = new Module[4];
+  private Pose2d pathTarget;
   private final SysIdRoutine sysId;
   private final Alert gyroDisconnectedAlert = new Alert("Disconnected gyro, using kinematics as fallback.",
       AlertType.kError);
 
   private final DriveConfig config;
+  private final TunableNumber slowSpeed;
   private final SwerveDriveKinematics kinematics;
   private Rotation2d rawGyroRotation = Rotation2d.kZero;
   private ChassisSpeeds desiredSpeeds = new ChassisSpeeds();
@@ -87,6 +93,7 @@ public class Drive extends StateMachine<Drive.State> {
   public Drive(DriveConfig config, RobotState robotState) {
     super("Drive", State.UNDETERMINED, State.class);
     this.config = config;
+    slowSpeed = TunableNumber.field("Drive/Slow Speed", config, "slowSpeedMetersPerSec");
     this.robotState = robotState;
     kinematics = new SwerveDriveKinematics(config.moduleTranslations());
     poseEstimator = new SwerveDrivePoseEstimator(kinematics, rawGyroRotation, lastModulePositions, Pose2d.kZero);
@@ -117,31 +124,6 @@ public class Drive extends StateMachine<Drive.State> {
     registerStateCommands();
     enable();
 
-    SmartDashboard.putData("Swerve Zero", Commands.runOnce(
-        () -> this.setPose(
-            new Pose2d(this.getPose().getTranslation(), Rotation2d.kZero)),
-        this)
-        .ignoringDisable(true));
-
-    SmartDashboard.putData("Swerve Drive", new Sendable() {
-      @Override
-      public void initSendable(SendableBuilder builder) {
-        builder.setSmartDashboardType("SwerveDrive");
-        builder.addDoubleProperty("Front Left Angle", () -> modules[0].getAngle().getRadians(), null);
-        builder.addDoubleProperty("Front Left Velocity", () -> modules[0].getVelocityMetersPerSec(), null);
-
-        builder.addDoubleProperty("Front Right Angle", () -> modules[1].getAngle().getRadians(), null);
-        builder.addDoubleProperty("Front Right Velocity", () -> modules[1].getVelocityMetersPerSec(), null);
-
-        builder.addDoubleProperty("Back Left Angle", () -> modules[2].getAngle().getRadians(), null);
-        builder.addDoubleProperty("Back Left Velocity", () -> modules[2].getVelocityMetersPerSec(), null);
-
-        builder.addDoubleProperty("Back Right Angle", () -> modules[3].getAngle().getRadians(), null);
-        builder.addDoubleProperty("Back Right Velocity", () -> modules[3].getVelocityMetersPerSec(), null);
-
-        builder.addDoubleProperty("Robot Angle", () -> getRotation().getRadians(), null);
-      }
-    });
   }
 
   private static GyroIO createGyro(DriveConfig config) {
@@ -190,21 +172,26 @@ public class Drive extends StateMachine<Drive.State> {
   }
 
   private void configureAutobuilder() {
-    Elastic.sendNotification(new Notification().withTitle("Auto Builder").withDescription("Auto builder reset"));
     AutoBuilder.configure(
         this::getPose,
         this::setPose,
         this::getChassisSpeeds,
         this::runVelocity,
         new PPHolonomicDriveController(
-            config.pathTranslationPid, config.pathRotationPid),
+            pathPid("Path/Translation", "pathTranslationPid", config.pathTranslationPid),
+            pathPid("Path/Rotation", "pathRotationPid", config.pathRotationPid)),
         config.pathPlannerConfig(),
         () -> DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red,
         this);
     PathPlannerLogging.setLogTargetPoseCallback(
         (targetPose) -> {
+          pathTarget = targetPose;
           Logger.recordOutput("Odometry/TrajectorySetpoint", targetPose);
         });
+  }
+
+  public Optional<Translation2d> getRecentAimTarget() {
+    return Timer.getFPGATimestamp() - aimTargetTime < kAimTargetFreshSeconds ? Optional.ofNullable(aimTarget) : Optional.empty();
   }
 
    public Rotation2d getAimRotationForHub() {
@@ -231,6 +218,8 @@ public class Drive extends StateMachine<Drive.State> {
     Rotation2d goal = drivingVector.getAngle();
 
     Logger.recordOutput("Drive/AimTarget", new Pose2d(targetTrans, goal));
+    aimTarget = targetTrans;
+    aimTargetTime = Timer.getFPGATimestamp();
 
     return goal;
   }
@@ -239,8 +228,6 @@ public class Drive extends StateMachine<Drive.State> {
   public void update() {
     odometryLock.lock();
     gyroIO.updateInputs(gyroInputs);
-
-    fieldPose.setRobotPose(getPose());
 
     double timestamp = RobotTime.getTimestampSeconds();
     robotState.addOdometryMeasurement(timestamp, getPose());
@@ -252,7 +239,6 @@ public class Drive extends StateMachine<Drive.State> {
     }
 
     Logger.processInputs("Drive/Gyro", gyroInputs);
-    SmartDashboard.putData(fieldPose);
 
     for (var module : modules) {
       module.periodic();
@@ -358,7 +344,7 @@ public class Drive extends StateMachine<Drive.State> {
   }
 
   @AutoLogOutput(key = "SwerveStates/Measured")
-  private SwerveModuleState[] getModuleStates() {
+  public SwerveModuleState[] getModuleStates() {
     SwerveModuleState[] states = new SwerveModuleState[4];
     for (int i = 0; i < 4; i++) {
       states[i] = modules[i].getState();
@@ -416,8 +402,6 @@ public class Drive extends StateMachine<Drive.State> {
   public void setPose(Pose2d pose) {
     poseEstimator.resetPosition(rawGyroRotation, getModulePositions(), pose);
     robotState.resetBuffersToPose(pose);
-    Elastic.sendNotification(
-        new Notification().withTitle("Pose Reset").withDescription("Pose has been set to a new custom one"));
   }
 
 
@@ -436,8 +420,19 @@ public class Drive extends StateMachine<Drive.State> {
         visionRobotPoseMeters, timestampSeconds);
   }
 
+  private PIDConstants pathPid(String key, String field, PIDConstants defaults) {
+    double kP = new TunableNumber(key + " kP", defaults.kP, Source.field(config, field, "PIDConstants", 0)).restartToApply().get();
+    double kI = new TunableNumber(key + " kI", defaults.kI, Source.field(config, field, "PIDConstants", 1)).restartToApply().get();
+    double kD = new TunableNumber(key + " kD", defaults.kD, Source.field(config, field, "PIDConstants", 2)).restartToApply().get();
+    return new PIDConstants(kP, kI, kD);
+  }
+
+  public RobotConfig getPathPlannerConfig() {
+    return config.pathPlannerConfig();
+  }
+
   public double getMaxLinearSpeedMetersPerSec() {
-    return getState() == State.SLOW ? config.slowSpeedMetersPerSec : config.maxSpeedMetersPerSec;
+    return getState() == State.SLOW ? slowSpeed.get() : config.maxSpeedMetersPerSec;
   }
 
   public double getMaxAngularSpeedRadPerSec() {
@@ -456,17 +451,23 @@ public class Drive extends StateMachine<Drive.State> {
     setState(State.TRAVERSING);
   }
 
-  @Override
-  public void onTeleopStart() {
-    setFieldPoses();
+  public Optional<Pose2d> getPathTarget() {
+    return Optional.ofNullable(pathTarget);
   }
 
-  public void setFieldPoses(Pose2d... poses) {
-    fieldPose.getObject("mainTrajectory").setPoses(poses);
+  public void zeroHeading() {
+    setPose(new Pose2d(getPose().getTranslation(), Rotation2d.kZero));
   }
 
-  public void setFieldPoses(String object, List<Pose2d> poses) {
-    fieldPose.getObject(object).setPoses(poses);
+  public List<String> disconnectedDevices() {
+    List<String> found = new ArrayList<>();
+    for (Module module : modules) {
+      found.addAll(module.disconnected());
+    }
+    if (!gyroInputs.connected && Constants.kMode == Mode.REAL) {
+      found.add("Gyro");
+    }
+    return found;
   }
 
   public enum State {

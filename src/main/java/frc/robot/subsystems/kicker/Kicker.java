@@ -23,8 +23,8 @@ public class Kicker extends StateMachine<Kicker.State> {
         super("Kicker", State.UNDETERMINED, State.class);
         this.shooterReady = shooterReady;
         kicker = new SpinMotor(constants.motor);
-        shootSpeed = new TunableNumber("Kicker/Shot Speed", constants.shootSpeed);
-        outtakeSpeed = new TunableNumber("Kicker/Outtake Speed", constants.outtakeSpeed);
+        shootSpeed = TunableNumber.field("Kicker/Shot Speed", constants, "shootSpeed");
+        outtakeSpeed = TunableNumber.field("Kicker/Outtake Speed", constants, "outtakeSpeed");
         addHardware(kicker);
         allowAllTransitions();
         enable();

@@ -1,0 +1,465 @@
+import groovy.json.JsonSlurper
+import java.math.MathContext
+import java.util.regex.Matcher
+import java.util.regex.Pattern
+
+def tuningSharedOwner = 'COMP'
+
+class TuningWriter {
+    static final Pattern LITERAL = Pattern.compile(/^-?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?[dDfF]?$/)
+    static final Pattern NUMBER = Pattern.compile(/(?<![\w.])(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?[dDfF]?(?![\w.])/)
+    static final Map<String, List<Closure<Double>>> UNITS = [
+        'Units.degreesToRadians': [{ double d -> Math.toRadians(d) }, { double r -> Math.toDegrees(r) }],
+        'Math.toRadians'        : [{ double d -> Math.toRadians(d) }, { double r -> Math.toDegrees(r) }],
+        'Units.inchesToMeters'  : [{ double i -> i * 0.0254d }, { double m -> m / 0.0254d }],
+        'Units.rotationsToRadians': [{ double r -> r * 2 * Math.PI }, { double r -> r / (2 * Math.PI) }],
+    ]
+
+    File root
+    String sharedOwner
+    Map<String, String> texts = [:]
+    List<String> written = []
+    List<String> skipped = []
+    int already
+
+    void apply(Map store) {
+        (store.robots ?: [:]).each { String robot, Map section -> applyRobot(robot, section) }
+        texts.each { String path, String text ->
+            File file = new File(root, path)
+            if (file.text != text) {
+                file.text = text
+            }
+        }
+    }
+
+    void applyRobot(String robot, Map section) {
+        String robotFile = section.robotFile
+        String robotDir = robotFile.substring(0, robotFile.lastIndexOf('/') + 1)
+        List<Map> overrides = []
+        (section.values ?: [:]).each { String key, Map record ->
+            double value = record.value as double
+            Map override = record.override as Map
+            if (override && override.file == robotFile) {
+                Map location = locateCall(override.file as String, override.line as int, 'override', 1, key)
+                replace(location, key, record.code as double, value, record.integer as boolean)
+                return
+            }
+            Map location = locate(record.source as Map, key)
+            if (location == null) {
+                skipped << "${key}: couldn't find it in the code, set it to ${format(value, '0.0', record.integer as boolean)} by hand"
+                return
+            }
+            boolean own = location.file.startsWith(robotDir)
+            boolean shared = !location.file.contains('/robots/')
+            if (own || (shared && robot == sharedOwner)) {
+                replace(location, key, record.declared as double, value, record.integer as boolean)
+            } else {
+                overrides << [key: key, value: value, integer: record.integer as boolean]
+            }
+        }
+        if (overrides) {
+            addOverrides(robotFile, overrides)
+        }
+    }
+
+    String text(String path) {
+        if (!texts.containsKey(path)) {
+            File file = new File(root, path)
+            texts[path] = file.exists() ? file.text : null
+        }
+        return texts[path]
+    }
+
+    Map locate(Map source, String key) {
+        if (source == null || !source.files) {
+            return null
+        }
+        if (source.field) {
+            for (String path : source.files) {
+                String content = text(path)
+                if (content == null) {
+                    continue
+                }
+                Matcher matcher = Pattern.compile("(?<![\\w.])${Pattern.quote(source.field as String)}\\s*=(?!=)").matcher(content)
+                if (!matcher.find()) {
+                    continue
+                }
+                int start = skipSpace(content, matcher.end())
+                int end = statementEnd(content, start)
+                if (source.call) {
+                    Matcher call = Pattern.compile("\\b${Pattern.quote(source.call as String)}\\s*\\(").matcher(content.substring(start, end))
+                    if (!call.find()) {
+                        return null
+                    }
+                    List<int[]> args = arguments(content, start + call.end() - 1)
+                    int index = source.argument as int
+                    return index < args.size() ? [file: path, start: args[index][0], end: args[index][1]] : null
+                }
+                return [file: path, start: start, end: end]
+            }
+            return null
+        }
+        return locateCall(source.files[0] as String, source.line as int, source.call as String, source.argument as int, key)
+    }
+
+    Map locateCall(String path, int line, String call, int argument, String key) {
+        String content = text(path)
+        if (content == null || line < 1) {
+            return null
+        }
+        boolean keyed = call in ['TunableNumber', 'override']
+        String name = call == 'TunableNumber' ? 'new\\s+TunableNumber' : call == 'override' ? 'Tuning\\.override' : Pattern.quote(call)
+        Matcher matcher = Pattern.compile("(?<![\\w])${name}\\s*\\(").matcher(content)
+        Map best = null
+        int bestDistance = Integer.MAX_VALUE
+        while (matcher.find()) {
+            int foundLine = content.substring(0, matcher.start()).count('\n') + 1
+            int distance = Math.abs(foundLine - line) * 2 + (foundLine > line ? 1 : 0)
+            if (Math.abs(foundLine - line) > 4 || distance >= bestDistance) {
+                continue
+            }
+            List<int[]> args = arguments(content, matcher.end() - 1)
+            if (argument >= args.size()) {
+                continue
+            }
+            if (keyed && content.substring(args[0][0], args[0][1]) != "\"${key}\"".toString()) {
+                continue
+            }
+            best = [file: path, start: args[argument][0], end: args[argument][1]]
+            bestDistance = distance
+        }
+        return best
+    }
+
+    static int skipSpace(String content, int index) {
+        while (index < content.length() && Character.isWhitespace(content.charAt(index))) {
+            index++
+        }
+        return index
+    }
+
+    static int statementEnd(String content, int start) {
+        int depth = 0
+        for (int i = start; i < content.length(); i++) {
+            char c = content.charAt(i)
+            if (c == '"' as char) {
+                i = content.indexOf('"', i + 1)
+            } else if ('([{'.indexOf(c as int) >= 0) {
+                depth++
+            } else if (')]}'.indexOf(c as int) >= 0) {
+                depth--
+            } else if (c == ';' as char && depth == 0) {
+                int end = i
+                while (end > start && Character.isWhitespace(content.charAt(end - 1))) {
+                    end--
+                }
+                return end
+            }
+        }
+        return content.length()
+    }
+
+    static List<int[]> arguments(String content, int open) {
+        List<int[]> args = []
+        int depth = 0
+        int argStart = open + 1
+        for (int i = open; i < content.length(); i++) {
+            char c = content.charAt(i)
+            if (c == '"' as char) {
+                i = content.indexOf('"', i + 1)
+            } else if ('([{'.indexOf(c as int) >= 0) {
+                depth++
+            } else if (')]}'.indexOf(c as int) >= 0) {
+                depth--
+                if (depth == 0) {
+                    args << trim(content, argStart, i)
+                    return args
+                }
+            } else if (c == ',' as char && depth == 1) {
+                args << trim(content, argStart, i)
+                argStart = i + 1
+            }
+        }
+        return args
+    }
+
+    static int[] trim(String content, int start, int end) {
+        while (start < end && Character.isWhitespace(content.charAt(start))) {
+            start++
+        }
+        while (end > start && Character.isWhitespace(content.charAt(end - 1))) {
+            end--
+        }
+        return [start, end] as int[]
+    }
+
+    void replace(Map location, String key, double expected, double value, boolean integer) {
+        if (location == null) {
+            skipped << "${key}: couldn't find it in the code, set it to ${format(value, '0.0', integer)} by hand"
+            return
+        }
+        String content = text(location.file as String)
+        String expression = content.substring(location.start as int, location.end as int)
+        String updated = rewrite(expression, expected, value, integer, content)
+        String where = "${location.file.substring(location.file.lastIndexOf('/') + 1)}:${content.substring(0, location.start as int).count('\n') + 1}"
+        if (updated == null) {
+            skipped << "${key}: ${where} is \"${expression}\", not a plain number. Set it to ${format(value, '0.0', integer)} by hand"
+            return
+        }
+        if (updated == 'SAME') {
+            already++
+            return
+        }
+        if (updated == 'CHANGED') {
+            skipped << "${key}: ${where} changed in the code since it was tuned (now \"${expression}\"). Left alone; tuned value was ${format(value, '0.0', integer)}"
+            return
+        }
+        texts[location.file as String] = content.substring(0, location.start as int) + updated + content.substring(location.end as int)
+        written << "${where}  ${key}  ${expression} → ${updated}"
+    }
+
+    static String rewrite(String expression, double expected, double value, boolean integer, String content) {
+        if (LITERAL.matcher(expression).matches()) {
+            double current = parse(expression)
+            return close(current, value) ? 'SAME' : close(current, expected) ? format(value, expression, integer) : 'CHANGED'
+        }
+        for (Map.Entry<String, List<Closure<Double>>> unit : UNITS.entrySet()) {
+            Matcher matcher = Pattern.compile("^${Pattern.quote(unit.key)}\\(\\s*([^()]+?)\\s*\\)\$").matcher(expression)
+            if (matcher.matches() && LITERAL.matcher(matcher.group(1)).matches()) {
+                double inner = parse(matcher.group(1))
+                double current = unit.value[0].call(inner) as double
+                if (close(current, value)) {
+                    return 'SAME'
+                }
+                if (!close(current, expected)) {
+                    return 'CHANGED'
+                }
+                String formatted = format(unit.value[1].call(value) as double, matcher.group(1), false)
+                return expression.substring(0, matcher.start(1)) + formatted + expression.substring(matcher.end(1))
+            }
+        }
+        Matcher numbers = NUMBER.matcher(expression)
+        List<int[]> found = []
+        while (numbers.find()) {
+            found << ([numbers.start(), numbers.end()] as int[])
+        }
+        Double current = product(expression, content)
+        if (found.size() == 1 && current != null && Math.abs(current) > 1e-12) {
+            if (close(current, value)) {
+                return 'SAME'
+            }
+            if (!close(current, expected)) {
+                return 'CHANGED'
+            }
+            String literal = expression.substring(found[0][0], found[0][1])
+            double scaled = BigDecimal.valueOf(parse(literal) * value / current).round(new MathContext(10)).doubleValue()
+            return expression.substring(0, found[0][0]) + format(scaled, literal, false) + expression.substring(found[0][1])
+        }
+        return null
+    }
+
+    static Double product(String expression, String content) {
+        double result = 1.0
+        for (String factor : expression.split(/\*/)) {
+            String term = factor.trim()
+            if (LITERAL.matcher(term).matches()) {
+                result *= parse(term)
+            } else if (term ==~ /[A-Za-z_]\w*/) {
+                Matcher constant = Pattern.compile("(?<![\\w.])${term}\\s*=\\s*([-\\d.eEdDfF]+)\\s*;").matcher(content)
+                if (!constant.find() || !LITERAL.matcher(constant.group(1)).matches()) {
+                    return null
+                }
+                result *= parse(constant.group(1))
+            } else {
+                return null
+            }
+        }
+        return result
+    }
+
+    static double parse(String literal) {
+        return Double.parseDouble(literal.replaceAll(/[dDfF]$/, ''))
+    }
+
+    static boolean close(double a, double b) {
+        return Math.abs(a - b) <= 1e-9 * Math.max(1.0d, Math.abs(b))
+    }
+
+    static String format(double value, String original, boolean integer) {
+        String suffix = (original =~ /[dDfF]$/) ? original[-1] : ''
+        boolean integerStyle = !(original =~ /[.eE]/)
+        if (integer || (integerStyle && value == Math.rint(value) && Math.abs(value) < 1e15)) {
+            return Long.toString(Math.round(value)) + (integer ? '' : suffix)
+        }
+        String text = BigDecimal.valueOf(value).round(new MathContext(10)).stripTrailingZeros().toPlainString()
+        if (text == '-0') {
+            text = '0'
+        }
+        if (!text.contains('.')) {
+            text += '.0'
+        }
+        return text + suffix
+    }
+
+    void addOverrides(String robotFile, List<Map> overrides) {
+        String content = text(robotFile)
+        if (content == null) {
+            overrides.each { skipped << "${it.key}: ${robotFile} is missing, set it to ${format(it.value as double, '0.0', it.integer as boolean)} by hand" }
+            return
+        }
+        String name = robotFile.substring(robotFile.lastIndexOf('/') + 1)
+        String indent = (content =~ /(?m)^([ \t]+)\S/).with { it.find() ? it.group(1) : '    ' }
+        List<String> lines = []
+        overrides.each { Map override ->
+            String value = format(override.value as double, '0.0', override.integer as boolean)
+            Matcher existing = Pattern.compile("Tuning\\.override\\(\\s*\"${Pattern.quote(override.key as String)}\"\\s*,").matcher(content)
+            if (existing.find()) {
+                List<int[]> args = arguments(content, content.indexOf('(', existing.start()))
+                String old = content.substring(args[1][0], args[1][1])
+                if (LITERAL.matcher(old).matches() && close(parse(old), override.value as double)) {
+                    already++
+                    return
+                }
+                content = content.substring(0, args[1][0]) + value + content.substring(args[1][1])
+                written << "${name}  ${override.key}  override ${old} → ${value}"
+            } else {
+                lines << "Tuning.override(\"${override.key}\", ${value});"
+                written << "${name}  ${override.key}  override = ${value}"
+            }
+        }
+        if (lines) {
+            Matcher tune = Pattern.compile(/(?m)^([ \t]*)public void tune\(\)\s*\{/).matcher(content)
+            if (tune.find()) {
+                int close = matching(content, content.indexOf('{', tune.start()))
+                int lineStart = content.lastIndexOf('\n', close) + 1
+                String body = lines.collect { "${tune.group(1)}${indent}${it}\n" }.join('')
+                content = content.substring(0, lineStart) + body + content.substring(lineStart)
+            } else {
+                int classEnd = content.lastIndexOf('}')
+                int lineStart = content.lastIndexOf('\n', classEnd) + 1
+                String method = "\n${indent}@Override\n${indent}public void tune() {\n${indent}${indent}super.tune();\n" +
+                        lines.collect { "${indent}${indent}${it}\n" }.join('') + "${indent}}\n"
+                content = content.substring(0, lineStart).replaceAll(/\n+\z/, '\n') + method + content.substring(lineStart)
+            }
+            if (!content.contains('import frc.robot.util.tuning.Tuning;')) {
+                Matcher imports = Pattern.compile(/(?m)^import frc\.robot\.[^\n]*\n/).matcher(content)
+                int at = -1
+                while (imports.find()) {
+                    if (imports.group() > 'import frc.robot.util.tuning.Tuning;\n') {
+                        break
+                    }
+                    at = imports.end()
+                }
+                if (at < 0) {
+                    Matcher anyImport = Pattern.compile(/(?m)^import [^\n]*\n/).matcher(content)
+                    while (anyImport.find()) {
+                        at = anyImport.end()
+                    }
+                }
+                if (at < 0) {
+                    at = content.indexOf('\n', content.indexOf('package ')) + 1
+                    content = content.substring(0, at) + '\nimport frc.robot.util.tuning.Tuning;\n' + content.substring(at)
+                } else {
+                    content = content.substring(0, at) + 'import frc.robot.util.tuning.Tuning;\n' + content.substring(at)
+                }
+            }
+        }
+        texts[robotFile] = content
+    }
+
+    static int matching(String content, int open) {
+        int depth = 0
+        for (int i = open; i < content.length(); i++) {
+            char c = content.charAt(i)
+            if (c == '{' as char) {
+                depth++
+            } else if (c == '}' as char) {
+                depth--
+                if (depth == 0) {
+                    return i
+                }
+            }
+        }
+        return content.length() - 1
+    }
+}
+
+def readRobotStore = {
+    int team = project.frc.getTeamNumber()
+    List<String> hosts = project.findProperty('robotHost')
+            ? [project.findProperty('robotHost') as String]
+            : ["10.${team.intdiv(100)}.${team % 100}.2", '172.22.11.2', "roborio-${team}-frc.local", "roborio-${team}-frc.frc-field.local"]*.toString()
+    for (String host : hosts) {
+        try {
+            new Socket().withCloseable { it.connect(new InetSocketAddress(host, 21), 1000) }
+        } catch (IOException ignored) {
+            continue
+        }
+        try {
+            URLConnection connection = new URL("ftp://${host}/%2Fhome/lvuser/tuning.json;type=i").openConnection()
+            connection.connectTimeout = 2000
+            connection.readTimeout = 4000
+            return [text: connection.inputStream.withCloseable { it.getText('UTF-8') }, message: "Pulled tuned values from the robot at ${host}."]
+        } catch (FileNotFoundException ignored) {
+            return [text: null, message: "Nothing saved in tuning mode on the robot at ${host}."]
+        } catch (IOException e) {
+            return [text: null, message: "Reached the robot at ${host} but couldn't read /home/lvuser/tuning.json: ${e.message}"]
+        }
+    }
+    return [text: null, message: "No robot reachable (${hosts.join(', ')})."]
+}
+
+tasks.register('pullTuning') {
+    group = 'robot'
+    description = 'Writes values saved in tuning mode into the code: from the robot, or from the simulator when no robot is reachable (-Psim to force it).'
+    doLast {
+        if (project.hasProperty('skipTuning')) {
+            return
+        }
+        boolean deploying = gradle.taskGraph.hasTask(':deploy')
+        File simStore = project.file('build/tuning-sim.json')
+        String text = null
+        if (project.hasProperty('sim')) {
+            if (simStore.exists()) {
+                text = simStore.text
+                logger.lifecycle('Using the values saved in the simulator.')
+            } else {
+                logger.lifecycle('Nothing saved in tuning mode in the simulator.')
+            }
+        } else {
+            Map robot = readRobotStore()
+            logger.lifecycle(robot.message as String)
+            text = robot.text
+            if (text == null && simStore.exists()) {
+                if (deploying) {
+                    logger.lifecycle('Values saved in the simulator are waiting too. Run ./gradlew pullTuning -Psim to write them in.')
+                } else {
+                    text = simStore.text
+                    logger.lifecycle('Using the values saved in the simulator instead.')
+                }
+            }
+        }
+        if (text == null) {
+            logger.lifecycle('The code is unchanged.')
+            return
+        }
+        TuningWriter writer = new TuningWriter(root: project.projectDir, sharedOwner: tuningSharedOwner)
+        writer.apply(new JsonSlurper().parseText(text) as Map)
+        if (writer.written) {
+            logger.lifecycle("Wrote ${writer.written.size()} tuned value${writer.written.size() == 1 ? '' : 's'} into the code:")
+            writer.written.each { logger.lifecycle("  ${it}") }
+        }
+        if (writer.skipped) {
+            logger.warn("Left ${writer.skipped.size()} for you to do by hand:")
+            writer.skipped.each { logger.warn("  ${it}") }
+        }
+        if (!writer.written && !writer.skipped) {
+            logger.lifecycle('Every tuned value is already in the code.')
+        } else if (writer.already) {
+            logger.lifecycle("${writer.already} more were already in the code.")
+        }
+    }
+}
+
+tasks.matching { it.name == 'deploy' }.configureEach { dependsOn 'pullTuning' }
+tasks.matching { it.name in ['compileJava', 'generateBuildInfo'] }.configureEach { mustRunAfter 'pullTuning' }

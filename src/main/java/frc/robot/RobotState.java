@@ -1,5 +1,7 @@
 package frc.robot;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -9,10 +11,10 @@ import org.littletonrobotics.junction.Logger;
 
 import com.pathplanner.lib.commands.PathfindingCommand;
 
-import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
@@ -27,6 +29,7 @@ import frc.robot.game.ShooterSetpoint;
 import frc.robot.game.ShotCalculator;
 import frc.robot.robots.RobotDefinition;
 import frc.robot.subsystems.drive.Drive;
+import frc.robot.subsystems.shooter.Shooter;
 import frc.robot.subsystems.shooter.ShooterConstants;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.subsystems.vision.VisionMeasurement;
@@ -37,6 +40,8 @@ import frc.robot.util.SimulatedRobotState;
 import frc.robot.util.state.StateMachine;
 
 public class RobotState extends StateMachine<RobotState.State> {
+    private static final double kShiftWarningSeconds = 3.0;
+
     public enum State {
         UNDETERMINED,
         SOFT_STOP,
@@ -100,7 +105,13 @@ public class RobotState extends StateMachine<RobotState.State> {
 
         controls.bind(this);
         new Trigger(gameState::isHubActive).onChange(controls.rumble(0.5));
-        CameraServer.startAutomaticCapture();
+        new Trigger(() -> DriverStation.isTeleopEnabled() && gameState.isHubActiveNext() != gameState.isHubActive()
+                && gameState.getSecondsUntilShift() > 0 && gameState.getSecondsUntilShift() <= kShiftWarningSeconds)
+                .onTrue(controls.pulse(kShiftWarningSeconds));
+        new Trigger(() -> DriverStation.isTeleopEnabled()
+                && superstructure.getShooter().map(Shooter::isReadyToShoot).orElse(false))
+                .debounce(0.1)
+                .onTrue(controls.driverBuzz(0.2));
 
         addOmniTransitions(State.SOFT_STOP, State.TRAVERSING, State.AUTO);
         registerStateCommand(State.SOFT_STOP, drive.transitionCommand(Drive.State.IDLE));
@@ -292,6 +303,26 @@ public class RobotState extends StateMachine<RobotState.State> {
 
     public GameState getGameState() {
         return gameState;
+    }
+
+    public BatteryTracker getBattery() {
+        return battery;
+    }
+
+    public List<String> disconnectedDevices() {
+        List<String> found = new ArrayList<>(drive.disconnectedDevices());
+        if (Constants.kMode == Mode.REAL) {
+            superstructure.subsystems().forEach(machine -> collectDisconnected(machine, found));
+        }
+        found.addAll(vision.disconnectedCameras());
+        return found;
+    }
+
+    private static void collectDisconnected(StateMachine<?> machine, List<String> found) {
+        machine.getMotors().stream()
+                .filter(motor -> !motor.isConnected())
+                .forEach(motor -> found.add(motor.getName().replace("Motors/", "")));
+        machine.getChildSubsystems().forEach(child -> collectDisconnected(child, found));
     }
 
     public SimulatedRobotState getSimRobot() {

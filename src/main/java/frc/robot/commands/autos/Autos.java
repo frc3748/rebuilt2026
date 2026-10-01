@@ -7,20 +7,20 @@ import frc.robot.RobotState;
 public final class Autos {
     public static List<AutoRoutine> all(RobotState state) {
         return List.of(
-                new CenterOnlyStarting8(state),
-                new DepotOnlyStarting8(state),
-                new DepotSideToDepot(state),
-                new DepotSideToDepotEndAtMid(state),
-                new HpOnlyStarting8(state),
-                new HpSideToHp(state),
-                new HpSideToHpEndAtMid(state),
-                new DepotSideDepotMidHalfSweep(state),
-                new DepotSideQuickShoot(state),
-                new HpSideQuickShoot(state),
-                new DepotSideCircuitShoot(state),
-                new DepotSideBlair(state),
-                new HpSideBlair(state),
-                new DepotSideBump(state));
+                new CenterOnlyStarting8(state).mode("Starting 8"),
+                new DepotOnlyStarting8(state).mode("Starting 8"),
+                new DepotSideToDepot(state).mode("To station"),
+                new DepotSideToDepotEndAtMid(state).mode("To station, end mid"),
+                new HpOnlyStarting8(state).mode("Starting 8"),
+                new HpSideToHp(state).mode("To station"),
+                new HpSideToHpEndAtMid(state).mode("To station, end mid"),
+                new DepotSideDepotMidHalfSweep(state).mode("Half sweep"),
+                new DepotSideQuickShoot(state).mode("Quick shoot"),
+                new HpSideQuickShoot(state).mode("Quick shoot"),
+                new DepotSideCircuitShoot(state).mode("Circuit"),
+                new DepotSideBlair(state).mode("Blair"),
+                new HpSideBlair(state).mode("Blair"),
+                new DepotSideBump(state).mode("Bump"));
     }
 
     private Autos() {}

@@ -11,6 +11,7 @@ import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -21,7 +22,13 @@ public class BatteryTracker {
     public static final String kUnknown = "Unknown";
 
     private final LoggedDashboardChooser<String> chooser = new LoggedDashboardChooser<>("Battery");
+    private static final double kLowVolts = 8.0;
+    private static final double kLowSeconds = 1.0;
+
     private final Alert missing = new Alert("Pick the battery on the dashboard", AlertType.kWarning);
+    private final Alert brownout = new Alert("Brownout", AlertType.kError);
+    private final Alert low = new Alert("Battery under 8 V", AlertType.kWarning);
+    private final Debouncer lowDebouncer = new Debouncer(kLowSeconds, Debouncer.DebounceType.kRising);
 
     public BatteryTracker() {
         chooser.addDefaultOption(kUnknown, kUnknown);
@@ -35,6 +42,12 @@ public class BatteryTracker {
         String id = getId();
         Logger.recordOutput("Battery/Id", id);
         missing.set(kUnknown.equals(id) && DriverStation.isEnabled());
+        brownout.set(RobotController.isBrownedOut());
+        low.set(lowDebouncer.calculate(DriverStation.isEnabled() && RobotController.getBatteryVoltage() < kLowVolts));
+    }
+
+    public boolean isPicked() {
+        return !kUnknown.equals(getId());
     }
 
     public String getId() {

@@ -16,6 +16,8 @@ public abstract class RobotDefinition {
 
     public abstract DriveConfig drive();
 
+    public void tune() {}
+
     public ShooterConstants shooter() {
         return new ShooterConstants();
     }

@@ -1,5 +1,7 @@
 package frc.robot.util.motor;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.DoubleConsumer;
 import java.util.function.Supplier;
 
@@ -30,7 +32,6 @@ import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Temperature;
 import edu.wpi.first.units.measure.Voltage;
-import frc.robot.util.TunableNumber;
 
 public class MotorIOTalonFX implements MotorIO {
     private final MotorConfig config;
@@ -129,9 +130,7 @@ public class MotorIOTalonFX implements MotorIO {
             talon.optimizeBusUtilization();
         }
 
-        if (config.tunable) {
-            tune();
-        }
+        tune();
     }
 
     private static TalonFXConfiguration baseConfig(MotorConfig config) {
@@ -158,29 +157,27 @@ public class MotorIOTalonFX implements MotorIO {
 
     private void tune() {
         Runnable applySlot = () -> motor.getConfigurator().apply(slot0);
-        tunable("kP", slot0.kP, value -> slot0.kP = value, applySlot);
-        tunable("kI", slot0.kI, value -> slot0.kI = value, applySlot);
-        tunable("kD", slot0.kD, value -> slot0.kD = value, applySlot);
-        if (config.tuneFeedforward) {
-            tunable("kS", slot0.kS, value -> slot0.kS = value, applySlot);
-            tunable("kV", slot0.kV, value -> slot0.kV = value, applySlot);
-            tunable("kA", slot0.kA, value -> slot0.kA = value, applySlot);
-            tunable(config.gains.gravityIsCosine ? "kCos" : "kG", slot0.kG, value -> slot0.kG = value, applySlot);
-        }
-        if (config.tuneMaxMotion) {
-            Runnable applyMotionMagic = () -> motor.getConfigurator().apply(motionMagic);
-            tunable("kMaxAccel", config.gains.maxAccel,
-                    value -> motionMagic.MotionMagicAcceleration = value / velocityScale, applyMotionMagic);
-            tunable("kCruiseVel", config.gains.cruiseVel,
-                    value -> motionMagic.MotionMagicCruiseVelocity = value / velocityScale, applyMotionMagic);
-        }
+        Runnable applyMotionMagic = () -> motor.getConfigurator().apply(motionMagic);
+        Map<String, DoubleConsumer> edits = new HashMap<>();
+        edits.put("kP", then(value -> slot0.kP = value, applySlot));
+        edits.put("kI", then(value -> slot0.kI = value, applySlot));
+        edits.put("kD", then(value -> slot0.kD = value, applySlot));
+        edits.put("kS", then(value -> slot0.kS = value, applySlot));
+        edits.put("kV", then(value -> slot0.kV = value, applySlot));
+        edits.put("kA", then(value -> slot0.kA = value, applySlot));
+        edits.put("kG", then(value -> slot0.kG = value, applySlot));
+        edits.put("kCos", then(value -> slot0.kG = value, applySlot));
+        edits.put("kMaxAccel", then(value -> motionMagic.MotionMagicAcceleration = value / velocityScale, applyMotionMagic));
+        edits.put("kCruiseVel", then(value -> motionMagic.MotionMagicCruiseVelocity = value / velocityScale, applyMotionMagic));
+        edits.put("Current Limit", value -> setCurrentLimit((int) value));
+        MotorTuning.register(config, edits);
     }
 
-    private void tunable(String gain, double initial, DoubleConsumer edit, Runnable apply) {
-        new TunableNumber(config.name + "/" + gain, initial).onChange(value -> {
+    private static DoubleConsumer then(DoubleConsumer edit, Runnable apply) {
+        return value -> {
             edit.accept(value);
             apply.run();
-        });
+        };
     }
 
     private static void tryUntilOk(Supplier<StatusCode> command) {

@@ -5,6 +5,7 @@ import java.util.function.Supplier;
 
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Transform3d;
+import frc.robot.util.tuning.Source;
 
 public class CameraConfig {
     public enum Type {
@@ -30,6 +31,7 @@ public class CameraConfig {
     private Supplier<Transform3d> robotToCamera = Transform3d::new;
     private Transform2d reportedPoseOffset = new Transform2d();
     private double stdDevFactor = 1.0;
+    private Source stdDevSource = Source.NONE;
     private int aprilTagPipeline = 0;
     private int detectionPipeline = -1;
     private double objectHeightMeters = 0.0;
@@ -56,6 +58,7 @@ public class CameraConfig {
 
     public CameraConfig stdDevFactor(double factor) {
         stdDevFactor = factor;
+        stdDevSource = Source.caller(CameraConfig.class, "stdDevFactor", "stdDevFactor", 0);
         return this;
     }
 
@@ -96,6 +99,10 @@ public class CameraConfig {
 
     public double stdDevFactor() {
         return stdDevFactor;
+    }
+
+    public Source stdDevSource() {
+        return stdDevSource;
     }
 
     public boolean canDetectObjects() {
