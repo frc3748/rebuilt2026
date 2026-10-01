@@ -27,6 +27,7 @@ public class MotorIOSim implements MotorIO {
 
     @Override
     public void updateInputs(MotorIOInputs inputs) {
+        inputs.connected = true;
         switch (mode) {
             case VELOCITY -> {
                 velocity += (setpoint - velocity) * Math.min(1.0, kLoopSeconds / config.simVelocityLagSeconds);
@@ -41,7 +42,8 @@ public class MotorIOSim implements MotorIO {
                 velocity = step / kLoopSeconds;
                 appliedVolts = 0.0;
             }
-            case OPEN_LOOP -> velocity = 0.0;
+            case OPEN_LOOP -> velocity += (openLoopVelocity() - velocity)
+                    * Math.min(1.0, kLoopSeconds / config.simVelocityLagSeconds);
         }
 
         position += velocity * kLoopSeconds;
@@ -56,6 +58,14 @@ public class MotorIOSim implements MotorIO {
         inputs.velocity = velocity;
         inputs.appliedVolts = appliedVolts;
         inputs.currentAmps = 0.0;
+    }
+
+    private double openLoopVelocity() {
+        if (config.gains.kV <= 0.0) {
+            return appliedVolts;
+        }
+        double driving = Math.max(0.0, Math.abs(appliedVolts) - config.gains.kS);
+        return Math.signum(appliedVolts) * driving / config.gains.kV;
     }
 
     @Override

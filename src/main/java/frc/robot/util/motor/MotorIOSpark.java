@@ -21,6 +21,8 @@ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.revrobotics.spark.config.SparkFlexConfig;
 import com.revrobotics.spark.config.SparkMaxConfig;
 
+import edu.wpi.first.math.filter.Debouncer;
+
 import frc.robot.util.SparkUtil;
 import frc.robot.util.motor.MotorConfig.Controller;
 import frc.robot.util.motor.MotorConfig.Follower;
@@ -32,6 +34,7 @@ public class MotorIOSpark implements MotorIO {
     private final RelativeEncoder encoder;
     private final SparkClosedLoopController controller;
     private final SparkBaseConfig sparkConfig;
+    private final Debouncer connectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.kFalling);
 
     public MotorIOSpark(MotorConfig config) {
         this.config = config;
@@ -115,6 +118,7 @@ public class MotorIOSpark implements MotorIO {
 
     @Override
     public void updateInputs(MotorIOInputs inputs) {
+        SparkUtil.sparkStickyFault = false;
         ifOk(motor, encoder::getPosition, value -> inputs.position = value);
         ifOk(motor, encoder::getVelocity, value -> inputs.velocity = value);
         ifOk(motor,
@@ -122,6 +126,10 @@ public class MotorIOSpark implements MotorIO {
                 values -> inputs.appliedVolts = values[0] * values[1]);
         ifOk(motor, motor::getOutputCurrent, value -> inputs.currentAmps = value);
         ifOk(motor, motor::getMotorTemperature, value -> inputs.tempCelsius = value);
+        inputs.connected = connectedDebounce.calculate(!SparkUtil.sparkStickyFault);
+        inputs.faults = motor.getFaults().rawBits;
+        inputs.stickyFaults = motor.getStickyFaults().rawBits;
+        inputs.stickyWarnings = motor.getStickyWarnings().rawBits;
 
         if (inputs.followerAppliedVolts.length != followers.length) {
             inputs.followerAppliedVolts = new double[followers.length];

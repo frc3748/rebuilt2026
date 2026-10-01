@@ -58,6 +58,7 @@ public class ModuleIOSpark implements ModuleIO {
     private final Queue<Double> turnPositionQueue;
 
     private final Debouncer driveConnectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.kFalling);
+    private final Debouncer encoderConnectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.kFalling);
     private final Debouncer turnConnectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.kFalling);
 
     public ModuleIOSpark(DriveConfig config, int index) {
@@ -187,6 +188,8 @@ public class ModuleIOSpark implements ModuleIO {
         ifOk(driveSpark, driveSpark::getOutputCurrent, value -> inputs.driveCurrentAmps = value);
         ifOk(driveSpark, driveSpark::getMotorTemperature, value -> inputs.driveTempCelsius = value);
         inputs.driveConnected = driveConnectedDebounce.calculate(!sparkStickyFault);
+        inputs.driveFaults = driveSpark.getFaults().rawBits;
+        inputs.driveStickyWarnings = driveSpark.getStickyWarnings().rawBits;
 
         sparkStickyFault = false;
         ifOk(turnSpark, turnPosition, value -> inputs.turnPosition = new Rotation2d(value).minus(zeroRotation));
@@ -197,9 +200,15 @@ public class ModuleIOSpark implements ModuleIO {
         ifOk(turnSpark, turnSpark::getOutputCurrent, value -> inputs.turnCurrentAmps = value);
         ifOk(turnSpark, turnSpark::getMotorTemperature, value -> inputs.turnTempCelsius = value);
         inputs.turnConnected = turnConnectedDebounce.calculate(!sparkStickyFault);
+        inputs.turnFaults = turnSpark.getFaults().rawBits;
+        inputs.turnStickyWarnings = turnSpark.getStickyWarnings().rawBits;
 
         if (canCoder != null) {
-            inputs.canPosition = new Rotation2d(canCoder.getAbsolutePosition().getValue().in(Radians));
+            var absolute = canCoder.getAbsolutePosition();
+            inputs.encoderConnected = encoderConnectedDebounce.calculate(absolute.getStatus().isOK());
+            inputs.canPosition = new Rotation2d(absolute.getValue().in(Radians));
+        } else {
+            inputs.encoderConnected = inputs.turnConnected;
         }
         inputs.odometryTimestamps = timestampQueue.stream().mapToDouble(Double::doubleValue).toArray();
         inputs.odometryDrivePositionsRad = drivePositionQueue.stream().mapToDouble(Double::doubleValue).toArray();

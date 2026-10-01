@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
+import org.littletonrobotics.junction.Logger;
+
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
@@ -23,6 +25,8 @@ public class FuelSimulation {
     private final FuelSim sim = new FuelSim();
     private final double launchHeightMeters;
     private int heldFuel;
+    private int acquired;
+    private int launched;
 
     public FuelSimulation(Robot robot, Intake intake, int startingFuel, Supplier<Pose2d> launcherPose,
             Supplier<ChassisSpeeds> fieldSpeeds, BooleanSupplier intaking) {
@@ -38,7 +42,10 @@ public class FuelSimulation {
                 Meters.of(robot.bumperHeightMeters()),
                 launcherPose,
                 fieldSpeeds);
-        sim.registerIntake(intake.minX(), intake.maxX(), intake.minY(), intake.maxY(), intaking, () -> heldFuel++);
+        sim.registerIntake(intake.minX(), intake.maxX(), intake.minY(), intake.maxY(), intaking, () -> {
+            heldFuel++;
+            Logger.recordOutput("FuelSim/Acquired", ++acquired);
+        });
 
         SmartDashboard.putData(Commands.runOnce(() -> {
             sim.clearFuel();
@@ -51,6 +58,7 @@ public class FuelSimulation {
             return false;
         }
         heldFuel--;
+        Logger.recordOutput("FuelSim/Launched", ++launched);
         sim.launchFuel(velocity, launchAngle, Radians.zero(), Meters.of(launchHeightMeters));
         return true;
     }

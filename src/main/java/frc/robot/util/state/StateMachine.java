@@ -3,6 +3,7 @@ package frc.robot.util.state;
 import edu.wpi.first.util.sendable.Sendable;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.*;
+import frc.robot.util.motor.Motor;
 import frc.robot.util.state.graph.DirectionalEnumGraph;
 import frc.robot.util.state.transitions.CommandTransition;
 import frc.robot.util.state.transitions.TransitionBase;
@@ -32,6 +33,7 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
 
   private final List<Hardware> hardware = new ArrayList<>();
   private Runnable override;
+  private int rejectedRequests;
 
   public StateMachine(String name, E undeterminedState, Class<E> enumType) {
     this.enumType = enumType;
@@ -78,6 +80,10 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
 
   protected final void addHardware(Hardware... devices) {
     hardware.addAll(Arrays.asList(devices));
+  }
+
+  public final List<Motor> getMotors() {
+    return hardware.stream().filter(Motor.class::isInstance).map(Motor.class::cast).toList();
   }
 
   public final void setOverride(Runnable action) {
@@ -236,6 +242,11 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
     } else if (state != currentState) {
       queuedTransition = transition;
     }
+    if (transition == null && state != currentState) {
+      rejectedRequests++;
+      Logger.recordOutput(getName() + "/rejectedRequests", rejectedRequests);
+      Logger.recordOutput(getName() + "/lastRejected", currentState.name() + " -> " + state.name());
+    }
   }
 
   private void cancelStateCommand() {
@@ -330,6 +341,7 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
 
   @Override
   public final void periodic() {
+    long start = System.nanoTime();
     E chooserRequest = stateChooser.get();
 
     if (enabled) {
@@ -353,6 +365,7 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
 
     hardware.forEach(Hardware::write);
     lastChooserRequest = chooserRequest;
+    Logger.recordOutput("LoopTimes/" + getName(), (System.nanoTime() - start) / 1e6);
   }
 
   private void recordLogs() {

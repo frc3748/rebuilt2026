@@ -5,6 +5,10 @@ import org.littletonrobotics.junction.AutoLog;
 public interface MotorIO {
     @AutoLog
     class MotorIOInputs {
+        public boolean connected = false;
+        public int faults = 0;
+        public int stickyFaults = 0;
+        public int stickyWarnings = 0;
         public double position = 0.0;
         public double velocity = 0.0;
         public double appliedVolts = 0.0;

@@ -59,6 +59,11 @@ public class Module {
     io.setTurnPosition(Rotation2d.kZero);
   }
 
+  public void runAngle(Rotation2d angle) {
+    io.setDriveOpenLoop(0.0);
+    io.setTurnPosition(angle);
+  }
+
   public void stop() {
     io.setDriveOpenLoop(0.0);
     io.setTurnOpenLoop(0.0);

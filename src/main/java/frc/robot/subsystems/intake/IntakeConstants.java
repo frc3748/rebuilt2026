@@ -22,6 +22,7 @@ public class IntakeConstants {
             .feedforward(0.17, 0.00131, 0)
             .cosineGravity(0.24)
             .maxMotion(600, 130, 2)
+            .selfTestPosition(-45)
             .tunable(true, true);
 
     public double stowSetpoint = -93;

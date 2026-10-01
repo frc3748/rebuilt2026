@@ -35,6 +35,7 @@ public class MotorConfig {
     boolean tuneFeedforward;
     boolean tuneMaxMotion;
     double simVelocityLagSeconds = 0.1;
+    double selfTestPosition = Double.NaN;
 
     public MotorConfig(String name, int canId, Controller controller) {
         this.name = name;
@@ -122,6 +123,21 @@ public class MotorConfig {
         reverseSoftLimit = reverse;
         forwardSoftLimit = forward;
         return this;
+    }
+
+    public MotorConfig selfTestPosition(double position) {
+        selfTestPosition = position;
+        return this;
+    }
+
+    public double selfTestPosition() {
+        if (!Double.isNaN(selfTestPosition)) {
+            return selfTestPosition;
+        }
+        if (!Double.isNaN(reverseSoftLimit) && !Double.isNaN(forwardSoftLimit)) {
+            return (reverseSoftLimit + forwardSoftLimit) / 2.0;
+        }
+        return Double.NaN;
     }
 
     public MotorConfig startingPosition(double position) {

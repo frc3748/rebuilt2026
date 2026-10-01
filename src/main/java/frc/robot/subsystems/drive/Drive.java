@@ -327,6 +327,12 @@ public class Drive extends StateMachine<Drive.State> {
     }
   }
 
+  public void runModuleAngles(Rotation2d angle) {
+    for (Module module : modules) {
+      module.runAngle(angle);
+    }
+  }
+
   public void stop() {
     runVelocity(new ChassisSpeeds());
   }

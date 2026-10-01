@@ -46,10 +46,14 @@ under `RealMetadata/`. robotTools' analyses look for these keys:
 | Mechanism motors | `Motors/<name>/…` inputs (`Position`, `Velocity`, `AppliedVolts`, `CurrentAmps`, `TempCelsius`), `Motors/<name>/Goal` and `Mode` outputs | Goal vs actual, settle time, current and temperature. |
 | Swerve | `Drive/Module<n>/…` inputs, `SwerveStates/{Setpoints,Measured}`, `SwerveChassisSpeeds/{Setpoints,Measured}` | Module setpoints vs what the modules did. |
 | Paths | `Odometry/Robot`, `Odometry/Trajectory`, `Odometry/TrajectorySetpoint`, `DriveToPose/Target`, `DriveToPose/Active` | Path tracking error, how close auto-align lands. |
-| Heading lock | `Drive/HeadingLock/Target`, `Drive/HeadingLock/ErrorDegrees` | Heading drift. |
-| Vision | `Vision/<camera>/…` inputs, `Vision/<camera>/AcceptedPoses` and `RejectedPoses` | Camera uptime, vision vs odometry. |
-| States | `<machine>/state` | State-machine timelines. |
-| Tuning | `NetworkInputs/Tunable/…` | Every tunable edited mid-run. |
+| Heading lock | `Drive/HeadingLock/Target`, `ErrorDegrees`, `Locked` | Heading drift, and the heading-lock expectation. |
+| Vision | `Vision/<camera>/…` inputs, `Vision/<camera>/AcceptedPoses`, `RejectedPoses`, `RejectReasons`, `Objects`, and `Vision/Objects` | Camera uptime, vision vs odometry, why poses were rejected, fuel detection accuracy. |
+| States | `<machine>/state`, `desired`, `overridden`, `rejectedRequests`, `lastRejected` | Timelines, slow or stuck transitions, rejected requests. |
+| Connections and faults | `Motors/<name>/Connected`, `Faults`, `StickyFaults`, `StickyWarnings`; the swerve modules' `DriveConnected`, `TurnConnected`, `EncoderConnected`, `DriveFaults`, `TurnFaults`, `DriveStickyWarnings`, `TurnStickyWarnings` | The health checklist, including Sparks that reboot mid-match. |
+| Loop time | `LoopTimes/<machine>`, logged by `StateMachine` | Which subsystem makes the loop slow. |
+| Tuning | `NetworkInputs/Tunable/…` and `TunableDefaults/…` | Every tunable edited mid-run, and tunables left away from their code default. |
+| Self-test | `SelfTest/Active`, `Step`, `Device`, `Kind`, `Target` | The pit self-test. |
+| Sim fuel | `FuelSim/Launched`, `FuelSim/Acquired` (sim only) | Shots and pickups in sim logs. |
 
 The swerve module inputs include `DriveTempCelsius` and
 `TurnTempCelsius`. The build info comes from the `generateBuildInfo`
@@ -88,6 +92,24 @@ when the code starts and `Battery/Id` every loop.
 3. Keep the list in robotTools' **Batteries** page. **Send list to robot
    code** rewrites `batteries.json`; deploy to update the chooser.
 
+## Self-test
+
+Enabling **Test** mode on the Driver Station runs `SelfTest`
+(`commands/SelfTest.java`). Put the robot on a cart first. The test
+overrides every state machine that owns motors, then works through:
+
+1. Driving all four modules forward at 1.5 V, then turning them to 90°
+   and back.
+2. Spinning each `SpinMotor` at 2 V.
+3. Moving each `PosMotor` to its test position and back.
+
+A `PosMotor`'s test position is the middle of its soft limits, or
+`selfTestPosition` in its `MotorConfig`. The intake extension uses −45.
+A `PosMotor` with neither is only checked for a connection. Each step is
+logged under `SelfTest/`, and robotTools' Self-test tab checks direction,
+movement, encoder agreement, current and connection. Cancelling Test
+mode clears the overrides.
+
 ## Opening logs in robotTools
 
 On the roboRIO, `WPILOGWriter` writes to the USB stick (`/U/logs`). In
@@ -109,4 +131,10 @@ and an auto, and runs 15 seconds of auto and a scripted teleop. It
 drives the simulator through the Sim Websockets Server extension, which
 `build.gradle` declares with `defaultEnabled = false`, so a normal
 **Simulate Robot Code** leaves it off. Sim logs have no real current or
-temperature for the mechanisms.
+temperature for the mechanisms. Add `--self-test` to run the self-test
+in Test mode first.
+
+`.github/workflows/sim-check.yml` does this on every push and pull request.
+It runs the tests, records a sim match with the self-test, and runs
+`robottools check` on the log. The job fails when the health checklist or
+an expectation fails, and the report goes in the job summary.

@@ -1,0 +1,57 @@
+name: Sim check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  sim-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout robot code
+        uses: actions/checkout@v4
+
+      - name: Checkout robotTools
+        uses: actions/checkout@v4
+        with:
+          repository: samir-uq/robotTools
+          path: robotTools
+          token: ${{ secrets.ROBOTTOOLS_TOKEN || github.token }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install robotTools
+        run: pip install -e robotTools/backend
+
+      - name: Robot tests
+        run: ./gradlew test
+
+      - name: Record a sim match with the self-test
+        run: python -m robottools simdrive --repo . --battery B1 --auto "Depot Side To Depot (GAME)" --teleop 45 --self-test
+
+      - name: Check the log
+        run: python -m robottools check logs --config robotTools/config --markdown sim-check.md
+
+      - name: Write the report
+        if: always()
+        run: test -f sim-check.md && cat sim-check.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload the log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-log
+          path: logs/*.wpilog
+          if-no-files-found: ignore

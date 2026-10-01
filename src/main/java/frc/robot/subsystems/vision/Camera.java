@@ -90,18 +90,23 @@ public class Camera {
     private void estimatePose(RobotState state) {
         List<Pose2d> accepted = new ArrayList<>();
         List<Pose2d> rejected = new ArrayList<>();
+        List<String> reasons = new ArrayList<>();
         for (PoseObservation observation : inputs.poseObservations) {
             Pose2d pose = observation.robotPose().toPose2d().plus(config.reportedPoseOffset());
-            if (isValid(observation, pose, state)) {
+            Optional<String> reason = rejectionReason(observation, pose, state);
+            if (reason.isEmpty()) {
+                lastTimestamps.put(observation.source(), observation.timestamp());
                 measurements.add(toMeasurement(observation, pose));
                 accepted.add(pose);
             } else {
                 rejected.add(pose);
+                reasons.add(reason.get());
             }
         }
 
         Logger.recordOutput(logKey + "/AcceptedPoses", accepted.toArray(Pose2d[]::new));
         Logger.recordOutput(logKey + "/RejectedPoses", rejected.toArray(Pose2d[]::new));
+        Logger.recordOutput(logKey + "/RejectReasons", reasons.toArray(String[]::new));
         if (Visuals.enabled()) {
             Visuals.record(logKey + "/Tags", Arrays.stream(inputs.tagIds)
                     .mapToObj(FieldConstants.TAG_LAYOUT::getTagPose)
@@ -110,25 +115,30 @@ public class Camera {
         }
     }
 
-    private boolean isValid(PoseObservation observation, Pose2d pose, RobotState state) {
-        boolean ambiguous = observation.source().rejectAmbiguous
-                && observation.tagCount() == 1
-                && observation.ambiguity() > kMaxAmbiguity;
-        boolean offField = pose.getX() < 0 || pose.getX() > FieldConstants.LAYOUT_LENGTH_METERS
-                || pose.getY() < 0 || pose.getY() > FieldConstants.LAYOUT_WIDTH_METERS;
-        boolean repeated = observation.timestamp() == lastTimestamps.getOrDefault(observation.source(), -1.0);
-
-        if (observation.tagCount() == 0
-                || ambiguous
-                || offField
-                || repeated
-                || pose.getTranslation().equals(Translation2d.kZero)
-                || Math.abs(observation.robotPose().getZ()) > kMaxZErrorMeters
-                || !isStable(state, observation.timestamp())) {
-            return false;
+    private Optional<String> rejectionReason(PoseObservation observation, Pose2d pose, RobotState state) {
+        if (observation.tagCount() == 0) {
+            return Optional.of("no tags");
         }
-        lastTimestamps.put(observation.source(), observation.timestamp());
-        return true;
+        if (observation.source().rejectAmbiguous && observation.tagCount() == 1 && observation.ambiguity() > kMaxAmbiguity) {
+            return Optional.of("ambiguous");
+        }
+        if (pose.getX() < 0 || pose.getX() > FieldConstants.LAYOUT_LENGTH_METERS
+                || pose.getY() < 0 || pose.getY() > FieldConstants.LAYOUT_WIDTH_METERS) {
+            return Optional.of("off field");
+        }
+        if (observation.timestamp() == lastTimestamps.getOrDefault(observation.source(), -1.0)) {
+            return Optional.of("repeated");
+        }
+        if (pose.getTranslation().equals(Translation2d.kZero)) {
+            return Optional.of("zero pose");
+        }
+        if (Math.abs(observation.robotPose().getZ()) > kMaxZErrorMeters) {
+            return Optional.of("height");
+        }
+        if (!isStable(state, observation.timestamp())) {
+            return Optional.of("spinning");
+        }
+        return Optional.empty();
     }
 
     private boolean isStable(RobotState state, double timestamp) {

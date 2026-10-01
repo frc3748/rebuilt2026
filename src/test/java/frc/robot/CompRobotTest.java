@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -24,9 +25,13 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.simulation.DriverStationSim;
+import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import frc.robot.commands.SelfTest;
 import frc.robot.commands.autos.AutoRoutine;
 import frc.robot.commands.autos.Autos;
 import frc.robot.robots.comp.CompRobot;
@@ -41,6 +46,7 @@ import frc.robot.subsystems.vision.CameraIO.PoseSource;
 import frc.robot.subsystems.vision.CameraInputsAutoLogged;
 import frc.robot.subsystems.vision.DetectedObject;
 import frc.robot.subsystems.vision.VisionMeasurement;
+import frc.robot.util.state.StateMachine;
 
 class CompRobotTest {
     private static RobotState state;
@@ -202,5 +208,36 @@ class CompRobotTest {
         }
         assertEquals(state.getVision().getObjects().size(), state.getVision().getObjectPoses().size());
         assertTrue(state.getVision().getClosestObjectPose().isPresent());
+    }
+
+    @Test
+    void selfTestTakesOverEveryMechanismAndHandsThemBack() {
+        Command selfTest = SelfTest.build(state);
+        assertTrue(selfTest.getRequirements().contains(state.getDrive()));
+        setTestMode(true);
+        CommandScheduler.getInstance().schedule(selfTest);
+        loop(3);
+        List<StateMachine<?>> mechanisms = mechanisms(state, new ArrayList<>());
+        assertTrue(mechanisms.size() >= 5);
+        assertTrue(mechanisms.stream().allMatch(StateMachine::isOverridden));
+        selfTest.cancel();
+        loop(1);
+        setTestMode(false);
+        assertTrue(mechanisms.stream().noneMatch(StateMachine::isOverridden));
+    }
+
+    private static void setTestMode(boolean on) {
+        DriverStationSim.setTest(on);
+        DriverStationSim.setEnabled(on);
+        DriverStationSim.notifyNewData();
+        DriverStation.refreshData();
+    }
+
+    private static List<StateMachine<?>> mechanisms(StateMachine<?> machine, List<StateMachine<?>> found) {
+        if (!machine.getMotors().isEmpty()) {
+            found.add(machine);
+        }
+        machine.getChildSubsystems().forEach(child -> mechanisms(child, found));
+        return found;
     }
 }

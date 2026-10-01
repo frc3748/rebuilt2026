@@ -16,6 +16,7 @@ public class Motor implements Hardware {
 
     private final String name;
     private final MotorIO io;
+    private final double selfTestPosition;
     private final MotorIOInputsAutoLogged inputs = new MotorIOInputsAutoLogged();
 
     private Mode mode = Mode.STOP;
@@ -24,12 +25,17 @@ public class Motor implements Hardware {
     private int slot;
 
     public Motor(MotorConfig config) {
-        this("Motors/" + config.name(), createIO(config));
+        this("Motors/" + config.name(), createIO(config), config.selfTestPosition());
     }
 
     public Motor(String name, MotorIO io) {
+        this(name, io, Double.NaN);
+    }
+
+    private Motor(String name, MotorIO io, double selfTestPosition) {
         this.name = name;
         this.io = io;
+        this.selfTestPosition = selfTestPosition;
     }
 
     private static MotorIO createIO(MotorConfig config) {
@@ -102,5 +108,17 @@ public class Motor implements Hardware {
 
     public double getGoal() {
         return goal;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public double getSelfTestPosition() {
+        return selfTestPosition;
+    }
+
+    public void holdPosition(double position) {
+        request(Mode.POSITION, position, 0.0, 0);
     }
 }

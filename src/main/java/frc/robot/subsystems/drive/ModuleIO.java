@@ -12,6 +12,8 @@ public interface ModuleIO {
     public double driveAppliedVolts = 0.0;
     public double driveCurrentAmps = 0.0;
     public double driveTempCelsius = 0.0;
+    public int driveFaults = 0;
+    public int driveStickyWarnings = 0;
 
     public boolean turnConnected = false;
     public Rotation2d turnPosition = Rotation2d.kZero;
@@ -20,6 +22,9 @@ public interface ModuleIO {
     public double turnAppliedVolts = 0.0;
     public double turnCurrentAmps = 0.0;
     public double turnTempCelsius = 0.0;
+    public int turnFaults = 0;
+    public int turnStickyWarnings = 0;
+    public boolean encoderConnected = false;
 
     public double[] odometryTimestamps = new double[] {};
     public double[] odometryDrivePositionsRad = new double[] {};

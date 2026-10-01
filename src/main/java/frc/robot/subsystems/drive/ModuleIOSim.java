@@ -60,6 +60,7 @@ public class ModuleIOSim implements ModuleIO {
     inputs.driveCurrentAmps = Math.abs(driveSim.getCurrentDrawAmps());
 
     inputs.turnConnected = true;
+    inputs.encoderConnected = true;
     inputs.turnPosition = new Rotation2d(turnSim.getAngularPositionRad());
     inputs.turnVelocityRadPerSec = turnSim.getAngularVelocityRadPerSec();
     inputs.turnAppliedVolts = turnAppliedVolts;

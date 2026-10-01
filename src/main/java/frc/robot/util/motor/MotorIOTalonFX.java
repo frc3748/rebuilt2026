@@ -24,6 +24,7 @@ import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
+import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
@@ -47,6 +48,7 @@ public class MotorIOTalonFX implements MotorIO {
     private final BaseStatusSignal[] followerVolts;
     private final BaseStatusSignal[] followerCurrents;
     private final BaseStatusSignal[] signals;
+    private final Debouncer connectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.kFalling);
 
     private final VoltageOut voltageRequest = new VoltageOut(0);
     private final DutyCycleOut outputRequest = new DutyCycleOut(0);
@@ -191,7 +193,9 @@ public class MotorIOTalonFX implements MotorIO {
 
     @Override
     public void updateInputs(MotorIOInputs inputs) {
-        BaseStatusSignal.refreshAll(signals);
+        inputs.connected = connectedDebounce.calculate(BaseStatusSignal.refreshAll(signals).isOK());
+        inputs.faults = motor.getFaultField().refresh().getValue();
+        inputs.stickyFaults = motor.getStickyFaultField().refresh().getValue();
         inputs.position = position.getValueAsDouble();
         inputs.velocity = velocity.getValueAsDouble() * velocityScale;
         inputs.appliedVolts = appliedVolts.getValueAsDouble();
