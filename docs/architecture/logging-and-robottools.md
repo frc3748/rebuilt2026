@@ -112,8 +112,13 @@ mode clears the overrides.
 
 ## Opening logs in robotTools
 
-On the roboRIO, `WPILOGWriter` writes to the USB stick (`/U/logs`). In
-simulation it writes to `logs/` in this repo, which git ignores.
+On the roboRIO, `WPILOGWriter` writes to the USB stick (`/U/logs`) when
+one is plugged in, and otherwise to the roboRIO's own storage
+(`/home/lvuser/logs`). There, `LogFolder` deletes the oldest logs to stay
+under 150 MB, and the pre-match **Logging** check warns. In simulation it
+writes to `logs/` in this repo, which git ignores. Logs are named
+`akit_<date>_<time>.wpilog`. `FRC_…` files come from WPILib's own
+`DataLogManager` and aren't the robot code's logs; robotTools ignores them.
 
 1. Set up robotTools once (Python 3.10+ and Node 20+), following its README.
 2. From the robotTools folder, run

@@ -22,7 +22,7 @@ audiences.
 ```java
 Logger.recordMetadata("GIT_SHA", BuildInfo.GIT_SHA);
 ...
-Logger.addDataReceiver(new WPILOGWriter());   // USB stick on the roboRIO, logs/ in sim
+Logger.addDataReceiver(new WPILOGWriter(LogFolder.choose()));   // USB stick, else /home/lvuser/logs; logs/ in sim
 Logger.addDataReceiver(new NT4Publisher());   // streams to AdvantageScope
 Logger.start();
 ```
@@ -129,6 +129,8 @@ For SmartDashboard / Shuffleboard:
 USB-stick workflow:
 
 1. Plug a USB stick into the roboRIO. `WPILOGWriter` writes to it automatically.
+   Without one, logs go to the roboRIO's own storage, and only the newest
+   150 MB are kept.
 2. After the match, pull the stick.
 3. Open the most recent `.wpilog` in AdvantageScope, or add the stick
    as a log folder in

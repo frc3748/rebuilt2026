@@ -1,5 +1,6 @@
 package frc.robot.robots.practice;
 
+import frc.robot.Controls;
 import frc.robot.robots.RobotDefinition;
 import frc.robot.subsystems.drive.DriveConfig;
 import frc.robot.util.tuning.Tuning;
@@ -13,6 +14,11 @@ public class PracticeRobot extends RobotDefinition {
     @Override
     public DriveConfig drive() {
         return new PracticeDrive();
+    }
+
+    @Override
+    public Controls createControls() {
+        return new PracticeControls();
     }
 
     @Override

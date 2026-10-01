@@ -37,6 +37,7 @@ import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.HeadingLock;
 import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.shooter.Shooter;
+import frc.robot.util.LogFolder;
 import frc.robot.util.cockpit.Cockpit;
 import frc.robot.util.cockpit.Cockpit.Check;
 import frc.robot.util.cockpit.Cockpit.Level;
@@ -327,6 +328,8 @@ public class DashboardManager {
     }
 
     private void registerChecks() {
+        Cockpit.check("logging", "Logging", () -> LogFolder.isUsb() ? Check.pass("Logging to the USB stick")
+                : Check.warn("No USB stick in the roboRIO. Logs go to its own storage, which keeps only the newest 150 MB."));
         Cockpit.check("tuning", "Tuning", () -> Tuning.isEnabled() ? Check.warn("Tuning mode is on")
                 : Tuning.pending() > 0 ? Check.warn(Tuning.pending() + " tuned on the robot but not in the code yet. Deploy to write them in.")
                         : Check.pass("Every value is in the code"));

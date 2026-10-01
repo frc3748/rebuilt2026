@@ -33,7 +33,7 @@ public class PracticeDrive extends DriveConfig {
         driveGearbox = DCMotor.getNEO(1);
         driveCurrentLimit = 35;
         driveKp = 0.006 * kWheelRadius;
-        driveKv = 0.29 * 12.0 * kWheelRadius;
+        driveKv = 0.29 * 12.0;
 
         turnReduction = 12.8;
         turnGearbox = DCMotor.getNEO(1);
@@ -43,6 +43,7 @@ public class PracticeDrive extends DriveConfig {
         turnKp = 0.005 * Units.radiansToDegrees(1.0);
 
         maxSpeedMetersPerSec = 3.5;
+        aimInSlowMode = false;
 
         robotMassKg = 74.088;
         robotMOI = 6.883;

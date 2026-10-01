@@ -160,7 +160,7 @@ public class Drive extends StateMachine<Drive.State> {
         this::getAimRotationForHub,
         () -> {
           State currentState = getState();
-          if (currentState == State.SLOW) {
+          if (currentState == State.SLOW && config.aimInSlowMode) {
             return State.TRAVERSING_AT_ANGLE;
           }
 

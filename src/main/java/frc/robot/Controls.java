@@ -1,7 +1,5 @@
 package frc.robot;
 
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.MatchType;
 import edu.wpi.first.wpilibj.GenericHID.RumbleType;
@@ -33,16 +31,22 @@ public class Controls {
     protected void bindDrive(RobotState state) {
         Drive drive = state.getDrive();
         if (DriverStation.getMatchType() == MatchType.None) {
-            driver.povDown().onTrue(Commands.runOnce(
-                    () -> drive.setPose(new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)), drive)
-                    .ignoringDisable(true));
+            headingResetButton().onTrue(Commands.runOnce(drive::zeroHeading, drive).ignoringDisable(true));
         }
-        driver.rightBumper()
+        slowButton()
                 .onTrue(drive.transitionCommand(Drive.State.SLOW))
                 .onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
         driver.povLeft().onTrue(drive.transitionCommand(Drive.State.TRAVERSING_AT_ANGLE));
         driver.povRight().onTrue(drive.transitionCommand(Drive.State.TRAVERSING));
         driver.povUp().whileTrue(ActionCommands.turnToHub(state));
+    }
+
+    protected Trigger headingResetButton() {
+        return driver.povDown();
+    }
+
+    protected Trigger slowButton() {
+        return driver.rightBumper();
     }
 
     protected void bindIntake(RobotState state, Intake intake) {
