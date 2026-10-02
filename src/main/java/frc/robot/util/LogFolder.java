@@ -20,7 +20,7 @@ public final class LogFolder {
 
     public static String choose() {
         if (RobotBase.isSimulation()) {
-            return "logs";
+            return new File("logs").getAbsolutePath();
         }
         if (usbMounted()) {
             File folder = new File(kUsbLogs);

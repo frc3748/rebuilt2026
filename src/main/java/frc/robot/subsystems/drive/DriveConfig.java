@@ -77,12 +77,11 @@ public class DriveConfig {
     public boolean aimInSlowMode = true;
     public double maxLinearAcceleration = 5.0;
     public double teleopAcceleration = 6.0;
-    public double teleopDeceleration = 9.0;
     public double teleopTurnAcceleration = 20.0;
     public double autoSpeedFraction = 0.85;
     public double autoMaxAcceleration = 3.5;
     public double autoTurnFraction = 0.5;
-    public boolean useSetpointGenerator = true;
+    public boolean useSetpointGenerator = false;
 
     public double robotMassKg;
     public double robotMOI;

@@ -49,7 +49,7 @@ subclasses it and overwrites fields in the constructor. `Drive`,
 | Geometry | `trackWidth`, `wheelBase`, `bumperHeight`, `wheelRadiusMeters`, `driveReduction`, `turnReduction` |
 | Gains | `driveKp`…`driveKv`, `driveKa`, `driveSparkKv`, `turnKp`…`turnKv`, and `driveSimP/D`, `turnSimP/D` for `ModuleIOSim` |
 | Auto limits | `autoSpeedFraction` (0.85 of `maxSpeedMetersPerSec`), `autoMaxAcceleration` (3.5 m/s²) and `autoTurnFraction` (0.5 of `maxAngularSpeed()`); every path is capped to them when it loads |
-| Teleop feel | `teleopAcceleration` (6 m/s²), `teleopDeceleration` (9 m/s²), `teleopTurnAcceleration` (20 rad/s²), `useSetpointGenerator` (on) |
+| Teleop feel | `teleopAcceleration` (6 m/s²), `teleopTurnAcceleration` (20 rad/s²), `useSetpointGenerator` (off) |
 | Steering | `steerFeedforward` (1.0 = the turn motor's own kV, from `turnGearbox` and `turnReduction`) |
 | Limits | `maxSpeedMetersPerSec`, `slowSpeedMetersPerSec`, `maxLinearAcceleration`, current limits |
 | PathPlanner | `robotMassKg`, `robotMOI`, `wheelCOF`, `pathTranslationPid`, `pathRotationPid`, `pathConstraints` |
@@ -137,7 +137,7 @@ robotState.getFieldToRobot(timestamp);           // pose at a past time
 
 It logs `Drive/Slip/Modules`, `Robot`, `Scale`, `EstimatedSpeed` and `Events`. `SlipCorrectorTest` covers the logic.
 
-What it can't see: wheels that all scrub sideways together. That happens when the robot drives and turns at the same time. The setpoint generator, steering feedforward and the auto turn cap keep it small: over every diagnostic auto with no vision, PRACTICE now ends within about 4–6 cm of the simulated robot (it was 10–25 cm before them). With cameras, `visionKeepsTheRobotWhereItReallyIs` checks the pose stays within 5 cm after every diagnostic; it stays within about 3 cm.
+What it can't see: wheels that all scrub sideways together. That happens when the robot drives and turns at the same time. Steering feedforward and the auto turn cap keep it small: over every diagnostic auto with no vision, PRACTICE now ends within about 3–5 cm of the simulated robot (it was 10–25 cm before them). With cameras, `visionKeepsTheRobotWhereItReallyIs` checks the pose stays within 5 cm after every diagnostic; it stays within about 3 cm.
 
 ## Collisions
 
@@ -171,8 +171,8 @@ The default command is `DriveCommands.smartDrive(...)`:
 
 Before the speeds reach the modules:
 
-- **`DriveSlew`** limits how fast the driver's commanded velocity changes: `Drive/Teleop Acceleration` speeding up and `Drive/Teleop Deceleration` slowing down (it changes the velocity as one vector, so a diagonal stays a diagonal). The right stick's turn rate is limited by `Drive/Teleop Turn Acceleration`. Aiming and heading lock aren't slewed, since that would make them lag.
-- **The swerve setpoint generator** (PathPlanner's, from 254) turns every `runVelocity(ChassisSpeeds)` into module states the robot can actually reach. It limits each module's acceleration to what the motor can give at its current speed, its current limit and the wheels' grip, and turns modules no faster than the turn motor can. Its per-module accelerations go to the drive feedforward. Path following skips it, since PathPlanner's trajectories already respect the same limits, but it picks up from the path's last setpoint so nothing jumps. `stop()` is always immediate. Set `useSetpointGenerator = false` to turn it off for a robot.
+- **`DriveSlew`** limits how fast the driver can *speed up*: `Drive/Teleop Acceleration` for driving and `Drive/Teleop Turn Acceleration` for the right stick. Slowing down and changing direction happen right away, so the robot doesn't slide around corners. It only scales the speed, so the direction always follows the stick. Aiming and heading lock aren't slewed, since that would make them lag.
+- **The swerve setpoint generator** (PathPlanner's, from 254) is off by default (`useSetpointGenerator`). It turns every `runVelocity(ChassisSpeeds)` into module states the robot can reach, limiting each module's acceleration to its motor, current limit and grip, and turning modules no faster than the turn motor can. Driving the simulator with it on, direction changes lagged: stick circles were 43° behind instead of 6°. At the current limits the wheels can't slip anyway (the slip-current test finds about 79 A on COMP against a 45 A limit), so it isn't worth the lag. Turn it on for a robot whose current limit is near its slip current. Path following never uses it, and `stop()` is always immediate.
 - **Steering feedforward:** each module works out how fast its target angle is moving and adds `steerFeedforward × steerKv()` volts per rad/s on top of the turn PID, so modules turn with the motion instead of lagging behind it. A jump faster than the turn motor can follow, like a 180° flip, gets none. Tunable as `Turn PID/Steer FF`.
 
 The shared bindings (slow mode, aim, heading reset) are listed under

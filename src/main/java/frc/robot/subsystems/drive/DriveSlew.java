@@ -8,31 +8,28 @@ public class DriveSlew {
     private static final double kLoopSeconds = 0.02;
 
     private final TunableNumber acceleration;
-    private final TunableNumber deceleration;
     private final TunableNumber turnAcceleration;
-    private Translation2d velocity = Translation2d.kZero;
-    private double omega;
+    private double speed;
+    private double turnSpeed;
 
     public DriveSlew(DriveConfig config) {
         acceleration = TunableNumber.field("Drive/Teleop Acceleration", config, "teleopAcceleration");
-        deceleration = TunableNumber.field("Drive/Teleop Deceleration", config, "teleopDeceleration");
         turnAcceleration = TunableNumber.field("Drive/Teleop Turn Acceleration", config, "teleopTurnAcceleration");
     }
 
     public void reset(ChassisSpeeds speeds) {
-        velocity = new Translation2d(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond);
-        omega = speeds.omegaRadiansPerSecond;
+        speed = Math.hypot(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond);
+        turnSpeed = Math.abs(speeds.omegaRadiansPerSecond);
     }
 
     public ChassisSpeeds limit(ChassisSpeeds desired, boolean limitTurning) {
         Translation2d goal = new Translation2d(desired.vxMetersPerSecond, desired.vyMetersPerSecond);
-        Translation2d change = goal.minus(velocity);
-        double rate = goal.getNorm() < velocity.getNorm() ? deceleration.get() : acceleration.get();
-        double step = rate * kLoopSeconds;
-        velocity = change.getNorm() <= step ? goal : velocity.plus(change.times(step / change.getNorm()));
-        double turnStep = turnAcceleration.get() * kLoopSeconds;
-        omega = limitTurning ? omega + Math.max(-turnStep, Math.min(turnStep, desired.omegaRadiansPerSecond - omega))
-                : desired.omegaRadiansPerSecond;
-        return new ChassisSpeeds(velocity.getX(), velocity.getY(), omega);
+        double wanted = goal.getNorm();
+        speed = Math.min(wanted, speed + acceleration.get() * kLoopSeconds);
+        Translation2d velocity = wanted > 1e-9 ? goal.times(speed / wanted) : Translation2d.kZero;
+        double omega = desired.omegaRadiansPerSecond;
+        double wantedTurn = Math.abs(omega);
+        turnSpeed = limitTurning ? Math.min(wantedTurn, turnSpeed + turnAcceleration.get() * kLoopSeconds) : wantedTurn;
+        return new ChassisSpeeds(velocity.getX(), velocity.getY(), Math.copySign(turnSpeed, omega));
     }
 }
