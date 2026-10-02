@@ -87,7 +87,7 @@ Helpers available inside `routine()`:
 
 | Helper | What it does |
 | --- | --- |
-| `follow(path)` | `AutoBuilder.followPath` on a preloaded path. |
+| `follow(path)` | Follows a preloaded path with `FollowPath` (see below). |
 | `intake(state)` / `shooter(state)` | Transition and wait for it to land. |
 | `requestIntake(state)` / `requestShooter(state)` | Transition without waiting. |
 | `spinUp()` | The shooter's `spinUp()` command. |
@@ -101,6 +101,32 @@ The mechanism helpers go through the robot's
 so on a robot without that mechanism they do nothing. `shake(seconds)`
 still waits its time, so a drivetrain-only robot drives every auto's
 paths.
+
+## Path following
+
+PathPlanner's own follower runs on a clock. If the robot gets held up,
+say by scraping a wall, the target keeps moving. The robot then cuts
+straight across to catch it, which is how a delayed auto ends up
+clipping the trench or hitting fuel. It also ends the path when the
+clock runs out, even if the robot isn't there yet. `FollowPath`
+(`commands/FollowPath.java`) mixes that with BLine's position-based
+following:
+
+- **Speed:** it keeps PathPlanner's time-optimal speed and acceleration profile.
+- **Steering:** every loop it finds the closest point on the path. It drives along the path's direction there, with one correction that pulls the robot back onto the line (`Path/Translation kP`) and one that closes the distance to the target along the path.
+- **No running away:** the profile's clock only runs while the robot keeps up. The target never gets more than `Path/Max Lead` (0.5 m) ahead, so it can't pull the robot across a corner.
+- **Ending:** a path ends when the robot is within 2 cm and 2° of the end. If it's pushing against something, like a wall, with less than 5 cm left along the path, it ends there. Otherwise it gives up after `Path/Settle Seconds` (0.75 s). A path that ends moving hands off as soon as its profile ends.
+- **Turning near walls:** `PathReference` checks the bumper footprint (`DriveConfig#bumperLength`, `bumperWidth`) against the field walls, the trench walls and the hubs (`game/FieldObstacles`). Where a turned robot wouldn't fit but a square one would, like inside the trench, it holds the nearest 90° heading. The turn is spread out at the auto turn rate, so the robot squares up before it reaches the tight spot.
+- **Paths drawn past the wall:** some paths are drawn past the field wall on purpose, to make up for slip. Where that happens the robot rides 3 cm off the wall at full speed instead of grinding into it, with the join rounded off over about ±40 cm.
+
+It logs `Auto/Path/CrossTrackMeters`, `AlongTrackMeters`, `Held`, `Time`
+and the followed line as `Auto/Path/Reference`. robotTools' match grade
+scores "Followed the path" from the cross-track error.
+
+`BlairAutoTest` runs both Blair autos on the full REBUILT field in the
+simulator. Every path has to finish, staying within 15 cm of the
+reachable path. They stay within about 8–11 cm. With PathPlanner's
+follower they cut up to 85 cm.
 
 ## The catalog
 

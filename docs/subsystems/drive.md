@@ -46,7 +46,7 @@ subclasses it and overwrites fields in the constructor. `Drive`,
 | --- | --- |
 | Hardware | `gyro` (`PIGEON2` or `NAVX`), `pigeonCanId`, `navXPort`, `navXUpdateRateHz`, `driveController` (`SPARK_FLEX` or `SPARK_MAX`; `TALON_FX` is refused), `turnSensor` (`CANCODER` or `SPARK_ABSOLUTE_ENCODER`) |
 | Modules | `frontLeft`, `frontRight`, `backLeft`, `backRight`: `ModuleConstants(driveCanId, turnCanId, canCoderId, zeroRotation, driveInverted)` |
-| Geometry | `trackWidth`, `wheelBase`, `bumperHeight`, `wheelRadiusMeters`, `driveReduction`, `turnReduction` |
+| Geometry | `trackWidth`, `wheelBase`, `bumperHeight`, `bumperAllowance` (bumpers stick out this much past the wheelbase in total: `bumperLength()`, `bumperWidth()`), `wheelRadiusMeters`, `driveReduction`, `turnReduction` |
 | Gains | `driveKp`…`driveKv`, `driveKa`, `driveSparkKv`, `turnKp`…`turnKv`, and `driveSimP/D`, `turnSimP/D` for `ModuleIOSim` |
 | Auto limits | `autoSpeedFraction` (0.85 of `maxSpeedMetersPerSec`), `autoMaxAcceleration` (3.5 m/s²) and `autoTurnFraction` (0.5 of `maxAngularSpeed()`); every path is capped to them when it loads |
 | Teleop feel | `teleopAcceleration` (6 m/s²), `teleopTurnAcceleration` (20 rad/s²), `useSetpointGenerator` (off) |
@@ -150,15 +150,16 @@ After a hit, and while the robot is tilted past `Collision/Max Tilt` (bumps), vi
 
 ## PathPlanner integration
 
-`Drive` configures `AutoBuilder` with a `PPHolonomicDriveController`
-using `pathTranslationPid` / `pathRotationPid` and
-`config.pathPlannerConfig()`, and passes PathPlanner's per-module
-acceleration feedforwards to the modules. Paths flip for the red alliance.
+You still draw paths in PathPlanner, but the robot follows them with its
+own follower, `FollowPath`, not PathPlanner's. `Drive` sets it up with
+`AutoBuilder.configureCustom`, so `AutoBuilder.followPath`,
+`PathPlannerAuto` and every [auto]({{ '/commands/autos/' | relative_url }})
+use it. Paths flip for the red alliance.
 `PathAuto` caps every path's speed, acceleration and turn rate to the
 robot's auto limits (`DriveConfig#limitForAuto`), so a slower robot
 doesn't fall behind paths drawn for a faster one, and turning while
-driving scrubs less. Every
-[auto]({{ '/commands/autos/' | relative_url }}) follows paths through it.
+driving scrubs less. How the follower works is under
+[Path following]({{ '/commands/autos/' | relative_url }}#path-following).
 
 ## Driver control
 

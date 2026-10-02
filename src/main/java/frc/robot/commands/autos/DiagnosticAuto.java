@@ -126,11 +126,7 @@ public abstract class DiagnosticAuto extends AutoRoutine {
                 new GoalEndState(0.0, to.getRotation()));
         path.preventFlipping = true;
         FollowPath follower = drive.followPath(path);
-        return follower.deadlineFor(Commands.run(() -> trackError(follower.targetPose())));
-    }
-
-    private void trackError(Pose2d expected) {
-        worstTracking = Math.max(worstTracking, expected.getTranslation().getDistance(state.getDrive().getPose().getTranslation()));
+        return follower.deadlineFor(Commands.run(() -> worstTracking = Math.max(worstTracking, follower.crossTrackMeters())));
     }
 
     private Command turnTo(Rotation2d goal) {
