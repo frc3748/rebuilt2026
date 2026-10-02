@@ -24,6 +24,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.DriveConfig;
+import frc.robot.subsystems.drive.DriveSlew;
 import frc.robot.subsystems.drive.HeadingLock;
 import frc.robot.util.TunableNumber;
 
@@ -69,11 +70,13 @@ public class DriveCommands {
         TunableNumber.field("Drive/Aim kD", config, "aimD").onChange(angleController::setD);
         HeadingLock headingLock = new HeadingLock(
                 config, drive::getGyroRotation, () -> drive.getChassisSpeeds().omegaRadiansPerSecond);
+        DriveSlew slew = new DriveSlew(config);
 
         return Commands.run(() -> {
             double omega;
             double raw = square(manualOmega.getAsDouble());
-            if (stateSupplier.get() == Drive.State.TRAVERSING_AT_ANGLE) {
+            boolean aiming = stateSupplier.get() == Drive.State.TRAVERSING_AT_ANGLE;
+            if (aiming) {
                 headingLock.release();
                 omega = angleController.calculate(drive.getRotation().getRadians(), autoRotationGoal.get().getRadians());
             } else if (raw != 0.0) {
@@ -88,10 +91,12 @@ public class DriveCommands {
                     linear.getX() * drive.getMaxLinearSpeedMetersPerSec(),
                     linear.getY() * drive.getMaxLinearSpeedMetersPerSec(),
                     omega);
-            drive.runVelocity(ChassisSpeeds.fromFieldRelativeSpeeds(speeds, fieldHeading(drive)));
+            ChassisSpeeds limited = slew.limit(speeds, !aiming && raw != 0.0);
+            drive.runVelocity(ChassisSpeeds.fromFieldRelativeSpeeds(limited, fieldHeading(drive)));
         }, drive).beforeStarting(() -> {
             angleController.reset(drive.getRotation().getRadians());
             headingLock.release();
+            slew.reset(ChassisSpeeds.fromRobotRelativeSpeeds(drive.getChassisSpeeds(), fieldHeading(drive)));
         });
     }
 

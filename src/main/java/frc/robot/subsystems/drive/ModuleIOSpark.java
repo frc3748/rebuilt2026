@@ -54,6 +54,10 @@ public class ModuleIOSpark implements ModuleIO {
     private final SparkClosedLoopController turnController;
     private final TunableNumber driveKs;
     private final TunableNumber driveKv;
+    private final TunableNumber driveKa;
+    private final TunableNumber driveCurrentLimit;
+    private final TunableNumber steerFeedforward;
+    private final SparkBaseConfig driveConfig;
 
     private final Queue<Double> timestampQueue;
     private final Queue<Double> drivePositionQueue;
@@ -79,7 +83,7 @@ public class ModuleIOSpark implements ModuleIO {
         driveController = driveSpark.getClosedLoopController();
         turnController = turnSpark.getClosedLoopController();
 
-        SparkBaseConfig driveConfig = config.driveController == Controller.SPARK_FLEX ? new SparkFlexConfig() : new SparkMaxConfig();
+        driveConfig = config.driveController == Controller.SPARK_FLEX ? new SparkFlexConfig() : new SparkMaxConfig();
         driveConfig
                 .inverted(module.driveInverted())
                 .idleMode(IdleMode.kBrake)
@@ -94,7 +98,7 @@ public class ModuleIOSpark implements ModuleIO {
                 .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
                 .pid(config.driveKp, config.driveKi, config.driveKd)
                 .iMaxAccum(config.driveIntegrationCap);
-        driveConfig.closedLoop.feedForward.kV(config.driveSparkKv);
+        driveConfig.closedLoop.feedForward.kV(config.driveSparkKv * config.wheelRadiusMeters);
         driveConfig.signals
                 .primaryEncoderPositionAlwaysOn(true)
                 .primaryEncoderPositionPeriodMs((int) (1000.0 / config.odometryFrequency))
@@ -172,8 +176,9 @@ public class ModuleIOSpark implements ModuleIO {
         tune("Drive PID/kP", "driveKp", value -> driveConfig.closedLoop.p(value), applyDrive);
         tune("Drive PID/kI", "driveKi", value -> driveConfig.closedLoop.i(value), applyDrive);
         tune("Drive PID/kD", "driveKd", value -> driveConfig.closedLoop.d(value), applyDrive);
-        tune("Drive PID/Spark kV", "driveSparkKv", value -> driveConfig.closedLoop.feedForward.kV(value), applyDrive);
-        tune("Drive/Current Limit", "driveCurrentLimit", value -> driveConfig.smartCurrentLimit((int) value), applyDrive).integer();
+        tune("Drive PID/Spark kV", "driveSparkKv", value -> driveConfig.closedLoop.feedForward.kV(value * config.wheelRadiusMeters), applyDrive);
+        driveCurrentLimit = tune("Drive/Current Limit", "driveCurrentLimit", value -> driveConfig.smartCurrentLimit((int) value), applyDrive)
+                .integer();
         tune("Turn PID/kP", "turnKp", value -> turnConfig.closedLoop.p(value), applyTurn);
         tune("Turn PID/kI", "turnKi", value -> turnConfig.closedLoop.i(value), applyTurn);
         tune("Turn PID/kD", "turnKd", value -> turnConfig.closedLoop.d(value), applyTurn);
@@ -181,6 +186,8 @@ public class ModuleIOSpark implements ModuleIO {
         tune("Turn/Current Limit", "turnCurrentLimit", value -> turnConfig.smartCurrentLimit((int) value), applyTurn).integer();
         driveKs = TunableNumber.field("Drive PID/kS", config, "driveKs");
         driveKv = TunableNumber.field("Drive PID/kV", config, "driveKv");
+        driveKa = TunableNumber.field("Drive PID/kA", config, "driveKa");
+        steerFeedforward = TunableNumber.field("Turn PID/Steer FF", config, "steerFeedforward");
 
         timestampQueue = SparkOdometryThread.getInstance().makeTimestampQueue();
         drivePositionQueue = SparkOdometryThread.getInstance().registerSignal(driveSpark, driveEncoder::getPosition);
@@ -241,10 +248,11 @@ public class ModuleIOSpark implements ModuleIO {
     }
 
     @Override
-    public void setDriveVelocity(double velocityRadPerSec) {
-        double feedforward = driveKs.get() * Math.signum(velocityRadPerSec) + driveKv.get() * velocityRadPerSec;
-        driveController.setSetpoint(velocityRadPerSec, ControlType.kVelocity, ClosedLoopSlot.kSlot0, feedforward,
-                ArbFFUnits.kVoltage);
+    public void setDriveVelocity(double velocityMetersPerSec, double accelerationMetersPerSecSq) {
+        double feedforward = driveKs.get() * Math.signum(velocityMetersPerSec) + driveKv.get() * velocityMetersPerSec
+                + driveKa.get() * accelerationMetersPerSecSq;
+        driveController.setSetpoint(velocityMetersPerSec / config.wheelRadiusMeters, ControlType.kVelocity, ClosedLoopSlot.kSlot0,
+                feedforward, ArbFFUnits.kVoltage);
     }
 
     private TunableNumber tune(String key, String field, DoubleConsumer edit, Runnable apply) {
@@ -255,8 +263,20 @@ public class ModuleIOSpark implements ModuleIO {
     }
 
     @Override
-    public void setTurnPosition(Rotation2d rotation) {
+    public void setTurnPosition(Rotation2d rotation, double velocityRadPerSec) {
         double setpoint = MathUtil.inputModulus(rotation.plus(zeroRotation).getRadians(), kTurnMin, kTurnMax);
-        turnController.setSetpoint(setpoint, ControlType.kPosition);
+        double feedforward = steerFeedforward.get() * config.steerKv() * velocityRadPerSec;
+        turnController.setSetpoint(setpoint, ControlType.kPosition, ClosedLoopSlot.kSlot0, feedforward, ArbFFUnits.kVoltage);
+    }
+
+    @Override
+    public void liftDriveCurrentLimit(double amps) {
+        driveConfig.smartCurrentLimit((int) amps);
+        driveSpark.configure(driveConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+    }
+
+    @Override
+    public void restoreDriveCurrentLimit() {
+        liftDriveCurrentLimit(driveCurrentLimit.get());
     }
 }

@@ -26,7 +26,10 @@ public final class Autos {
                 new DiagnosticSquare(state),
                 new DiagnosticSpin(state),
                 new DiagnosticTurnWhileDriving(state),
-                new DiagnosticAutoSpeed(state));
+                new DiagnosticAutoSpeed(state),
+                new MeasureWheelRadius(state),
+                new MeasureFeedforward(state),
+                new MeasureSlipCurrent(state));
     }
 
     private Autos() {}

@@ -75,6 +75,14 @@ buttons toast when they finish ("Zero hood done", "Hub-front shot on").
 The last 30 toasts are logged as `Cockpit/Toasts`, so robotTools sees
 them too.
 
+`DisconnectNotifier` toasts in red when anything drops out: a drive or
+turn motor, an encoder, a mechanism motor, the gyro (NavX or Pigeon) or
+a camera. It names the device and says what to check, and toasts again
+when it comes back. It checks every 0.1 s, after the first 2 s of boot.
+It logs `Disconnects/Devices` and `Disconnects/Events`. The devices'
+own alerts live in the `Devices` alert group, so they show in the
+problems bar without toasting twice.
+
 ## Gauges
 
 ```java

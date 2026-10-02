@@ -202,6 +202,15 @@ public final class Tuning {
         enabled = on;
     }
 
+    public static boolean propose(String key, double value) {
+        Value tunable = values.get(key);
+        if (tunable == null || !isActive()) {
+            return false;
+        }
+        tunable.live.set(value);
+        return true;
+    }
+
     public static int unsaved() {
         if (!isActive()) {
             return 0;

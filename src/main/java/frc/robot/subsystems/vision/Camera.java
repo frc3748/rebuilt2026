@@ -50,7 +50,7 @@ public class Camera {
         this.config = config;
         this.io = io;
         logKey = "Vision/" + config.name();
-        disconnectedAlert = new Alert(config.name() + " disconnected", AlertType.kWarning);
+        disconnectedAlert = new Alert("Devices", config.name() + " disconnected", AlertType.kWarning);
         stdDevFactor = config.stdDevSource().isKnown()
                 ? new TunableNumber("Vision/" + config.name() + " Std Dev Factor", config.stdDevFactor(), config.stdDevSource())::get
                 : config::stdDevFactor;
@@ -107,7 +107,8 @@ public class Camera {
         List<Pose2d> rejected = new ArrayList<>();
         List<String> reasons = new ArrayList<>();
         for (PoseObservation observation : inputs.poseObservations) {
-            Pose2d pose = observation.robotPose().toPose2d().plus(config.reportedPoseOffset());
+            Pose2d reported = observation.robotPose().toPose2d();
+            Pose2d pose = Constants.kMode == Constants.Mode.SIM ? reported : reported.plus(config.reportedPoseOffset());
             Optional<String> reason = rejectionReason(observation, pose, state);
             if (reason.isEmpty()) {
                 lastTimestamps.put(observation.source(), observation.timestamp());

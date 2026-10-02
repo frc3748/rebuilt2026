@@ -1,10 +1,13 @@
 package frc.robot.commands.autos;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.path.ConstraintsZone;
+import com.pathplanner.lib.path.PathConstraints;
 import com.pathplanner.lib.path.PathPlannerPath;
 
 import edu.wpi.first.math.geometry.Pose2d;
@@ -20,6 +23,7 @@ import frc.robot.RobotState;
 import frc.robot.Superstructure;
 import frc.robot.commands.ActionCommands;
 import frc.robot.commands.AutoAlignToPoseCommand;
+import frc.robot.subsystems.drive.DriveConfig;
 import frc.robot.game.AllianceFlip;
 import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.shooter.Shooter;
@@ -36,6 +40,26 @@ public abstract class PathAuto extends AutoRoutine {
     }
 
     protected abstract Command routine();
+
+    @Override
+    protected PathPlannerPath adjust(PathPlannerPath path) {
+        if (path.isChoreoPath()) {
+            return path;
+        }
+        DriveConfig config = state.getDrive().getConfig();
+        PathConstraints limited = config.limitForAuto(path.getGlobalConstraints());
+        List<ConstraintsZone> zones = path.getConstraintZones().stream()
+                .map(zone -> new ConstraintsZone(zone.minPosition(), zone.maxPosition(), config.limitForAuto(zone.constraints())))
+                .toList();
+        if (limited.equals(path.getGlobalConstraints()) && zones.equals(path.getConstraintZones())) {
+            return path;
+        }
+        PathPlannerPath capped = new PathPlannerPath(path.getWaypoints(), path.getRotationTargets(), path.getPointTowardsZones(),
+                zones, path.getEventMarkers(), limited, path.getIdealStartingState(), path.getGoalEndState(), path.isReversed());
+        capped.name = path.name;
+        capped.preventFlipping = path.preventFlipping;
+        return capped;
+    }
 
     @Override
     public final Command build() {

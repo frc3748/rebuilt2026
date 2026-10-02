@@ -37,7 +37,11 @@ public interface ModuleIO {
 
   public default void setTurnOpenLoop(double output) {}
 
-  public default void setDriveVelocity(double velocityRadPerSec) {}
+  public default void setDriveVelocity(double velocityMetersPerSec, double accelerationMetersPerSecSq) {}
 
-  public default void setTurnPosition(Rotation2d rotation) {}
+  public default void setTurnPosition(Rotation2d rotation, double velocityRadPerSec) {}
+
+  public default void liftDriveCurrentLimit(double amps) {}
+
+  public default void restoreDriveCurrentLimit() {}
 }

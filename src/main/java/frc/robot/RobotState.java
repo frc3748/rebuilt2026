@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
+import org.ironmaple.simulation.SimulatedArena;
 import org.littletonrobotics.junction.Logger;
 
 import com.pathplanner.lib.commands.PathfindingCommand;
@@ -156,6 +157,7 @@ public class RobotState extends StateMachine<RobotState.State> {
 
     public void updateSimulation() {
         if (Constants.kMode == Mode.SIM) {
+            SimulatedArena.getInstance().simulationPeriodic();
             superstructure.simulationPeriodic();
         }
     }
@@ -200,9 +202,7 @@ public class RobotState extends StateMachine<RobotState.State> {
     }
 
     public void addVisionMeasurement(VisionMeasurement measurement) {
-        if (Constants.kMode == Mode.REAL) {
-            drive.addVisionMeasurement(measurement.robotPose(), measurement.timestamp(), measurement.stdDevs());
-        }
+        drive.addVisionMeasurement(measurement.robotPose(), measurement.timestamp(), measurement.stdDevs());
     }
 
     public Map.Entry<Double, Pose2d> getLatestFieldToRobot() {

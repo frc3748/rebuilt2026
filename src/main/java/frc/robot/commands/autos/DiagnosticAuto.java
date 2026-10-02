@@ -14,6 +14,7 @@ import com.pathplanner.lib.path.GoalEndState;
 import com.pathplanner.lib.path.IdealStartingState;
 import com.pathplanner.lib.path.PathConstraints;
 import com.pathplanner.lib.path.PathPlannerPath;
+import com.pathplanner.lib.trajectory.PathPlannerTrajectory;
 
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -23,6 +24,7 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.RobotState;
@@ -117,21 +119,23 @@ public abstract class DiagnosticAuto extends AutoRoutine {
             return turnTo(to.getRotation());
         }
         Rotation2d travel = delta.getAngle();
-        double speed = Math.min(leg.autoSpeed() ? kAutoSpeed : kTestSpeed, config.maxSpeedMetersPerSec);
-        double acceleration = leg.autoSpeed() ? kAutoAcceleration : kTestAcceleration;
+        double speed = Math.min(leg.autoSpeed() ? kAutoSpeed : kTestSpeed, config.autoSpeedLimit());
+        double acceleration = Math.min(leg.autoSpeed() ? kAutoAcceleration : kTestAcceleration, config.autoMaxAcceleration);
         PathPlannerPath path = new PathPlannerPath(
                 PathPlannerPath.waypointsFromPoses(new Pose2d(from.getTranslation(), travel), new Pose2d(to.getTranslation(), travel)),
-                new PathConstraints(speed, acceleration, config.maxAngularSpeed() * 0.75, config.maxAngularAcceleration()),
+                new PathConstraints(speed, acceleration, config.autoTurnLimit(), config.maxAngularAcceleration()),
                 new IdealStartingState(0.0, from.getRotation()),
                 new GoalEndState(0.0, to.getRotation()));
         path.preventFlipping = true;
-        return AutoBuilder.followPath(path).deadlineFor(Commands.run(this::trackError));
+        PathPlannerTrajectory trajectory = path.generateTrajectory(drive.getChassisSpeeds(), from.getRotation(), config.pathPlannerConfig());
+        Timer timer = new Timer();
+        return AutoBuilder.followPath(path)
+                .beforeStarting(timer::restart)
+                .deadlineFor(Commands.run(() -> trackError(trajectory.sample(timer.get()).pose)));
     }
 
-    private void trackError() {
-        Drive drive = state.getDrive();
-        drive.getPathTarget().ifPresent(target ->
-                worstTracking = Math.max(worstTracking, target.getTranslation().getDistance(drive.getPose().getTranslation())));
+    private void trackError(Pose2d expected) {
+        worstTracking = Math.max(worstTracking, expected.getTranslation().getDistance(state.getDrive().getPose().getTranslation()));
     }
 
     private Command turnTo(Rotation2d goal) {

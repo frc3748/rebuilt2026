@@ -202,5 +202,5 @@ robot has none.
 
 | Method | Network name | Type | Notes |
 | --- | --- | --- | --- |
-| `shooterCamera()` | `limelight-turret` | `LIMELIGHT_4` | Fixed to the shooter; its transform starts from `shooter().shooterToRobotCenter`. Shifts its reported pose by an in-code `reportedPoseOffset`. |
+| `shooterCamera()` | `limelight-turret` | `LIMELIGHT_4` | Fixed to the shooter; its transform starts from `shooter().shooterToRobotCenter`. Shifts its reported pose by an in-code `reportedPoseOffset` on the real robot and in replay (the simulator's camera already reports the true pose, so it's skipped there). |
 | `chassisCamera()` | `limelight` | `LIMELIGHT_4` | Rear of chassis. Offsets live in the Limelight web UI. |

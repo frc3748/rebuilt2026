@@ -48,10 +48,14 @@ public abstract class AutoRoutine {
         return pathNames[0];
     }
 
+    protected PathPlannerPath adjust(PathPlannerPath path) {
+        return path;
+    }
+
     protected final Map<String, PathPlannerPath> loadPaths() throws Exception {
         Map<String, PathPlannerPath> paths = new LinkedHashMap<>();
         for (String pathName : pathNames) {
-            paths.put(pathName, PathPlannerPath.fromPathFile(pathName));
+            paths.put(pathName, adjust(PathPlannerPath.fromPathFile(pathName)));
         }
         return paths;
     }

@@ -45,7 +45,7 @@ public class Motor implements Hardware {
         this.io = io;
         this.selfTestPosition = selfTestPosition;
         String label = name.substring(name.lastIndexOf('/') + 1);
-        disconnectedAlert = new Alert(label + " motor disconnected", AlertType.kWarning);
+        disconnectedAlert = new Alert("Devices", label + " motor disconnected", AlertType.kError);
         hotAlert = new Alert(label + " motor is hot", AlertType.kWarning);
         overheatedAlert = new Alert(label + " motor is overheating", AlertType.kError);
     }

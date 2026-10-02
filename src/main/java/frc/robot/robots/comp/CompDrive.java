@@ -26,15 +26,15 @@ public class CompDrive extends DriveConfig {
 
         wheelRadiusMeters = 0.0508;
         driveReduction = 6.48;
-        driveGearbox = DCMotor.getNEO(1);
+        driveGearbox = DCMotor.getNeoVortex(1);
         driveCurrentLimit = 45;
         driveKp = 0.01;
         driveKs = 0.1;
-        driveKv = 1.8;
-        driveSparkKv = 1.8;
+        driveKv = 2.28;
+        driveSparkKv = 0.0;
 
         turnReduction = 12.1;
-        turnGearbox = DCMotor.getNeo550(1);
+        turnGearbox = DCMotor.getNEO(1);
         turnCurrentLimit = 45;
         turnInverted = true;
         turnEncoderInverted = true;

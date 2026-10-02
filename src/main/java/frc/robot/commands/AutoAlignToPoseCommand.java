@@ -138,7 +138,7 @@ public class AutoAlignToPoseCommand extends Command {
     public void end(boolean interrupted) {
         Logger.recordOutput("DriveToPose/Active", false);
         active = Optional.empty();
-        drive.runVelocity(new ChassisSpeeds());
+        drive.stop();
     }
 
     @Override

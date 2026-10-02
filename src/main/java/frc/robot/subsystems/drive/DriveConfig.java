@@ -52,6 +52,7 @@ public class DriveConfig {
     public double driveKd;
     public double driveKs;
     public double driveKv;
+    public double driveKa;
     public double driveSparkKv;
     public double driveIntegrationCap = 0.001;
 
@@ -64,11 +65,10 @@ public class DriveConfig {
     public double turnKi;
     public double turnKd;
     public double turnKv;
+    public double steerFeedforward = 1.0;
 
-    public double driveSimP = 0.1;
+    public double driveSimP = 0.5;
     public double driveSimD = 0.0;
-    public double driveSimKs = 0.9;
-    public double driveSimKv = 3.0;
     public double turnSimP = 3.0;
     public double turnSimD = 0.0;
 
@@ -76,6 +76,13 @@ public class DriveConfig {
     public double slowSpeedMetersPerSec = 0.5;
     public boolean aimInSlowMode = true;
     public double maxLinearAcceleration = 5.0;
+    public double teleopAcceleration = 6.0;
+    public double teleopDeceleration = 9.0;
+    public double teleopTurnAcceleration = 20.0;
+    public double autoSpeedFraction = 0.85;
+    public double autoMaxAcceleration = 3.5;
+    public double autoTurnFraction = 0.5;
+    public boolean useSetpointGenerator = true;
 
     public double robotMassKg;
     public double robotMOI;
@@ -115,6 +122,21 @@ public class DriveConfig {
         };
     }
 
+    public double autoSpeedLimit() {
+        return autoSpeedFraction * maxSpeedMetersPerSec;
+    }
+
+    public double autoTurnLimit() {
+        return autoTurnFraction * maxAngularSpeed();
+    }
+
+    public PathConstraints limitForAuto(PathConstraints constraints) {
+        return new PathConstraints(Math.min(constraints.maxVelocityMPS(), autoSpeedLimit()),
+                Math.min(constraints.maxAccelerationMPSSq(), autoMaxAcceleration),
+                Math.min(constraints.maxAngularVelocityRadPerSec(), autoTurnLimit()),
+                constraints.maxAngularAccelerationRadPerSecSq(), constraints.nominalVoltageVolts(), constraints.unlimited());
+    }
+
     public double driveBaseRadius() {
         return Math.hypot(trackWidth / 2.0, wheelBase / 2.0);
     }
@@ -125,6 +147,14 @@ public class DriveConfig {
 
     public double maxAngularAcceleration() {
         return maxLinearAcceleration / driveBaseRadius();
+    }
+
+    public double maxSteerVelocity() {
+        return turnGearbox.freeSpeedRadPerSec / turnReduction;
+    }
+
+    public double steerKv() {
+        return turnReduction / turnGearbox.KvRadPerSecPerVolt;
     }
 
     public double driveEncoderPositionFactor() {

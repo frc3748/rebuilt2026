@@ -7,7 +7,10 @@ import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
+import com.pathplanner.lib.util.DriveFeedforwards;
 import com.pathplanner.lib.util.PathPlannerLogging;
+import com.pathplanner.lib.util.swerve.SwerveSetpoint;
+import com.pathplanner.lib.util.swerve.SwerveSetpointGenerator;
 
 import edu.wpi.first.hal.FRCNetComm.tInstances;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
@@ -54,10 +57,12 @@ import java.util.Optional;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
 import org.littletonrobotics.junction.AutoLogOutput;
 import org.littletonrobotics.junction.Logger;
 
 public class Drive extends StateMachine<Drive.State> {
+  private static final Pose2d kSimStartPose = new Pose2d(2.5, 2.0, Rotation2d.kZero);
   private static final double kAimTargetFreshSeconds = 0.25;
   private Translation2d aimTarget;
   private double aimTargetTime = Double.NEGATIVE_INFINITY;
@@ -67,12 +72,10 @@ public class Drive extends StateMachine<Drive.State> {
   private final GyroIO gyroIO;
   private final GyroIOInputsAutoLogged gyroInputs = new GyroIOInputsAutoLogged();
 
-
   private final Module[] modules = new Module[4];
   private Pose2d pathTarget;
   private final SysIdRoutine sysId;
-  private final Alert gyroDisconnectedAlert = new Alert("Disconnected gyro, using kinematics as fallback.",
-      AlertType.kError);
+  private final Alert gyroDisconnectedAlert;
 
   private final DriveConfig config;
   private final TunableNumber slowSpeed;
@@ -87,20 +90,37 @@ public class Drive extends StateMachine<Drive.State> {
           new SwerveModulePosition()
       };
   private final SwerveDrivePoseEstimator poseEstimator;
+  private final SwerveDriveSimulation simulation;
+  private final SlipCorrector slip;
+  private final CollisionDetector collision = new CollisionDetector();
+  private final SwerveSetpointGenerator setpointGenerator;
+  private SwerveSetpoint setpoint;
+  private boolean setpointLive;
+  private final SwerveModulePosition[] odometryPositions = new SwerveModulePosition[] {
+      new SwerveModulePosition(), new SwerveModulePosition(), new SwerveModulePosition(), new SwerveModulePosition()};
+  private double lastOdometryTimestamp = Double.NaN;
 
   private RobotState robotState;
 
   public Drive(DriveConfig config, RobotState robotState) {
     super("Drive", State.UNDETERMINED, State.class);
     this.config = config;
+    gyroDisconnectedAlert = new Alert(Module.kAlertGroup, gyroName() + " disconnected, heading comes from the wheels", AlertType.kError);
+    config.wheelRadiusMeters = TunableNumber.field("Drive/Wheel Radius", config, "wheelRadiusMeters").restartToApply().get();
     slowSpeed = TunableNumber.field("Drive/Slow Speed", config, "slowSpeedMetersPerSec");
     this.robotState = robotState;
     kinematics = new SwerveDriveKinematics(config.moduleTranslations());
-    poseEstimator = new SwerveDrivePoseEstimator(kinematics, rawGyroRotation, lastModulePositions, Pose2d.kZero);
+    slip = new SlipCorrector(config.moduleTranslations());
+    setpointGenerator = new SwerveSetpointGenerator(config.pathPlannerConfig(), config.maxSteerVelocity());
+    poseEstimator = new SwerveDrivePoseEstimator(kinematics, rawGyroRotation, odometryPositions, Pose2d.kZero);
 
-    gyroIO = createGyro(config);
+    simulation = Constants.kMode == Mode.SIM ? DriveSimulation.create(config, kSimStartPose) : null;
+    if (simulation != null) {
+      poseEstimator.resetPosition(rawGyroRotation, odometryPositions, kSimStartPose);
+    }
+    gyroIO = createGyro(config, simulation);
     for (int i = 0; i < 4; i++) {
-      modules[i] = new Module(createModule(config, i), i, config.wheelRadiusMeters);
+      modules[i] = new Module(createModule(config, i, simulation), i, config.wheelRadiusMeters, config.maxSteerVelocity());
     }
 
     HAL.report(tResourceType.kResourceType_RobotDrive, tInstances.kRobotDriveSwerve_AdvantageKit);
@@ -126,7 +146,10 @@ public class Drive extends StateMachine<Drive.State> {
 
   }
 
-  private static GyroIO createGyro(DriveConfig config) {
+  private static GyroIO createGyro(DriveConfig config, SwerveDriveSimulation simulation) {
+    if (simulation != null) {
+      return new GyroIOSim(simulation);
+    }
     if (Constants.kMode != Mode.REAL) {
       return new GyroIO() {};
     }
@@ -136,10 +159,10 @@ public class Drive extends StateMachine<Drive.State> {
     };
   }
 
-  private static ModuleIO createModule(DriveConfig config, int index) {
+  private static ModuleIO createModule(DriveConfig config, int index, SwerveDriveSimulation simulation) {
     return switch (Constants.kMode) {
       case REAL -> new ModuleIOSpark(config, index);
-      case SIM -> new ModuleIOSim(config);
+      case SIM -> new ModuleIOSim(config, simulation.getModules()[index]);
       case REPLAY -> new ModuleIO() {};
     };
   }
@@ -176,7 +199,7 @@ public class Drive extends StateMachine<Drive.State> {
         this::getPose,
         this::setPose,
         this::getChassisSpeeds,
-        this::runVelocity,
+        (speeds, feedforwards) -> runVelocity(speeds, feedforwards),
         new PPHolonomicDriveController(
             pathPid("Path/Translation", "pathTranslationPid", config.pathTranslationPid),
             pathPid("Path/Rotation", "pathRotationPid", config.pathRotationPid)),
@@ -232,10 +255,9 @@ public class Drive extends StateMachine<Drive.State> {
     double timestamp = RobotTime.getTimestampSeconds();
     robotState.addOdometryMeasurement(timestamp, getPose());
 
-    if (Constants.kMode != Mode.SIM) {
-      recordMotion(timestamp);
-    } else {
-      robotState.getSimRobot().addFieldToRobot(getPose());
+    recordMotion(timestamp);
+    if (simulation != null) {
+      robotState.getSimRobot().addFieldToRobot(simulation.getSimulatedDriveTrainPose());
     }
 
     Logger.processInputs("Drive/Gyro", gyroInputs);
@@ -249,8 +271,15 @@ public class Drive extends StateMachine<Drive.State> {
       for (var module : modules) {
         module.stop();
       }
+      setpointLive = false;
       Logger.recordOutput("SwerveStates/Setpoints", new SwerveModuleState[] {});
     }
+
+    ChassisSpeeds wheelSpeeds = getChassisSpeeds();
+    slip.update(wheelSpeeds, gyroInputs.connected, gyroInputs.accelXGs, gyroInputs.accelYGs,
+        gyroInputs.pitchRadians, gyroInputs.rollRadians, 0.02);
+    collision.update(wheelSpeeds, gyroInputs.connected, gyroInputs.accelXGs, gyroInputs.accelYGs,
+        gyroInputs.pitchRadians, gyroInputs.rollRadians, timestamp, 0.02);
 
     double[] sampleTimestamps = modules[0].getOdometryTimestamps();
     int sampleCount = sampleTimestamps.length;
@@ -266,6 +295,7 @@ public class Drive extends StateMachine<Drive.State> {
         lastModulePositions[moduleIndex] = modulePositions[moduleIndex];
       }
 
+      Rotation2d previousGyro = rawGyroRotation;
       if (gyroInputs.connected) {
         rawGyroRotation = gyroInputs.odometryYawPositions[i];
       } else {
@@ -273,8 +303,28 @@ public class Drive extends StateMachine<Drive.State> {
         rawGyroRotation = rawGyroRotation.plus(new Rotation2d(twist.dtheta));
       }
 
-      poseEstimator.updateWithTime(sampleTimestamps[i], rawGyroRotation, modulePositions);
+      double dt = Double.isNaN(lastOdometryTimestamp) ? 0.02 : Math.max(1e-3, sampleTimestamps[i] - lastOdometryTimestamp);
+      lastOdometryTimestamp = sampleTimestamps[i];
+      SwerveModulePosition[] corrected = gyroInputs.connected
+          ? slip.correct(moduleDeltas, rawGyroRotation.minus(previousGyro).getRadians(), dt)
+          : moduleDeltas;
+      for (int moduleIndex = 0; moduleIndex < 4; moduleIndex++) {
+        odometryPositions[moduleIndex] = new SwerveModulePosition(
+            odometryPositions[moduleIndex].distanceMeters + corrected[moduleIndex].distanceMeters, corrected[moduleIndex].angle);
+      }
+      poseEstimator.updateWithTime(sampleTimestamps[i], rawGyroRotation, odometryPositions);
     }
+
+    Logger.recordOutput("Drive/Slip/Modules", slip.slippingModules());
+    Logger.recordOutput("Drive/Slip/Robot", slip.isRobotSlipping());
+    Logger.recordOutput("Drive/Slip/Scale", slip.scale());
+    Logger.recordOutput("Drive/Slip/EstimatedSpeed", slip.estimatedSpeed());
+    Logger.recordOutput("Drive/Slip/Events", slip.events());
+    Logger.recordOutput("Drive/Collision/Jolt", collision.jolt());
+    Logger.recordOutput("Drive/Collision/Hit", collision.isHit());
+    Logger.recordOutput("Drive/Collision/Tilted", collision.isTilted());
+    Logger.recordOutput("Drive/Collision/TrustingVision", collision.isUpset());
+    Logger.recordOutput("Drive/Collision/Events", collision.events());
 
     gyroDisconnectedAlert.set(!gyroInputs.connected && Constants.kMode != Mode.SIM);
   }
@@ -294,33 +344,71 @@ public class Drive extends StateMachine<Drive.State> {
 
   public void runVelocity(ChassisSpeeds speeds) {
     ChassisSpeeds discreteSpeeds = ChassisSpeeds.discretize(speeds, 0.02);
+    if (!config.useSetpointGenerator) {
+      runVelocity(discreteSpeeds, new double[4]);
+      return;
+    }
+    if (!setpointLive) {
+      setpoint = new SwerveSetpoint(getChassisSpeeds(), getModuleStates(), DriveFeedforwards.zeros(4));
+    }
+    setpoint = setpointGenerator.generateSetpoint(setpoint, discreteSpeeds, 0.02);
+    Logger.recordOutput("SwerveChassisSpeeds/Requested", discreteSpeeds);
+    runModules(setpoint.robotRelativeSpeeds(), setpoint.moduleStates(), setpoint.feedforwards().accelerationsMPSSq());
+    setpointLive = true;
+  }
+
+  public void runVelocity(ChassisSpeeds speeds, DriveFeedforwards feedforwards) {
+    runVelocity(ChassisSpeeds.discretize(speeds, 0.02), feedforwards.accelerationsMPSSq());
+  }
+
+  private void runVelocity(ChassisSpeeds discreteSpeeds, double[] accelerations) {
     SwerveModuleState[] setpointStates = kinematics.toSwerveModuleStates(discreteSpeeds);
     SwerveDriveKinematics.desaturateWheelSpeeds(setpointStates, config.maxSpeedMetersPerSec);
+    runModules(discreteSpeeds, setpointStates, accelerations);
+    setpoint = new SwerveSetpoint(discreteSpeeds, setpointStates, DriveFeedforwards.zeros(4));
+    setpointLive = true;
+  }
 
-    Logger.recordOutput("SwerveChassisSpeeds/Setpoints", discreteSpeeds);
-
+  private void runModules(ChassisSpeeds speeds, SwerveModuleState[] states, double[] accelerations) {
+    Logger.recordOutput("SwerveChassisSpeeds/Setpoints", speeds);
+    Logger.recordOutput("SwerveStates/Setpoints", states);
+    Logger.recordOutput("SwerveStates/AccelerationFeedforwards", accelerations);
+    SwerveModuleState[] commanded = new SwerveModuleState[4];
     for (int i = 0; i < 4; i++) {
-      modules[i].runSetpoint(setpointStates[i]);
+      commanded[i] = new SwerveModuleState(states[i].speedMetersPerSecond, states[i].angle);
+      modules[i].runSetpoint(commanded[i], accelerations[i]);
     }
-
-    Logger.recordOutput("SwerveStates/Setpoints", setpointStates);
-    desiredSpeeds = discreteSpeeds;
+    desiredSpeeds = speeds;
   }
 
   public void runCharacterization(double output) {
+    setpointLive = false;
     for (int i = 0; i < 4; i++) {
       modules[i].runCharacterization(output);
     }
   }
 
   public void runModuleAngles(Rotation2d angle) {
+    setpointLive = false;
     for (Module module : modules) {
       module.runAngle(angle);
     }
   }
 
   public void stop() {
-    runVelocity(new ChassisSpeeds());
+    runVelocity(new ChassisSpeeds(), new double[4]);
+  }
+
+  public void liftDriveCurrentLimit(double amps) {
+    for (Module module : modules) {
+      module.liftDriveCurrentLimit(amps);
+    }
+  }
+
+  public void restoreDriveCurrentLimit() {
+    for (Module module : modules) {
+      module.restoreDriveCurrentLimit();
+    }
   }
 
   public void stopWithX() {
@@ -352,14 +440,6 @@ public class Drive extends StateMachine<Drive.State> {
     return states;
   }
 
-  private SwerveModulePosition[] getModulePositions() {
-    SwerveModulePosition[] states = new SwerveModulePosition[4];
-    for (int i = 0; i < 4; i++) {
-      states[i] = modules[i].getPosition();
-    }
-    return states;
-  }
-
   @AutoLogOutput(key = "SwerveChassisSpeeds/Measured")
   public ChassisSpeeds getChassisSpeeds() {
     return kinematics.toChassisSpeeds(getModuleStates());
@@ -371,6 +451,30 @@ public class Drive extends StateMachine<Drive.State> {
       values[i] = modules[i].getWheelRadiusCharacterizationPosition();
     }
     return values;
+  }
+
+  public double getWheelSpeedMetersPerSec() {
+    double total = 0.0;
+    for (Module module : modules) {
+      total += module.getVelocityMetersPerSec();
+    }
+    return total / 4.0;
+  }
+
+  public double getDriveCurrentAmps() {
+    double total = 0.0;
+    for (Module module : modules) {
+      total += module.getDriveCurrentAmps();
+    }
+    return total / 4.0;
+  }
+
+  public double getDriveAppliedVolts() {
+    double total = 0.0;
+    for (Module module : modules) {
+      total += module.getDriveAppliedVolts();
+    }
+    return total / 4.0;
   }
 
   public double getFFCharacterizationVelocity() {
@@ -400,17 +504,31 @@ public class Drive extends StateMachine<Drive.State> {
   }
 
   public void setPose(Pose2d pose) {
-    poseEstimator.resetPosition(rawGyroRotation, getModulePositions(), pose);
+    poseEstimator.resetPosition(rawGyroRotation, odometryPositions, pose);
     robotState.resetBuffersToPose(pose);
+    if (simulation != null) {
+      simulation.setSimulationWorldPose(pose);
+    }
   }
 
+  public SlipCorrector getSlip() {
+    return slip;
+  }
+
+  public CollisionDetector getCollision() {
+    return collision;
+  }
+
+  public Optional<SwerveDriveSimulation> getSimulation() {
+    return Optional.ofNullable(simulation);
+  }
 
   public void addVisionMeasurement(
       Pose2d visionRobotPoseMeters,
       double timestampSeconds,
       Matrix<N3, N1> visionMeasurementStdDevs) {
     poseEstimator.addVisionMeasurement(
-        visionRobotPoseMeters, timestampSeconds, visionMeasurementStdDevs);
+        visionRobotPoseMeters, timestampSeconds, visionMeasurementStdDevs.times(collision.visionStdDevScale()));
   }
 
   public void addVisionMeasurement(
@@ -465,9 +583,13 @@ public class Drive extends StateMachine<Drive.State> {
       found.addAll(module.disconnected());
     }
     if (!gyroInputs.connected && Constants.kMode == Mode.REAL) {
-      found.add("Gyro");
+      found.add(gyroName());
     }
     return found;
+  }
+
+  public String gyroName() {
+    return config.gyro == DriveConfig.GyroType.NAVX ? "NavX" : "Pigeon";
   }
 
   public enum State {

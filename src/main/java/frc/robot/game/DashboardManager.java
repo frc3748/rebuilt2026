@@ -34,6 +34,7 @@ import frc.robot.commands.AutoAlignToPoseCommand;
 import frc.robot.commands.SelfTest;
 import frc.robot.commands.autos.AutoRoutine;
 import frc.robot.commands.autos.DiagnosticAuto;
+import frc.robot.commands.autos.MeasureAuto;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.HeadingLock;
 import frc.robot.subsystems.intake.Intake;
@@ -68,10 +69,12 @@ public class DashboardManager {
     private Optional<Pose2d> startPose = Optional.empty();
     private boolean followingPath;
     private boolean enabledOnce;
+    private final DisconnectNotifier disconnects;
 
     public DashboardManager(RobotState state, GameState game, String robotName, List<AutoRoutine> autos) {
         this.state = state;
         this.game = game;
+        disconnects = new DisconnectNotifier(state::disconnectedDevices, Set.of(state.getDrive().gyroName()));
 
         autoChooser.addDefaultOption("None", AutoRoutine.none());
         for (String name : AutoBuilder.getAllAutoNames()) {
@@ -106,6 +109,7 @@ public class DashboardManager {
             enabledOnce = true;
         }
         previewSelectedAuto();
+        disconnects.update();
         if (DriverStation.isDisabled() && (!catalogBuilt || !DriverStation.getAlliance().equals(catalogAlliance))) {
             catalogAlliance = DriverStation.getAlliance();
             catalog = buildCatalog();
@@ -113,6 +117,7 @@ public class DashboardManager {
         }
         Logger.recordOutput("Cockpit/Autos", catalog);
         Logger.recordOutput("Cockpit/Diagnostics", DiagnosticAuto.results());
+        Logger.recordOutput("Cockpit/Measurements", MeasureAuto.results());
 
         Logger.recordOutput("Game/Phase", game.getPhase());
         Logger.recordOutput("Game/HubActive", game.isHubActive());
