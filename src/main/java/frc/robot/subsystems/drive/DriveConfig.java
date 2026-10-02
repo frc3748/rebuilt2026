@@ -41,6 +41,7 @@ public class DriveConfig {
     public double trackWidth;
     public double wheelBase;
     public double bumperHeight;
+    public double bumperAllowance = 0.25;
     public double odometryFrequency = 100.0;
 
     public double wheelRadiusMeters;
@@ -134,6 +135,14 @@ public class DriveConfig {
                 Math.min(constraints.maxAccelerationMPSSq(), autoMaxAcceleration),
                 Math.min(constraints.maxAngularVelocityRadPerSec(), autoTurnLimit()),
                 constraints.maxAngularAccelerationRadPerSecSq(), constraints.nominalVoltageVolts(), constraints.unlimited());
+    }
+
+    public double bumperLength() {
+        return wheelBase + bumperAllowance;
+    }
+
+    public double bumperWidth() {
+        return trackWidth + bumperAllowance;
     }
 
     public double driveBaseRadius() {

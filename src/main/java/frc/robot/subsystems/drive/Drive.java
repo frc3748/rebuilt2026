@@ -7,6 +7,7 @@ import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
+import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.util.DriveFeedforwards;
 import com.pathplanner.lib.util.PathPlannerLogging;
 import com.pathplanner.lib.util.swerve.SwerveSetpoint;
@@ -44,6 +45,7 @@ import frc.robot.Constants;
 import frc.robot.Constants.Mode;
 import frc.robot.RobotState;
 import frc.robot.commands.DriveCommands;
+import frc.robot.commands.FollowPath;
 import frc.robot.util.RobotTime;
 import frc.robot.util.TunableNumber;
 import frc.robot.game.ShotCalculator;
@@ -74,6 +76,7 @@ public class Drive extends StateMachine<Drive.State> {
 
   private final Module[] modules = new Module[4];
   private Pose2d pathTarget;
+  private PPHolonomicDriveController pathController;
   private final SysIdRoutine sysId;
   private final Alert gyroDisconnectedAlert;
 
@@ -195,22 +198,23 @@ public class Drive extends StateMachine<Drive.State> {
   }
 
   private void configureAutobuilder() {
-    AutoBuilder.configure(
-        this::getPose,
-        this::setPose,
-        this::getChassisSpeeds,
-        (speeds, feedforwards) -> runVelocity(speeds, feedforwards),
-        new PPHolonomicDriveController(
-            pathPid("Path/Translation", "pathTranslationPid", config.pathTranslationPid),
-            pathPid("Path/Rotation", "pathRotationPid", config.pathRotationPid)),
-        config.pathPlannerConfig(),
-        () -> DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red,
-        this);
+    pathController = new PPHolonomicDriveController(
+        pathPid("Path/Translation", "pathTranslationPid", config.pathTranslationPid),
+        pathPid("Path/Rotation", "pathRotationPid", config.pathRotationPid));
+    AutoBuilder.configureCustom(this::followPath, this::getPose, this::setPose, Drive::isRedAlliance, true);
     PathPlannerLogging.setLogTargetPoseCallback(
         (targetPose) -> {
           pathTarget = targetPose;
           Logger.recordOutput("Odometry/TrajectorySetpoint", targetPose);
         });
+  }
+
+  private static boolean isRedAlliance() {
+    return DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red;
+  }
+
+  public FollowPath followPath(PathPlannerPath path) {
+    return new FollowPath(this, path, pathController, config.pathPlannerConfig(), Drive::isRedAlliance);
   }
 
   public Optional<Translation2d> getRecentAimTarget() {

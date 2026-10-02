@@ -9,12 +9,10 @@ import java.util.Set;
 
 import org.littletonrobotics.junction.Logger;
 
-import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.path.GoalEndState;
 import com.pathplanner.lib.path.IdealStartingState;
 import com.pathplanner.lib.path.PathConstraints;
 import com.pathplanner.lib.path.PathPlannerPath;
-import com.pathplanner.lib.trajectory.PathPlannerTrajectory;
 
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -24,10 +22,10 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.util.Units;
-import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.RobotState;
+import frc.robot.commands.FollowPath;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.DriveConfig;
 import frc.robot.util.cockpit.Cockpit;
@@ -127,11 +125,8 @@ public abstract class DiagnosticAuto extends AutoRoutine {
                 new IdealStartingState(0.0, from.getRotation()),
                 new GoalEndState(0.0, to.getRotation()));
         path.preventFlipping = true;
-        PathPlannerTrajectory trajectory = path.generateTrajectory(drive.getChassisSpeeds(), from.getRotation(), config.pathPlannerConfig());
-        Timer timer = new Timer();
-        return AutoBuilder.followPath(path)
-                .beforeStarting(timer::restart)
-                .deadlineFor(Commands.run(() -> trackError(trajectory.sample(timer.get()).pose)));
+        FollowPath follower = drive.followPath(path);
+        return follower.deadlineFor(Commands.run(() -> trackError(follower.targetPose())));
     }
 
     private void trackError(Pose2d expected) {

@@ -16,7 +16,6 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.wpilibj.Timer;
 
 public final class DriveSimulation {
-    private static final double kBumperMarginMeters = 0.25;
     public static final double kDriveFrictionVolts = 0.1;
     private static final double kTurnFrictionVolts = 0.2;
     private static final double kTurnInertia = 0.03;
@@ -42,7 +41,7 @@ public final class DriveSimulation {
         DriveTrainSimulationConfig drivetrain = DriveTrainSimulationConfig.Default()
                 .withRobotMass(Kilograms.of(config.robotMassKg))
                 .withTrackLengthTrackWidth(Meters.of(config.wheelBase), Meters.of(config.trackWidth))
-                .withBumperSize(Meters.of(config.wheelBase + kBumperMarginMeters), Meters.of(config.trackWidth + kBumperMarginMeters))
+                .withBumperSize(Meters.of(config.bumperLength()), Meters.of(config.bumperWidth()))
                 .withSwerveModule(module)
                 .withGyro(config.gyro == DriveConfig.GyroType.NAVX ? COTS.ofNav2X() : COTS.ofPigeon2());
         SwerveDriveSimulation simulation = new SwerveDriveSimulation(drivetrain, start);
