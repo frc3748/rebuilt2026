@@ -131,6 +131,28 @@ The dashboard labels each start by the first word of the name before
 The source file is authoritative; the paths each auto uses are listed
 in its constructor.
 
+## Diagnostic autos
+
+Six autos named **Diagnostic: …** check that the drive, odometry and path following are good enough for real autos. They're in `Autos.all`, so every robot has them. Each drives from wherever the robot is sitting, with on-the-fly PathPlanner paths and the same path controller as the match autos, so they work in the pit.
+
+| Auto | Moves | Room needed |
+| --- | --- | --- |
+| Forward 2 ft and back | Straight out and back | 1 m |
+| Left 2 ft and back | Sideways out and back | 1 m |
+| 1 m square | Four sides, holding heading | 1.5 m square |
+| Full spin | Four 90° turns in place | Robot width |
+| 2 m turning 180 and back | Drives while turning, then back | 2.5 m |
+| 3 m at auto speed and back | At 4 m/s and 3.5 m/s² (your fastest autos), capped at the robot's top speed | 4 m |
+
+To run one, tape the floor at the robot's corners, pick it in the auto chooser and enable Autonomous. It passes if it ends within 5 cm and 3° of where it should (`DiagnosticAuto.kPassMeters`, `kPassDegrees`).
+- **Results:** each one toasts its result and logs `Diagnostics/<test>/` (error, heading error, the worst distance from the path while following it, and the expected and actual poses). The Test tab lists every result.
+- **Tape check:** the pass/fail compares against odometry. If the robot passes but isn't back on the tape, odometry is off. Check the wheel radius, then the module offsets.
+- **Simulator:** `CompDiagnosticsTest`, `SecondaryDiagnosticsTest` and `PracticeDiagnosticsTest` run all six in the simulator for every robot, with stepped time. A change that breaks path following fails the build.
+
+The pre-match check warns while a diagnostic is selected, since it isn't a match auto.
+
+To add one, extend `DiagnosticAuto`, list its moves relative to the start with `drive(forward, left, degrees)`, `turn(degrees)` or `atAutoSpeed(...)`, and add it to `Autos.all`.
+
 ## Adding a new auto
 
 1. Draw the path(s) in the PathPlanner GUI; they save to `src/main/deploy/pathplanner/paths/`.

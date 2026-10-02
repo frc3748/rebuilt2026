@@ -34,6 +34,7 @@ import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.commands.SelfTest;
 import frc.robot.commands.autos.AutoRoutine;
 import frc.robot.commands.autos.Autos;
+import frc.robot.commands.autos.DiagnosticAuto;
 import frc.robot.robots.comp.CompRobot;
 import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.shooter.Shooter;
@@ -84,7 +85,8 @@ class CompRobotTest {
                 .map(file -> file.replace(".path", ""))
                 .collect(Collectors.toSet());
         List<AutoRoutine> autos = Autos.all(state);
-        assertEquals(14, autos.size());
+        assertEquals(14, autos.stream().filter(auto -> !(auto instanceof DiagnosticAuto)).count());
+        assertEquals(6, autos.stream().filter(auto -> auto instanceof DiagnosticAuto).count());
         for (AutoRoutine auto : autos) {
             assertFalse(auto.build().getName().endsWith("(FAILED)"), auto.name());
             for (PathPlannerPath path : auto.previewPaths()) {

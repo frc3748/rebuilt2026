@@ -20,7 +20,13 @@ public final class Autos {
                 new DepotSideCircuitShoot(state).mode("Circuit"),
                 new DepotSideBlair(state).mode("Blair"),
                 new HpSideBlair(state).mode("Blair"),
-                new DepotSideBump(state).mode("Bump"));
+                new DepotSideBump(state).mode("Bump"),
+                new DiagnosticForwardBack(state),
+                new DiagnosticSideways(state),
+                new DiagnosticSquare(state),
+                new DiagnosticSpin(state),
+                new DiagnosticTurnWhileDriving(state),
+                new DiagnosticAutoSpeed(state));
     }
 
     private Autos() {}

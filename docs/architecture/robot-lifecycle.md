@@ -134,3 +134,10 @@ For one tick of `robotPeriodic`:
 
 The whole loop is deterministic and replayable — point AdvantageScope
 at a `wpilog` file and you can step through it.
+
+## Memory on a roboRIO 1
+
+The roboRIO 1 has 256 MB of RAM, shared with NI's own services.
+- **Garbage collection:** `build.gradle` starts the robot program with the Serial garbage collector and `-XX:GCTimeRatio=5 -XX:MaxGCPauseMillis=50`. Java then collects more often instead of growing its heap. These are the settings AdvantageKit's template uses on the roboRIO 1.
+- **Heap logging:** `Robot` logs `JVM/HeapUsedMB`, `JVM/HeapTotalMB` and `JVM/HeapMaxMB` every loop, so you can watch memory in AdvantageScope or robotTools.
+- **NI web server:** to free another 20–30 MB, turn it off in WPILib's roboRIO Team Number Setter (**Disable Web Server**). It's only used for the roboRIO's browser config page.

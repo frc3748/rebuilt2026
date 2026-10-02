@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
-import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -37,11 +36,15 @@ public class DriveCommands {
 
     private DriveCommands() {}
 
+    static double square(double value) {
+        return Math.abs(value) < kDeadband ? 0.0 : Math.copySign(value * value, value);
+    }
+
     private static Translation2d getLinearVelocityFromJoysticks(double x, double y) {
-        double magnitude = MathUtil.applyDeadband(Math.hypot(x, y), kDeadband);
+        double magnitude = square(Math.min(1.0, Math.hypot(x, y)));
         Rotation2d direction = new Rotation2d(Math.atan2(y, x));
         return new Pose2d(Translation2d.kZero, direction)
-                .transformBy(new Transform2d(magnitude * magnitude, 0.0, Rotation2d.kZero))
+                .transformBy(new Transform2d(magnitude, 0.0, Rotation2d.kZero))
                 .getTranslation();
     }
 
@@ -69,13 +72,13 @@ public class DriveCommands {
 
         return Commands.run(() -> {
             double omega;
-            double raw = MathUtil.applyDeadband(manualOmega.getAsDouble(), kDeadband);
+            double raw = square(manualOmega.getAsDouble());
             if (stateSupplier.get() == Drive.State.TRAVERSING_AT_ANGLE) {
                 headingLock.release();
                 omega = angleController.calculate(drive.getRotation().getRadians(), autoRotationGoal.get().getRadians());
             } else if (raw != 0.0) {
                 headingLock.release();
-                omega = Math.copySign(raw * raw, raw) * drive.getMaxAngularSpeedRadPerSec();
+                omega = raw * drive.getMaxAngularSpeedRadPerSec();
             } else {
                 omega = headingLock.hold();
             }

@@ -43,6 +43,10 @@ public class Robot extends LoggedRobot {
 
     @Override
     public void robotPeriodic() {
+        Runtime runtime = Runtime.getRuntime();
+        Logger.recordOutput("JVM/HeapUsedMB", (runtime.totalMemory() - runtime.freeMemory()) / 1048576.0);
+        Logger.recordOutput("JVM/HeapTotalMB", runtime.totalMemory() / 1048576.0);
+        Logger.recordOutput("JVM/HeapMaxMB", runtime.maxMemory() / 1048576.0);
         TunableNumber.pollAll();
         CommandScheduler.getInstance().run();
         Cockpit.update();

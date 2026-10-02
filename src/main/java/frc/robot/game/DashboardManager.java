@@ -33,6 +33,7 @@ import frc.robot.commands.ActionCommands;
 import frc.robot.commands.AutoAlignToPoseCommand;
 import frc.robot.commands.SelfTest;
 import frc.robot.commands.autos.AutoRoutine;
+import frc.robot.commands.autos.DiagnosticAuto;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.HeadingLock;
 import frc.robot.subsystems.intake.Intake;
@@ -111,6 +112,7 @@ public class DashboardManager {
             catalogBuilt = true;
         }
         Logger.recordOutput("Cockpit/Autos", catalog);
+        Logger.recordOutput("Cockpit/Diagnostics", DiagnosticAuto.results());
 
         Logger.recordOutput("Game/Phase", game.getPhase());
         Logger.recordOutput("Game/HubActive", game.isHubActive());
