@@ -391,6 +391,17 @@ public class Drive extends StateMachine<Drive.State> {
     }
   }
 
+  public void runSteerVoltage(double volts) {
+    setpointLive = false;
+    for (Module module : modules) {
+      module.runSteerVoltage(volts);
+    }
+  }
+
+  public Module[] modules() {
+    return modules.clone();
+  }
+
   public void runModuleAngles(Rotation2d angle) {
     setpointLive = false;
     for (Module module : modules) {

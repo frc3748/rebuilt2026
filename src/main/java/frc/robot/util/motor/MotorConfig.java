@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.DoubleConsumer;
 
 import frc.robot.util.tuning.Source;
 
@@ -17,17 +18,20 @@ public class MotorConfig {
 
     public record Follower(int canId, boolean inverted) {}
 
+    public static final int kDefaultCurrentLimit = 40;
+
     final String name;
     final int canId;
     final Controller controller;
     final List<Follower> followers = new ArrayList<>();
     final Gains gains = new Gains();
     final Map<String, Source> sources = new LinkedHashMap<>();
+    final Map<String, DoubleConsumer> editors = new LinkedHashMap<>();
     Gains slot1;
 
     boolean inverted;
     boolean brake = true;
-    int currentLimit = 40;
+    int currentLimit = kDefaultCurrentLimit;
     double positionFactor = 1.0;
     double velocityFactor = 1.0 / 60.0;
     boolean maxMotion;
@@ -38,6 +42,8 @@ public class MotorConfig {
     double startingPosition = Double.NaN;
     double simVelocityLagSeconds = 0.1;
     double selfTestPosition = Double.NaN;
+    double tuneMin = Double.NaN;
+    double tuneMax = Double.NaN;
 
     public MotorConfig(String name, int canId, Controller controller) {
         this.name = name;
@@ -64,8 +70,12 @@ public class MotorConfig {
         return this;
     }
 
+    public static int safeCurrentLimit(double amps) {
+        return amps >= 1.0 ? (int) Math.round(amps) : kDefaultCurrentLimit;
+    }
+
     public MotorConfig currentLimit(int amps) {
-        currentLimit = amps;
+        currentLimit = safeCurrentLimit(amps);
         track("currentLimit", "Current Limit");
         return this;
     }
@@ -99,9 +109,10 @@ public class MotorConfig {
         return this;
     }
 
-    public MotorConfig cosineGravity(double kCos) {
+    public MotorConfig cosineGravity(double kCos, double unitsPerRotation) {
         gains.kG = kCos;
         gains.gravityIsCosine = true;
+        gains.unitsPerRotation = unitsPerRotation;
         track("cosineGravity", "kCos");
         return this;
     }
@@ -133,6 +144,22 @@ public class MotorConfig {
         return this;
     }
 
+    public MotorConfig tuneRange(double min, double max) {
+        tuneMin = Math.min(min, max);
+        tuneMax = Math.max(min, max);
+        return this;
+    }
+
+    public double[] tuningRange() {
+        if (!Double.isNaN(tuneMin) && !Double.isNaN(tuneMax)) {
+            return new double[] {tuneMin, tuneMax};
+        }
+        if (!Double.isNaN(reverseSoftLimit) && !Double.isNaN(forwardSoftLimit)) {
+            return new double[] {reverseSoftLimit, forwardSoftLimit};
+        }
+        return null;
+    }
+
     public MotorConfig selfTestPosition(double position) {
         selfTestPosition = position;
         return this;
@@ -156,6 +183,19 @@ public class MotorConfig {
     public MotorConfig simVelocityLag(double seconds) {
         simVelocityLagSeconds = seconds;
         return this;
+    }
+
+    boolean tunable(String gain) {
+        return sources.containsKey(gain);
+    }
+
+    boolean apply(String gain, double value) {
+        DoubleConsumer editor = editors.get(gain);
+        if (editor == null) {
+            return false;
+        }
+        editor.accept(value);
+        return true;
     }
 
     double value(String gain) {

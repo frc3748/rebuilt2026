@@ -96,6 +96,24 @@ public class Module {
     io.setTurnPosition(Rotation2d.kZero, 0.0);
   }
 
+  public void runSteerVoltage(double volts) {
+    lastTarget = null;
+    io.setDriveOpenLoop(0.0);
+    io.setTurnOpenLoop(volts);
+  }
+
+  public double getSteerVelocity() {
+    return inputs.turnVelocityRadPerSec;
+  }
+
+  public double getSteerAppliedVolts() {
+    return inputs.turnAppliedVolts;
+  }
+
+  public double getSteerCurrentAmps() {
+    return inputs.turnCurrentAmps;
+  }
+
   public void runAngle(Rotation2d angle) {
     lastTarget = null;
     io.setDriveOpenLoop(0.0);

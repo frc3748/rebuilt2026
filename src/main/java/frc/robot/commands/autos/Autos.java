@@ -29,7 +29,8 @@ public final class Autos {
                 new DiagnosticAutoSpeed(state),
                 new MeasureWheelRadius(state),
                 new MeasureFeedforward(state),
-                new MeasureSlipCurrent(state));
+                new MeasureSlipCurrent(state),
+                new MeasureSteering(state));
     }
 
     private Autos() {}

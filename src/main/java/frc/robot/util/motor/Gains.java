@@ -9,6 +9,7 @@ public class Gains {
     public double kA;
     public double kG;
     public boolean gravityIsCosine;
+    public double unitsPerRotation = 1.0;
     public double maxAccel;
     public double cruiseVel;
     public double allowedError;
@@ -32,6 +33,7 @@ public class Gains {
         Gains copy = of(kP, kI, kD).withFeedforward(kS, kV, kA);
         copy.kG = kG;
         copy.gravityIsCosine = gravityIsCosine;
+        copy.unitsPerRotation = unitsPerRotation;
         copy.maxAccel = maxAccel;
         copy.cruiseVel = cruiseVel;
         copy.allowedError = allowedError;

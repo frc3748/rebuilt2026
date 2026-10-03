@@ -18,6 +18,7 @@ import edu.wpi.first.wpilibj.simulation.SimHooks;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.RobotState;
+import frc.robot.SimNoise;
 import frc.robot.commands.autos.AutoRoutine;
 import frc.robot.commands.autos.DiagnosticAuto;
 import frc.robot.robots.RobotDefinition;
@@ -30,6 +31,7 @@ abstract class DiagnosticAutosTest {
     protected static void boot(RobotDefinition definition) {
         assertTrue(HAL.initialize(500, 0));
         SimHooks.pauseTiming();
+        SimNoise.seed();
         SimulatedArena.overrideInstance(new ArenaEvergreen(false));
         state = new RobotState(definition);
         step(25);

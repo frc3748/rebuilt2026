@@ -19,7 +19,7 @@ public class IntakeConstants {
             .conversion(360.0 / 23.0, 360.0 / 23.0 / 60.0)
             .pid(0.09, 0, 0)
             .feedforward(0.17, 0.00131, 0)
-            .cosineGravity(0.24)
+            .cosineGravity(0.24, 360.0)
             .maxMotion(600, 130, 2)
             .selfTestPosition(-45);
 

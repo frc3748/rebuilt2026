@@ -20,7 +20,7 @@ compose those.
 | `util/motor/MotorIO.java` | The interface. `@AutoLog` inputs (position, velocity, volts, current, temperature, follower volts and current) and setters. |
 | `util/motor/MotorIOSpark.java` | Real hardware for `SPARK_MAX` and `SPARK_FLEX`. Configures the Spark from the `MotorConfig`, reads inputs with `ifOk`, wires [`SparkUtil.tune`]({{ '/utilities/tunable-number/' | relative_url }}#motor-gains). |
 | `util/motor/MotorIOTalonFX.java` | Real hardware for `TALON_FX` (a Kraken or Falcon) through Phoenix 6. See below. |
-| `util/motor/MotorIOSim.java` | Kinematic simulation. Velocity goals are reached with a short lag, position goals move at the MAXMotion cruise velocity. |
+| `util/motor/MotorIOSim.java` | Physics simulation. Each motor is a DC-motor plant (kV from the motor's free speed and conversion, kA from `simVelocityLag`, kS and gravity from the config) driven by a copy of the Spark's onboard PID, feedforward and MAXMotion at 1 kHz, with the current limit. Auto-tune and the gains behave in the simulator the way they do on the robot. |
 | `util/motor/SpinMotor.java` | A velocity-controlled motor: `set(speed)`, `isAtGoal(tolerance)`. |
 | `util/motor/PosMotor.java` | A position-controlled motor: `set(position)`, `set(position, ff, slot)`, `resetPosition(position)`. |
 | `util/motor/Motor.java` | Shared base: picks the IO for `Constants.kMode` (and, on the real robot, the config's controller), logs inputs under `Motors/<name>`, buffers the command, sends it once per loop and logs its `Goal` and `Mode`. |
@@ -34,9 +34,19 @@ public MotorConfig extension = new MotorConfig("Intake Extension", 46, Controlle
         .conversion(360.0 / 23.0, 360.0 / 23.0 / 60.0)
         .pid(0.09, 0, 0)
         .feedforward(0.17, 0.00131, 0)
-        .cosineGravity(0.24)
+        .cosineGravity(0.24, 360.0)
         .maxMotion(600, 130, 2);
 ```
+
+Every motor has a current limit. `currentLimit` (and the drive's
+`driveCurrentLimit` / `turnCurrentLimit`) defaults to 40 A, and anything
+under 1 A also falls back to 40 A (`MotorConfig.safeCurrentLimit`), so a
+missing or zero limit can't leave a motor unprotected.
+
+`cosineGravity(kCos, unitsPerRotation)` takes how many position units make
+one mechanism rotation (360 for degrees). The Spark needs it to turn the
+position into an angle for its cosine term; without it a mechanism in
+degrees got the wrong gravity compensation.
 
 And the subsystem builds them from the constants object it's given and
 says what each state does:

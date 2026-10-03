@@ -95,6 +95,11 @@ simulation each camera also logs its pose and the tags it sees
 
 Standard deviations scale with average tag distance squared over tag
 count, times the camera's `stdDevFactor`, times the source factors above.
+`TRIG_SOLVE` counts as one tag at the distance of the tag it solved from:
+PhotonVision solves it from the best tag alone and the robot's heading, so
+a heading error of 1° moves it about 1.7 cm per metre to that tag. It used
+to count every tag in view at their average distance, and right after a
+fast spin it pulled the pose 9 cm off with tags 12 m away.
 
 ## Object detection
 

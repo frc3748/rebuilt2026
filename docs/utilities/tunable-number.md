@@ -59,6 +59,57 @@ forces that. Deploy only takes values from the robot, and says so if
 the simulator has some waiting. Use `-ProbotHost=10.37.48.2` to pick an
 address, and `-PskipTuning` to deploy without pulling.
 
+## Auto-tune
+
+Every motor group on the Tune tab has an **Auto-tune** card. Press it
+twice and the robot measures that motor and proposes its gains, the same
+way you'd tune it by hand: find the feedforward, then raise kP until it
+just stops overshooting.
+
+It only runs with tuning mode on and the robot enabled in **Test** mode
+(on a cart, or with room for the mechanism to move). Otherwise it toasts
+why and does nothing.
+
+- **Flywheels and rollers** (`SpinMotor`): ramps to 6 V at 2 V/s, coasts,
+  steps 4 V, and stops. It fits volts = kS + kV·speed + kA·acceleration
+  to every sample, then starts kP from the fit. To check kP it spins at
+  half speed and adds a 2 V load. kP is raised ×1.5 until the speed dips
+  less than 3%, and goes back to the last good kP if the speed overshoots
+  more than 10% or oscillates.
+- **Arms, hoods and the intake** (`PosMotor`): only inside the motor's
+  travel range, from `tuneRange(min, max)` or else its soft limits. A
+  motor without either has no button. It moves to the middle, ramps
+  slowly up and down at 0.5 V/s, and pulses ±3 V for at most 0.15 s near
+  each end, staying 12% away from the limits. The fit adds kG (constant)
+  or kCos (`cosineGravity`). Then it steps between two points and raises
+  kP ×1.5 until it settles within 2% of the move, up to 7 rounds. If it
+  overshoots more than 10% or oscillates, it goes back to the last kP
+  that didn't. A MAXMotion profile faster than 80%
+  of what the motor can actually do is slowed to that.
+- **Drive PID, Drive Sim, Turn PID, Turn Sim** run the
+  [Measure autos]({{ '/commands/autos/' | relative_url }}#measuring-autos)
+  (Drive feedforward or Steering), so drive and turn motors get tuned too.
+
+While it runs, the other motors in the same mechanism hold still and the
+motor's current limit drops to 30 A (or its own limit, if lower). It
+stops and puts everything back if the motor moves more than 2% past the
+range, or stalls for 0.5 s while being pushed. When it finishes, the
+proposed values show on the Tune tab like any edit. **Save** keeps them;
+**Revert** drops them. The card shows each step while it runs, then the
+result.
+
+- **Logs:** `AutoTune/Active`, `AutoTune/Motor`, `AutoTune/Step`, and
+  `AutoTune/<motor>/…` for every proposed gain, round and overshoot.
+  `Cockpit/AutoTune` holds the last result for each group.
+- **What it can't tune:** a gain the `MotorConfig` never declares. A
+  roller with no `.feedforward(...)` only gets kP; add
+  `.feedforward(0, 0, 0)` and Auto-tune fills it in.
+- **Simulator:** `MotorAutoTuneTest` runs it on COMP in maple-sim. The
+  flywheel kV has to match the motor's physics within 5%, the hood kG and
+  intake kCos have to come out within 0.06 V, and every roller has to get
+  a kP. On the real robot, watch the first run with a hand on the disable
+  button.
+
 ## Where Save writes each value
 
 The robot records where every value came from: the file and line of the

@@ -35,6 +35,8 @@ import frc.robot.commands.SelfTest;
 import frc.robot.commands.autos.AutoRoutine;
 import frc.robot.commands.autos.DiagnosticAuto;
 import frc.robot.commands.autos.MeasureAuto;
+import frc.robot.commands.autos.MeasureFeedforward;
+import frc.robot.commands.autos.MeasureSteering;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.HeadingLock;
 import frc.robot.subsystems.intake.Intake;
@@ -45,6 +47,9 @@ import frc.robot.util.cockpit.Cockpit.Check;
 import frc.robot.util.cockpit.Cockpit.Level;
 import frc.robot.util.cockpit.Cockpit.Marker;
 import frc.robot.util.cockpit.Cockpit.Tab;
+import frc.robot.util.motor.Motor;
+import frc.robot.util.motor.MotorAutoTune;
+import frc.robot.util.state.StateMachine;
 import frc.robot.util.tuning.Tuning;
 
 public class DashboardManager {
@@ -118,6 +123,7 @@ public class DashboardManager {
         Logger.recordOutput("Cockpit/Autos", catalog);
         Logger.recordOutput("Cockpit/Diagnostics", DiagnosticAuto.results());
         Logger.recordOutput("Cockpit/Measurements", MeasureAuto.results());
+        Logger.recordOutput("Cockpit/AutoTune", MotorAutoTune.results());
 
         Logger.recordOutput("Game/Phase", game.getPhase());
         Logger.recordOutput("Game/HubActive", game.isHubActive());
@@ -322,12 +328,67 @@ public class DashboardManager {
             int forgotten = Tuning.forget();
             Cockpit.toast(Level.INFO, forgotten > 0 ? "Forgot " + forgotten + " saved" : "Nothing was saved", "Back to the values in the code");
         }));
+        registerAutoTune();
         Cockpit.toggleButton("tuneShooter", "Spin to custom setpoint", Tab.TUNE, Commands.runOnce(robot.shooterAction(shooter ->
                 shooter.requestTransition(shooter.getState() == Shooter.State.TUNING ? Shooter.State.IDLE : Shooter.State.TUNING))),
                 () -> robot.getShooter().map(shooter -> shooter.getState() == Shooter.State.TUNING).orElse(false));
         Cockpit.toggleButton("tuneIntake", "Intake out", Tab.TUNE, Commands.runOnce(robot.intakeAction(intake ->
                 intake.requestTransition(intake.getState() == Intake.State.INTAKE ? Intake.State.STOW : Intake.State.INTAKE))),
                 () -> robot.getIntake().map(intake -> intake.getState() == Intake.State.INTAKE).orElse(false));
+    }
+
+    private void registerAutoTune() {
+        List<StateMachine<?>> machines = new ArrayList<>();
+        state.getSuperstructure().subsystems().forEach(machine -> collectMechanisms(machine, machines));
+        for (StateMachine<?> machine : machines) {
+            for (Motor motor : machine.getMotors()) {
+                Cockpit.quietConfirmButton("autotune:" + MotorAutoTune.group(motor), "Auto-tune", Tab.TUNE,
+                        afterSelfTest(MotorAutoTune.build(machine, motor)));
+            }
+        }
+        for (String group : List.of("Drive PID", "Drive Sim")) {
+            Cockpit.quietConfirmButton("autotune:" + group, "Auto-tune", Tab.TUNE,
+                    afterSelfTest(inTestMode(measuring(group,
+                            Commands.defer(() -> new MeasureFeedforward(state).build(), Set.of(state.getDrive()))))));
+        }
+        for (String group : List.of("Turn PID", "Turn Sim")) {
+            Cockpit.quietConfirmButton("autotune:" + group, "Auto-tune", Tab.TUNE,
+                    afterSelfTest(inTestMode(measuring(group,
+                            Commands.defer(() -> new MeasureSteering(state).build(), Set.of(state.getDrive()))))));
+        }
+    }
+
+    private static Command measuring(String group, Command command) {
+        return command
+                .beforeStarting(() -> {
+                    Logger.recordOutput("AutoTune/Active", true);
+                    Logger.recordOutput("AutoTune/Motor", group);
+                    Logger.recordOutput("AutoTune/Step", "Measuring");
+                })
+                .finallyDo(() -> {
+                    Logger.recordOutput("AutoTune/Active", false);
+                    Logger.recordOutput("AutoTune/Step", "");
+                });
+    }
+
+    private static Command inTestMode(Command command) {
+        return Commands.either(command,
+                Commands.runOnce(() -> Cockpit.toast(Level.WARNING, "Can't auto-tune the drive",
+                        Tuning.isActive() ? "Enable Test mode first" : "Turn on tuning mode first")),
+                () -> DriverStation.isTest() && DriverStation.isEnabled() && Tuning.isActive());
+    }
+
+    private static Command afterSelfTest(Command command) {
+        return Commands.either(
+                Commands.runOnce(() -> Cockpit.toast(Level.WARNING, "Can't auto-tune yet", "Wait for the self-test to finish")),
+                command.asProxy(), SelfTest::isRunning);
+    }
+
+    private static void collectMechanisms(StateMachine<?> machine, List<StateMachine<?>> machines) {
+        if (!machine.getMotors().isEmpty()) {
+            machines.add(machine);
+        }
+        machine.getChildSubsystems().forEach(child -> collectMechanisms(child, machines));
     }
 
     private static Command disabledSafe(Runnable action) {

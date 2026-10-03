@@ -9,6 +9,7 @@ final class MotorTuning {
     private MotorTuning() {}
 
     static void register(MotorConfig config, Map<String, DoubleConsumer> edits) {
+        config.editors.putAll(edits);
         config.sources.forEach((gain, source) -> {
             DoubleConsumer edit = edits.get(gain);
             if (edit == null) {

@@ -15,6 +15,9 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.RobotState;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.DriveConfig;
+import frc.robot.util.motor.AutoTune;
+import frc.robot.util.motor.AutoTune.Feedback;
+import frc.robot.util.motor.MotorAutoTune;
 
 public class MeasureFeedforward extends MeasureAuto {
     private static final double kPointSeconds = 0.5;
@@ -34,6 +37,7 @@ public class MeasureFeedforward extends MeasureAuto {
     private static final double kSameKs = 0.05;
     private static final double kSameKv = 0.05;
     private static final double kSameKa = 0.05;
+    private static final double kVelocityDelaySeconds = 0.02;
 
     private record Sample(double time, double volts, double velocity, double amps) {}
 
@@ -89,11 +93,11 @@ public class MeasureFeedforward extends MeasureAuto {
             }
         }
         if (best == null || best.kV() <= 0.0) {
-            fail("Not enough clean data. Give it " + kDistanceMeters + " m of open floor in front and try again.");
+            failed("Not enough clean data. Give it " + kDistanceMeters + " m of open floor in front and try again.");
             return;
         }
         if (best.residual() > kMaxResidualVolts) {
-            fail(String.format(Locale.ROOT, "The data was too noisy to trust (off by %.2f V on average)", best.residual()));
+            failed(String.format(Locale.ROOT, "The data was too noisy to trust (off by %.2f V on average)", best.residual()));
             return;
         }
         double kS = Math.max(0.0, best.kS());
@@ -112,11 +116,25 @@ public class MeasureFeedforward extends MeasureAuto {
         measured.put("TopSpeed", topSpeed);
         measured.put("ResidualVolts", best.residual());
         measured.put("Samples", (double) best.samples());
+        Feedback feedback = AutoTune.startingVelocity(new AutoTune.Model(kS, kV, kA, 0.0, best.residual(), best.samples()),
+                kVelocityDelaySeconds);
+        double wheelRadius = config.wheelRadiusMeters;
+        measured.put("kP", feedback.kP());
         Map<String, Double> proposed = new LinkedHashMap<>();
         proposed.put("Drive PID/kS", round(kS));
         proposed.put("Drive PID/kV", round(kV));
         proposed.put("Drive PID/kA", round(kA));
+        proposed.put("Drive PID/kP", AutoTune.round(AutoTune.forSpark(feedback).kP() * wheelRadius));
+        proposed.put("Drive Sim/kP", AutoTune.round(feedback.kP() * wheelRadius));
         report(same ? Outcome.SAME : Outcome.CHANGED, summary, measured, proposed);
+        MotorAutoTune.record("Drive PID", true, summary);
+        MotorAutoTune.record("Drive Sim", true, summary);
+    }
+
+    private void failed(String reason) {
+        fail(reason);
+        MotorAutoTune.record("Drive PID", false, reason);
+        MotorAutoTune.record("Drive Sim", false, reason);
     }
 
     private Fit fit(int shift, double maxAmps) {

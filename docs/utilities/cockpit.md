@@ -22,6 +22,7 @@ command scheduler runs.
 Cockpit.button("stow", "Clear overrides & stow", Tab.TELEOP, command);
 Cockpit.toggleButton("hubShot", "Hub-front shot", Tab.TELEOP, command, shooter::isHoldingShot);
 Cockpit.confirmButton("zeroHood", "Zero hood", Tab.TEST, command);
+Cockpit.quietConfirmButton("autotune:Hood", "Auto-tune", Tab.TUNE, command);
 ```
 
 Each button is a `LoggedNetworkBoolean` at `/Cockpit/Buttons/<id>`. The
@@ -72,6 +73,7 @@ for error) and goes into the post-match timeline. Use them for one-off
 events the drive team should know about. Use an `Alert` for something
 that stays wrong. New alerts also pop up as toasts. Confirm and toggle
 buttons toast when they finish ("Zero hood done", "Hub-front shot on").
+A `quietConfirmButton` doesn't, for a command that toasts its own result.
 The last 30 toasts are logged as `Cockpit/Toasts`, so robotTools sees
 them too.
 

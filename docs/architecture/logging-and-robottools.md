@@ -105,7 +105,11 @@ overrides every state machine that owns motors, then works through:
 
 A `PosMotor`'s test position is the middle of its soft limits, or
 `selfTestPosition` in its `MotorConfig`. The intake extension uses −45.
-A `PosMotor` with neither is only checked for a connection. Each step is
+A `PosMotor` with neither is only checked for a connection. It has to end
+within 15% of the move, or 1% of its travel (tune range or soft limits)
+when that's bigger, so a mechanism that starts right next to its test
+position isn't held to a fraction of a degree. While the self-test runs,
+Auto-tune refuses to start. Each step is
 logged under `SelfTest/`, and robotTools' Self-test tab checks direction,
 movement, encoder agreement, current and connection. Cancelling Test
 mode clears the overrides.

@@ -98,7 +98,9 @@ frc/robot/
     │   ├── MotorIO.java              ← Interface (@AutoLog inputs)
     │   ├── MotorIOSpark.java         ← Spark MAX / Spark Flex
     │   ├── MotorIOTalonFX.java       ← TalonFX (Kraken, Falcon) through Phoenix 6
-    │   └── MotorIOSim.java           ← Kinematic sim (tracks setpoints)
+    │   ├── MotorIOSim.java           ← Physics sim (DC-motor plant + Spark controller)
+    │   ├── AutoTune.java             ← Feedforward fit and starting gains
+    │   └── MotorAutoTune.java        ← The Auto-tune button's routine
     ├── state/                  ← The state-machine framework
     ├── TunableNumber.java            ← A tunable value; see tuning/
     ├── tuning/                 ← Tuning mode, saved values, overrides, and where each value lives in the source

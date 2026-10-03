@@ -10,6 +10,7 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.util.Units;
+import frc.robot.util.motor.MotorConfig;
 import frc.robot.util.motor.MotorConfig.Controller;
 
 public class DriveConfig {
@@ -47,7 +48,7 @@ public class DriveConfig {
     public double wheelRadiusMeters;
     public double driveReduction;
     public DCMotor driveGearbox = DCMotor.getNEO(1);
-    public int driveCurrentLimit;
+    public int driveCurrentLimit = MotorConfig.kDefaultCurrentLimit;
     public double driveKp;
     public double driveKi;
     public double driveKd;
@@ -59,7 +60,7 @@ public class DriveConfig {
 
     public double turnReduction;
     public DCMotor turnGearbox = DCMotor.getNeo550(1);
-    public int turnCurrentLimit;
+    public int turnCurrentLimit = MotorConfig.kDefaultCurrentLimit;
     public boolean turnInverted = true;
     public boolean turnEncoderInverted;
     public double turnKp;
@@ -182,7 +183,7 @@ public class DriveConfig {
                         maxSpeedMetersPerSec,
                         wheelCOF,
                         driveGearbox.withReduction(driveReduction),
-                        driveCurrentLimit,
+                        MotorConfig.safeCurrentLimit(driveCurrentLimit),
                         1),
                 moduleTranslations());
     }

@@ -67,7 +67,7 @@ public class MotorIOSpark implements MotorIO {
                 .kV(config.gains.kV)
                 .kA(config.gains.kA);
         if (config.gains.gravityIsCosine) {
-            sparkConfig.closedLoop.feedForward.kCos(config.gains.kG);
+            sparkConfig.closedLoop.feedForward.kCos(config.gains.kG).kCosRatio(1.0 / config.gains.unitsPerRotation);
         } else {
             sparkConfig.closedLoop.feedForward.kG(config.gains.kG);
         }
@@ -207,7 +207,8 @@ public class MotorIOSpark implements MotorIO {
     }
 
     @Override
-    public void setCurrentLimit(int amps) {
+    public void setCurrentLimit(int requested) {
+        int amps = MotorConfig.safeCurrentLimit(requested);
         sparkConfig.smartCurrentLimit(amps);
         motor.configure(sparkConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
         for (int i = 0; i < followers.length; i++) {

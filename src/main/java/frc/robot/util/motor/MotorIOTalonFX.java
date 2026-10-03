@@ -251,7 +251,7 @@ public class MotorIOTalonFX implements MotorIO {
     @Override
     public void setCurrentLimit(int amps) {
         CurrentLimitsConfigs limits = new CurrentLimitsConfigs();
-        limits.StatorCurrentLimit = amps;
+        limits.StatorCurrentLimit = MotorConfig.safeCurrentLimit(amps);
         limits.StatorCurrentLimitEnable = true;
         motor.getConfigurator().apply(limits);
     }

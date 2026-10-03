@@ -27,6 +27,7 @@ import edu.wpi.first.wpilibj.simulation.SimHooks;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.RobotState;
+import frc.robot.SimNoise;
 import frc.robot.commands.autos.AutoRoutine;
 import frc.robot.game.FieldObstacles;
 import frc.robot.robots.comp.CompRobot;
@@ -43,6 +44,7 @@ class BlairAutoTest {
     static void boot() {
         assertTrue(HAL.initialize(500, 0));
         SimHooks.pauseTiming();
+        SimNoise.seed();
         SimulatedArena.overrideInstance(new Arena2026Rebuilt());
         DriverStationSim.setAllianceStationId(AllianceStationID.Blue1);
         DriverStationSim.notifyNewData();

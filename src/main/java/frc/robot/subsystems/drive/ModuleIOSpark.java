@@ -36,6 +36,7 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import frc.robot.subsystems.drive.DriveConfig.ModuleConstants;
 import frc.robot.subsystems.drive.DriveConfig.TurnSensor;
 import frc.robot.util.TunableNumber;
+import frc.robot.util.motor.MotorConfig;
 import frc.robot.util.motor.MotorConfig.Controller;
 
 public class ModuleIOSpark implements ModuleIO {
@@ -87,7 +88,7 @@ public class ModuleIOSpark implements ModuleIO {
         driveConfig
                 .inverted(module.driveInverted())
                 .idleMode(IdleMode.kBrake)
-                .smartCurrentLimit(config.driveCurrentLimit)
+                .smartCurrentLimit(MotorConfig.safeCurrentLimit(config.driveCurrentLimit))
                 .voltageCompensation(12.0);
         driveConfig.encoder
                 .positionConversionFactor(config.driveEncoderPositionFactor())
@@ -115,7 +116,7 @@ public class ModuleIOSpark implements ModuleIO {
         turnConfig
                 .inverted(config.turnInverted)
                 .idleMode(IdleMode.kBrake)
-                .smartCurrentLimit(config.turnCurrentLimit)
+                .smartCurrentLimit(MotorConfig.safeCurrentLimit(config.turnCurrentLimit))
                 .voltageCompensation(12.0);
         turnConfig.closedLoop
                 .feedbackSensor(useCanCoder ? FeedbackSensor.kPrimaryEncoder : FeedbackSensor.kAbsoluteEncoder)
@@ -177,13 +178,15 @@ public class ModuleIOSpark implements ModuleIO {
         tune("Drive PID/kI", "driveKi", value -> driveConfig.closedLoop.i(value), applyDrive);
         tune("Drive PID/kD", "driveKd", value -> driveConfig.closedLoop.d(value), applyDrive);
         tune("Drive PID/Spark kV", "driveSparkKv", value -> driveConfig.closedLoop.feedForward.kV(value * config.wheelRadiusMeters), applyDrive);
-        driveCurrentLimit = tune("Drive/Current Limit", "driveCurrentLimit", value -> driveConfig.smartCurrentLimit((int) value), applyDrive)
+        driveCurrentLimit = tune("Drive/Current Limit", "driveCurrentLimit",
+                value -> driveConfig.smartCurrentLimit(MotorConfig.safeCurrentLimit(value)), applyDrive)
                 .integer();
         tune("Turn PID/kP", "turnKp", value -> turnConfig.closedLoop.p(value), applyTurn);
         tune("Turn PID/kI", "turnKi", value -> turnConfig.closedLoop.i(value), applyTurn);
         tune("Turn PID/kD", "turnKd", value -> turnConfig.closedLoop.d(value), applyTurn);
         tune("Turn PID/kV", "turnKv", value -> turnConfig.closedLoop.feedForward.kV(value), applyTurn);
-        tune("Turn/Current Limit", "turnCurrentLimit", value -> turnConfig.smartCurrentLimit((int) value), applyTurn).integer();
+        tune("Turn/Current Limit", "turnCurrentLimit", value -> turnConfig.smartCurrentLimit(MotorConfig.safeCurrentLimit(value)), applyTurn)
+                .integer();
         driveKs = TunableNumber.field("Drive PID/kS", config, "driveKs");
         driveKv = TunableNumber.field("Drive PID/kV", config, "driveKv");
         driveKa = TunableNumber.field("Drive PID/kA", config, "driveKa");
@@ -271,7 +274,7 @@ public class ModuleIOSpark implements ModuleIO {
 
     @Override
     public void liftDriveCurrentLimit(double amps) {
-        driveConfig.smartCurrentLimit((int) amps);
+        driveConfig.smartCurrentLimit(MotorConfig.safeCurrentLimit(amps));
         driveSpark.configure(driveConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
     }
 

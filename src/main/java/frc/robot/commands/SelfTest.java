@@ -39,10 +39,12 @@ public final class SelfTest {
     private static final double kTurnToleranceDegrees = 7.0;
     private static final double kMinSpin = 0.01;
     private static final double kMoveTolerance = 0.15;
+    private static final double kTravelTolerance = 0.01;
 
     private static final Path kSaved = RobotBase.isReal() ? Path.of("/home/lvuser/selftest.txt") : Path.of("build", "selftest.txt");
     private static final List<String> failures = new ArrayList<>();
     private static boolean passed;
+    private static boolean running;
 
     public record Saved(boolean passed, long epochMillis, String gitSha, List<String> failures) {
         public boolean sameCode() {
@@ -58,6 +60,10 @@ public final class SelfTest {
 
     public static boolean hasPassed() {
         return passed;
+    }
+
+    public static boolean isRunning() {
+        return running;
     }
 
     public static List<String> failures() {
@@ -111,6 +117,7 @@ public final class SelfTest {
                         Commands.runOnce(() -> {
                             failures.clear();
                             passed = false;
+                            running = true;
                             machines.forEach(machine -> machine.setOverride(holdStill(machine, null)));
                         }),
                         Commands.sequence(steps.toArray(Command[]::new)),
@@ -121,6 +128,7 @@ public final class SelfTest {
                                     passed ? "Every mechanism checked out" : String.join(", ", failures));
                         }))
                 .finallyDo(interrupted -> {
+                    running = false;
                     machines.forEach(StateMachine::clearOverride);
                     record("", "", "", Double.NaN);
                     Logger.recordOutput("SelfTest/Passed", passed);
@@ -196,7 +204,9 @@ public final class SelfTest {
     }
 
     private static void expectNear(Motor motor, double target, double from, String problem) {
-        double tolerance = Math.max(Math.abs(target - from) * kMoveTolerance, 1e-3);
+        double travel = motor.getTravel();
+        double floor = Double.isNaN(travel) ? 1e-3 : Math.max(travel * kTravelTolerance, 1e-3);
+        double tolerance = Math.max(Math.abs(target - from) * kMoveTolerance, floor);
         if (!motor.isConnected()) {
             fail(motor.getName(), "disconnected");
         } else if (Math.abs(motor.getPosition() - target) > tolerance) {

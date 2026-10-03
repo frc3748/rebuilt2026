@@ -181,18 +181,20 @@ To add one, extend `DiagnosticAuto`, list its moves relative to the start with `
 
 ## Measuring autos
 
-Three autos named **Measure: …** measure the real robot instead of trusting the numbers in the code. Turn on tuning mode first. Each one puts what it found on the Tune tab, so **Save** keeps it and the next deploy writes it into the code. Without tuning mode they only report.
+Four autos named **Measure: …** measure the real robot instead of trusting the numbers in the code. Turn on tuning mode first. Each one puts what it found on the Tune tab, so **Save** keeps it and the next deploy writes it into the code. Without tuning mode they only report.
 
 | Auto | Setup | Measures | Puts on the Tune tab |
 | --- | --- | --- | --- |
 | Wheel radius | Room to spin | Spins 1.5 turns at 1 rad/s and compares how far the wheels rolled with how far the gyro turned | `Drive/Wheel Radius` (applies after a restart) |
-| Drive feedforward | 2 m of open floor in front | Ramps the drive voltage at 1 V/s until it's gone 2 m, stops, then steps 3 V back to the start. Fits volts = kS + kV·speed + kA·acceleration to every sample, ignoring any near the current limit | `Drive PID/kS`, `kV`, `kA`; also reports the top speed at 12 V |
+| Drive feedforward | 2 m of open floor in front | Ramps the drive voltage at 1 V/s until it's gone 2 m, stops, then steps 3 V back to the start. Fits volts = kS + kV·speed + kA·acceleration to every sample, ignoring any near the current limit | `Drive PID/kS`, `kV`, `kA`, a starting `Drive PID/kP` from the fit, and `Drive Sim/kP`; also reports the top speed at 12 V |
+| Steering | Wheels on the floor, room for them to turn | Ramps every turn motor to ±3 V at 1 V/s and steps ±2 V, then fits kS, kV and kA per module and averages them | `Turn PID/kP`, `kD`, `Steer FF`, and `Turn Sim/kP`, `kD`; also reports how far apart the modules are |
 | Slip current | Front bumper flat against a wall | Lifts the drive current limit to 80 A and ramps the voltage until the wheels spin (up to 10 V), then puts the limit back | `Drive/Current Limit` at 90% of the current where the wheels broke loose; also reports the wheel grip (μ) |
 
 - **Results:** each one toasts its result and logs `Measure/<test>/`. The Test tab lists them under **Measurements**.
 - **Matches the code:** a measurement within 1% (wheel radius), 0.05 V and 5% (feedforward) or 3 A (slip current) of the code says so and changes nothing.
 - **Slip current:** if the wheels hold all the way, the limit can't make them slip and nothing changes. If the wheels spin before the current builds up, the robot wasn't against a wall, and it says so.
-- **Simulator:** `CompMeasureTest` and `PracticeMeasureTest` run all three in maple-sim. The wheel radius has to come out within 2%. The fitted feedforward has to predict a real 2 V step within 5%. The slip current has to match the wheel grip in the drive config.
+- **From the Tune tab:** **Auto-tune** on the Drive PID or Drive Sim group runs Drive feedforward, and on Turn PID or Turn Sim runs Steering. See [Tuning]({{ '/utilities/tunable-number/' | relative_url }}#auto-tune).
+- **Simulator:** `CompMeasureTest` and `PracticeMeasureTest` run them in maple-sim. The wheel radius has to come out within 2%. The fitted feedforward has to predict a real 2 V step within 5%. The slip current has to match the wheel grip in the drive config.
 
 ## Adding a new auto
 

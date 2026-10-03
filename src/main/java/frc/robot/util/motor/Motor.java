@@ -21,6 +21,7 @@ public class Motor implements Hardware {
 
     private final String name;
     private final MotorIO io;
+    private final MotorConfig config;
     private final double selfTestPosition;
     private final Alert disconnectedAlert;
     private final Alert hotAlert;
@@ -33,16 +34,18 @@ public class Motor implements Hardware {
     private int slot;
 
     public Motor(MotorConfig config) {
-        this("Motors/" + config.name(), createIO(config), config.selfTestPosition());
+        this("Motors/" + config.name(), createIO(config), config);
     }
 
     public Motor(String name, MotorIO io) {
-        this(name, io, Double.NaN);
+        this(name, io, null);
     }
 
-    private Motor(String name, MotorIO io, double selfTestPosition) {
+    private Motor(String name, MotorIO io, MotorConfig config) {
         this.name = name;
         this.io = io;
+        this.config = config;
+        double selfTestPosition = config == null ? Double.NaN : config.selfTestPosition();
         this.selfTestPosition = selfTestPosition;
         String label = name.substring(name.lastIndexOf('/') + 1);
         disconnectedAlert = new Alert("Devices", label + " motor disconnected", AlertType.kError);
@@ -117,6 +120,14 @@ public class Motor implements Hardware {
         return inputs.velocity;
     }
 
+    public double getAppliedVolts() {
+        return inputs.appliedVolts;
+    }
+
+    MotorConfig config() {
+        return config;
+    }
+
     public double getCurrentAmps() {
         return inputs.currentAmps;
     }
@@ -135,6 +146,11 @@ public class Motor implements Hardware {
 
     public double getSelfTestPosition() {
         return selfTestPosition;
+    }
+
+    public double getTravel() {
+        double[] range = config == null ? null : config.tuningRange();
+        return range == null ? Double.NaN : range[1] - range[0];
     }
 
     public void holdPosition(double position) {

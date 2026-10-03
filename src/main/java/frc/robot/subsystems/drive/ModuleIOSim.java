@@ -15,6 +15,7 @@ import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.system.plant.DCMotor;
 import frc.robot.util.TunableNumber;
+import frc.robot.util.motor.MotorConfig;
 
 public class ModuleIOSim implements ModuleIO {
   private final DriveConfig config;
@@ -39,8 +40,8 @@ public class ModuleIOSim implements ModuleIO {
   public ModuleIOSim(DriveConfig config, SwerveModuleSimulation module) {
     this.config = config;
     this.module = module;
-    driveMotor = module.useGenericMotorControllerForDrive().withCurrentLimit(Amps.of(config.driveCurrentLimit));
-    turnMotor = module.useGenericControllerForSteer().withCurrentLimit(Amps.of(config.turnCurrentLimit));
+    driveMotor = module.useGenericMotorControllerForDrive().withCurrentLimit(Amps.of(MotorConfig.safeCurrentLimit(config.driveCurrentLimit)));
+    turnMotor = module.useGenericControllerForSteer().withCurrentLimit(Amps.of(MotorConfig.safeCurrentLimit(config.turnCurrentLimit)));
     driveController = new PIDController(config.driveSimP, 0, config.driveSimD);
     turnController = new PIDController(config.turnSimP, 0, config.turnSimD);
     turnController.enableContinuousInput(-Math.PI, Math.PI);
@@ -120,11 +121,11 @@ public class ModuleIOSim implements ModuleIO {
 
   @Override
   public void liftDriveCurrentLimit(double amps) {
-    driveMotor.withCurrentLimit(Amps.of(amps));
+    driveMotor.withCurrentLimit(Amps.of(MotorConfig.safeCurrentLimit(amps)));
   }
 
   @Override
   public void restoreDriveCurrentLimit() {
-    driveMotor.withCurrentLimit(Amps.of(config.driveCurrentLimit));
+    driveMotor.withCurrentLimit(Amps.of(MotorConfig.safeCurrentLimit(config.driveCurrentLimit)));
   }
 }

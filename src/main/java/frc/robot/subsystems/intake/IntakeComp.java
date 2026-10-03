@@ -28,7 +28,7 @@ public class IntakeComp extends Intake {
         this.robotState = robotState;
         this.constants = constants;
         rollers = new SpinMotor(constants.rollers);
-        extension = new PosMotor(constants.extension);
+        extension = new PosMotor(constants.extension.tuneRange(constants.stowSetpoint, constants.intakeSetpoint));
         stowSetpoint = TunableNumber.field("Intake/Extension Stow Setpoint", constants, "stowSetpoint");
         intakeSetpoint = TunableNumber.field("Intake/Extension Intake Setpoint", constants, "intakeSetpoint");
         outtakeSetpoint = TunableNumber.field("Intake/Extension Outtake Setpoint", constants, "outtakeSetpoint");

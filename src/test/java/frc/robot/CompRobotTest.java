@@ -88,7 +88,7 @@ class CompRobotTest {
         List<AutoRoutine> autos = Autos.all(state);
         assertEquals(14, autos.stream().filter(auto -> !(auto instanceof DiagnosticAuto) && !(auto instanceof MeasureAuto)).count());
         assertEquals(6, autos.stream().filter(auto -> auto instanceof DiagnosticAuto).count());
-        assertEquals(3, autos.stream().filter(auto -> auto instanceof MeasureAuto).count());
+        assertEquals(4, autos.stream().filter(auto -> auto instanceof MeasureAuto).count());
         for (AutoRoutine auto : autos) {
             assertFalse(auto.build().getName().endsWith("(FAILED)"), auto.name());
             for (PathPlannerPath path : auto.previewPaths()) {

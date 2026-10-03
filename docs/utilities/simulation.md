@@ -84,6 +84,15 @@ The mechanism poses and camera visuals go through `Visuals.record`, so
 they only exist in simulation logs. See
 [Logging & robotTools]({{ '/architecture/logging-and-robottools/' | relative_url }}#real-robot-vs-simulation).
 
+## Repeatable tests
+
+maple-sim adds random noise to the gyro (drift while still, error while
+turning), so two runs of the same test never match exactly. The sim tests
+call `SimNoise.seed()` after `SimHooks.pauseTiming()`, which seeds
+maple-sim's random generator, so a failure happens every time and can be
+debugged. To check that a result isn't luck, change `kSeed` in
+`src/test/java/frc/robot/SimNoise.java` and run it again.
+
 ## Pitfalls
 
 - **Shooter never launches.** The robot holds no fuel. Drive over

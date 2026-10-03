@@ -82,8 +82,9 @@ public class CameraIOPhoton implements CameraIO {
                 estimator.estimateLowestAmbiguityPose(result).ifPresent(pose ->
                         poses.add(toObservation(pose, ambiguity, averageDistance, PoseSource.SINGLE_TAG)));
             }
-            estimator.estimatePnpDistanceTrigSolvePose(result).ifPresent(pose ->
-                    poses.add(toObservation(pose, ambiguity, averageDistance, PoseSource.TRIG_SOLVE)));
+            double solvedDistance = result.getBestTarget().getBestCameraToTarget().getTranslation().getNorm();
+            estimator.estimatePnpDistanceTrigSolvePose(result).ifPresent(pose -> poses.add(new PoseObservation(
+                    pose.timestampSeconds, pose.estimatedPose, ambiguity, 1, solvedDistance, PoseSource.TRIG_SOLVE)));
         }
 
         inputs.poseObservations = poses.toArray(PoseObservation[]::new);

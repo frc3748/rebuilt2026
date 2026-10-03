@@ -64,7 +64,7 @@ public final class Cockpit {
         }
     }
 
-    private record Button(String id, String label, Tab tab, boolean confirm, Command command, BooleanSupplier on,
+    private record Button(String id, String label, Tab tab, boolean confirm, boolean announce, Command command, BooleanSupplier on,
             LoggedNetworkBoolean pressed) {}
 
     private record CheckEntry(String id, String label, Supplier<Check> check) {}
@@ -95,20 +95,24 @@ public final class Cockpit {
     private Cockpit() {}
 
     public static void button(String id, String label, Tab tab, Command command) {
-        add(id, label, tab, false, command, null);
+        add(id, label, tab, false, false, command, null);
     }
 
     public static void toggleButton(String id, String label, Tab tab, Command command, BooleanSupplier on) {
-        add(id, label, tab, false, command, on);
+        add(id, label, tab, false, true, command, on);
     }
 
     public static void confirmButton(String id, String label, Tab tab, Command command) {
-        add(id, label, tab, true, command, null);
+        add(id, label, tab, true, true, command, null);
     }
 
-    private static void add(String id, String label, Tab tab, boolean confirm, Command command, BooleanSupplier on) {
+    public static void quietConfirmButton(String id, String label, Tab tab, Command command) {
+        add(id, label, tab, true, false, command, null);
+    }
+
+    private static void add(String id, String label, Tab tab, boolean confirm, boolean announce, Command command, BooleanSupplier on) {
         buttons.removeIf(button -> button.id().equals(id));
-        buttons.add(new Button(id, label, tab, confirm, command, on,
+        buttons.add(new Button(id, label, tab, confirm, announce, command, on,
                 new LoggedNetworkBoolean("/Cockpit/Buttons/" + id, false)));
         manifest = "";
     }
@@ -171,7 +175,7 @@ public final class Cockpit {
             if (button.pressed().get()) {
                 button.pressed().set(false);
                 CommandScheduler.getInstance().schedule(button.command());
-                if (button.confirm() || button.on() != null) {
+                if (button.announce()) {
                     running.put(button.id(), button.command());
                 }
             }
@@ -224,6 +228,10 @@ public final class Cockpit {
             manifest = buildManifest();
         }
         Logger.recordOutput("Cockpit/Manifest", manifest);
+    }
+
+    public static boolean hasButton(String id) {
+        return buttons.stream().anyMatch(button -> button.id().equals(id));
     }
 
     public static boolean isReady() {
