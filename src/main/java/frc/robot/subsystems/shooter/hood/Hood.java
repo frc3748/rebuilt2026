@@ -1,5 +1,6 @@
 package frc.robot.subsystems.shooter.hood;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
@@ -87,8 +88,8 @@ public class Hood extends StateMachine<Hood.State> {
     }
 
     public void setPos(double position, double feedforward) {
-        boolean underTrench = TrenchZone.hoodLowerRequired(robotState);
-        hood.set(underTrench ? Math.min(position, maxUnderTrench.get()) : position, feedforward);
+        double max = TrenchZone.hoodLowerRequired(robotState) ? Math.min(maxUnderTrench.get(), constants.maxLimit) : constants.maxLimit;
+        hood.set(MathUtil.clamp(position, constants.minLimit, max), feedforward);
     }
 
     @Override

@@ -51,7 +51,7 @@ under `RealMetadata/`. robotTools' analyses look for these keys:
 | States | `<machine>/state`, `desired`, `overridden`, `rejectedRequests`, `lastRejected` | Timelines, slow or stuck transitions, rejected requests. |
 | Connections and faults | `Motors/<name>/Connected`, `Faults`, `StickyFaults`, `StickyWarnings`; the swerve modules' `DriveConnected`, `TurnConnected`, `EncoderConnected`, `DriveFaults`, `TurnFaults`, `DriveStickyWarnings`, `TurnStickyWarnings` | The health checklist, including Sparks that reboot mid-match. |
 | Loop time | `LoopTimes/<machine>`, logged by `StateMachine` | Which subsystem makes the loop slow. |
-| Tuning | `NetworkInputs/Tunable/…` and `TunableDefaults/…` | Every tunable edited mid-run, and tunables left away from their code default. |
+| Tuning | `NetworkInputs/Tunable/…` and `Tuning/Catalog` | Every tunable edited mid-run, and tunables left away from their code default. A tunable is only logged once it differs from its code value; the catalog holds every code and saved value. |
 | Self-test | `SelfTest/Active`, `Step`, `Device`, `Kind`, `Target` | The pit self-test. |
 | Sim fuel | `FuelSim/Launched`, `FuelSim/Acquired` (sim only) | Shots and pickups in sim logs. |
 

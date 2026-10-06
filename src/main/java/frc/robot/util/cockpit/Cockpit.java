@@ -89,8 +89,12 @@ public final class Cockpit {
     private static final Map<String, Command> running = new HashMap<>();
     private static final String kBoot = Long.toString(System.currentTimeMillis(), 36);
     private static int nextToast = 1;
+    private static final int kSlowLoops = 5;
     private static String manifest = "";
     private static boolean ready;
+    private static int loop;
+    private static boolean dirty = true;
+    private static boolean toastsDirty = true;
 
     private Cockpit() {}
 
@@ -115,12 +119,14 @@ public final class Cockpit {
         buttons.add(new Button(id, label, tab, confirm, announce, command, on,
                 new LoggedNetworkBoolean("/Cockpit/Buttons/" + id, false)));
         manifest = "";
+        dirty = true;
     }
 
     public static void check(String id, String label, Supplier<Check> check) {
         checks.removeIf(entry -> entry.id().equals(id));
         checks.add(new CheckEntry(id, label, check));
         manifest = "";
+        dirty = true;
     }
 
     public static void gauge(String id, String label, String unit, DoubleSupplier value, BooleanSupplier visible) {
@@ -131,11 +137,13 @@ public final class Cockpit {
             BooleanSupplier visible) {
         gauges.removeIf(gauge -> gauge.id().equals(id));
         gauges.add(new Gauge(id, label, unit, value, goal, ok, visible));
+        dirty = true;
     }
 
     public static void camera(String id, String label, String stream, String fallbackUrl, BooleanSupplier connected) {
         cameras.removeIf(camera -> camera.id().equals(id));
         cameras.add(new Camera(id, label, stream, fallbackUrl, connected));
+        dirty = true;
     }
 
     public static void toast(Level level, String title, String detail) {
@@ -143,21 +151,25 @@ public final class Cockpit {
         while (toasts.size() > kMaxToasts) {
             toasts.removeFirst();
         }
+        toastsDirty = true;
     }
 
     public static void marker(String id, String label, Marker kind, Supplier<Optional<Pose2d>> pose) {
         markers.removeIf(marker -> marker.id().equals(id));
         markers.add(new MarkerEntry(id, label, kind, pose, () -> 0.0));
+        dirty = true;
     }
 
     public static void zone(String id, String label, Supplier<Optional<Pose2d>> center, DoubleSupplier radiusMeters) {
         markers.removeIf(marker -> marker.id().equals(id));
         markers.add(new MarkerEntry(id, label, Marker.ZONE, center, radiusMeters));
+        dirty = true;
     }
 
     public static void assist(String id, String label, BooleanSupplier active) {
         assists.removeIf(assist -> assist.id().equals(id));
         assists.add(new Assist(id, label, active));
+        dirty = true;
     }
 
     public static void clear() {
@@ -168,6 +180,7 @@ public final class Cockpit {
         markers.clear();
         assists.clear();
         manifest = "";
+        dirty = true;
     }
 
     public static void update() {
@@ -188,7 +201,14 @@ public final class Cockpit {
                         : button.label() + (button.on().getAsBoolean() ? " on" : " off"), "");
             }
         }
-        Logger.recordOutput("Cockpit/Toasts", toasts.toArray(String[]::new));
+        if (toastsDirty) {
+            toastsDirty = false;
+            Logger.recordOutput("Cockpit/Toasts", toasts.toArray(String[]::new));
+        }
+        if (!dirty && loop++ % kSlowLoops != 0) {
+            return;
+        }
+        dirty = false;
         Logger.recordOutput("Cockpit/On", buttons.stream()
                 .filter(button -> button.on() != null && button.on().getAsBoolean())
                 .map(Button::id)
@@ -226,8 +246,8 @@ public final class Cockpit {
 
         if (manifest.isEmpty()) {
             manifest = buildManifest();
+            Logger.recordOutput("Cockpit/Manifest", manifest);
         }
-        Logger.recordOutput("Cockpit/Manifest", manifest);
     }
 
     public static boolean hasButton(String id) {

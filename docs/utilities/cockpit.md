@@ -14,7 +14,11 @@ Next season's robot registers its own buttons, checks and gauges and the
 dashboard shows them with no changes to robotTools.
 
 `Robot.robotPeriodic()` calls `Cockpit.update()` right after the
-command scheduler runs.
+command scheduler runs. Buttons are read every loop; checks, gauges,
+markers, assists and cameras are rebuilt at 10 Hz (or right away when one
+is added), and toasts and the manifest are only logged when they change.
+That keeps the dashboard from building strings 50 times a second on the
+roboRIO.
 
 ## Buttons
 

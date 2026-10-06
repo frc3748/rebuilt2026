@@ -41,6 +41,8 @@ public final class MotorAutoTune {
     private static final double kQuickFraction = 0.6;
     private static final double kSlowVoltsPerSec = 0.5;
     private static final double kMaxSlowVolts = 4.0;
+    private static final double kSlowTraverseSeconds = 2.0;
+    private static final double kLoopSeconds = 0.02;
     private static final double kQuickVolts = 3.0;
     private static final double kCenterSeconds = 1.5;
     private static final double kPauseSeconds = 0.5;
@@ -70,6 +72,7 @@ public final class MotorAutoTune {
     private static final double kBackoff = 0.65;
 
     private static final Map<String, String> results = new LinkedHashMap<>();
+    private static String[] resultLines = new String[0];
     private static final Map<String, Result> lastResults = new HashMap<>();
 
     public record Result(boolean ok, String summary, Map<String, Double> proposed, List<String> applied) {}
@@ -94,6 +97,7 @@ public final class MotorAutoTune {
     private double command;
     private double load;
     private double startVolts;
+    private double slowVolts;
     private double peakSpeed;
     private double stalledSince = Double.NaN;
     private String failure;
@@ -128,11 +132,12 @@ public final class MotorAutoTune {
     }
 
     public static String[] results() {
-        return results.values().toArray(String[]::new);
+        return resultLines;
     }
 
     public static void record(String group, boolean ok, String summary) {
         results.put(group, String.join("\t", group, ok ? "ok" : "failed", summary));
+        resultLines = results.values().toArray(String[]::new);
     }
 
     public static Optional<Result> lastResult(String label) {
@@ -243,11 +248,13 @@ public final class MotorAutoTune {
         return Commands.sequence(
                 step("Center", () -> drive(Drive.HOLD, middle), () -> false, kCenterSeconds),
                 Commands.runOnce(() -> startVolts = motor.getAppliedVolts()),
-                step("Slow up", () -> drive(Drive.VOLTAGE, startVolts + Math.min(kMaxSlowVolts, timer.get() * kSlowVoltsPerSec)),
-                        () -> motor.getPosition() >= high, kSlowTimeoutSeconds),
+                Commands.runOnce(() -> slowVolts = 0.0),
+                step("Slow up", () -> drive(Drive.VOLTAGE, startVolts + slowRamp(span)),
+                        () -> motor.getPosition() + stoppingDistance() >= high, kSlowTimeoutSeconds),
                 step("Pause", () -> drive(Drive.HOLD, high), () -> false, kPauseSeconds),
-                step("Slow down", () -> drive(Drive.VOLTAGE, startVolts - Math.min(kMaxSlowVolts, timer.get() * kSlowVoltsPerSec)),
-                        () -> motor.getPosition() <= low, kSlowTimeoutSeconds),
+                Commands.runOnce(() -> slowVolts = 0.0),
+                step("Slow down", () -> drive(Drive.VOLTAGE, startVolts - slowRamp(span)),
+                        () -> motor.getPosition() - stoppingDistance() <= low, kSlowTimeoutSeconds),
                 step("Pause", () -> drive(Drive.HOLD, low), () -> false, kPauseSeconds),
                 step("Quick up", () -> drive(Drive.VOLTAGE, startVolts + kQuickVolts),
                         () -> motor.getPosition() >= low + kQuickFraction * span, kQuickTimeoutSeconds),
@@ -257,6 +264,19 @@ public final class MotorAutoTune {
                         () -> motor.getPosition() <= high - kQuickFraction * span, kQuickTimeoutSeconds),
                 step("Pause", () -> drive(Drive.HOLD, motor.getPosition()), () -> false, kPauseSeconds),
                 step("Settle", () -> drive(Drive.HOLD, middle), () -> false, kCenterSeconds));
+    }
+
+    private double slowRamp(double span) {
+        if (Math.abs(motor.getVelocity()) < span / kSlowTraverseSeconds) {
+            slowVolts = Math.min(kMaxSlowVolts, slowVolts + kSlowVoltsPerSec * kLoopSeconds);
+        }
+        return slowVolts;
+    }
+
+    private double stoppingDistance() {
+        double velocity = motor.getVelocity();
+        double deceleration = config.maxMotion ? config.gains.maxAccel : 0.0;
+        return deceleration > 0.0 ? velocity * velocity / (2.0 * deceleration) : 0.0;
     }
 
     private double middle() {
@@ -519,6 +539,7 @@ public final class MotorAutoTune {
     private void save(Result result) {
         lastResults.put(label, result);
         results.put(label, String.join("\t", label, result.ok() ? "ok" : "failed", result.summary()));
+        resultLines = results.values().toArray(String[]::new);
         Logger.recordOutput("AutoTune/" + label + "/Summary", result.summary());
     }
 

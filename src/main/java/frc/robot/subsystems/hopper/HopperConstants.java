@@ -12,7 +12,8 @@ public class HopperConstants {
             .currentLimit(40)
             .conversion(1.0 / 9.0, 0.0001852)
             .pid(0.2, 0, 0)
-            .maxMotion(200, 1000, 0);
+            .maxMotion(200, 1000, 0)
+            .quadratureFilter(2, 10);
 
     public double shootSpeed = -30;
     public double outtakeSpeed = 15;

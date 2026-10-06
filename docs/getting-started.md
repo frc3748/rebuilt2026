@@ -109,6 +109,24 @@ The same thing also works from **Ctrl + P** (the quick-open palette
 handles WPILib commands as a fallthrough) — type `deploy` there if
 your hands are already on `Ctrl + P` from navigating files.
 
+### roboRIO 1: free up memory first
+
+A roboRIO 1 has 256 MB of RAM, and when it runs out Linux kills the robot
+program mid-match. Once per roboRIO, with the robot connected, run:
+
+```bash
+./gradlew setupRio
+```
+
+It turns off the NI web server (about 10 MB) and sets the memory options
+WPILib recommends (`vm.overcommit_memory=1`, `vm.vfs_cache_pressure=1000`,
+`vm.swappiness=100` in `/etc/sysctl.conf`). Reboot the roboRIO afterwards.
+The web server can also be turned off with the **Disable Web Server**
+button in WPILib's roboRIO Team Number Setter.
+
+The robot logs `JVM/HeapUsedMB` and `System/MemAvailableMB` once a second,
+so a log shows how close it got before a restart.
+
 ## Run the simulator (Ctrl + P)
 
 For sim-only development you don't need a robot:

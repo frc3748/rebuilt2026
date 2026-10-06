@@ -43,6 +43,10 @@ public class MotorConfig {
     double simVelocityLagSeconds = 0.1;
     double selfTestPosition = Double.NaN;
     double tuneMin = Double.NaN;
+    int uvwPeriodMs;
+    int uvwDepth;
+    int quadraturePeriodMs;
+    int quadratureDepth;
     double tuneMax = Double.NaN;
 
     public MotorConfig(String name, int canId, Controller controller) {
@@ -177,6 +181,18 @@ public class MotorConfig {
 
     public MotorConfig startingPosition(double position) {
         startingPosition = position;
+        return this;
+    }
+
+    public MotorConfig uvwFilter(int periodMs, int depth) {
+        uvwPeriodMs = periodMs;
+        uvwDepth = depth;
+        return this;
+    }
+
+    public MotorConfig quadratureFilter(int periodMs, int depth) {
+        quadraturePeriodMs = periodMs;
+        quadratureDepth = depth;
         return this;
     }
 

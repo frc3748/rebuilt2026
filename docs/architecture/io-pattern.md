@@ -34,8 +34,9 @@ public MotorConfig extension = new MotorConfig("Intake Extension", 46, Controlle
         .conversion(360.0 / 23.0, 360.0 / 23.0 / 60.0)
         .pid(0.09, 0, 0)
         .feedforward(0.17, 0.00131, 0)
-        .cosineGravity(0.24, 360.0)
-        .maxMotion(600, 130, 2);
+        .cosineGravity(-0.24, 360.0)
+        .maxMotion(600, 130, 10)
+        .quadratureFilter(2, 10);
 ```
 
 Every motor has a current limit. `currentLimit` (and the drive's
@@ -46,7 +47,25 @@ missing or zero limit can't leave a motor unprotected.
 `cosineGravity(kCos, unitsPerRotation)` takes how many position units make
 one mechanism rotation (360 for degrees). The Spark needs it to turn the
 position into an angle for its cosine term; without it a mechanism in
-degrees got the wrong gravity compensation.
+degrees got the wrong gravity compensation. The sign matters: kCos pushes
+the same way as positive output, so an arm whose positive direction falls
+with gravity (the intake, 0° deployed and level) needs a negative kCos.
+Auto-tune measures it with the right sign.
+
+`maxMotion(maxAccel, cruiseVel, allowedError)`: the Spark regenerates the
+profile from wherever the mechanism is once it falls more than
+`allowedError` behind. Keep it big enough that P can build real effort on
+a loaded arm; at 2° the intake could only ask for about 2 V while lifting.
+
+`uvwFilter(periodMs, depth)` and `quadratureFilter(periodMs, depth)` set
+how the Spark averages velocity (hall-sensor NEOs use UVW, quadrature
+encoders use quadrature). Without them the Spark's defaults add lag to
+every velocity loop; the mechanisms use the same values the old code did.
+
+The Spark IO retries its boot configuration and encoder zero five times.
+If one still fails, a "<name> motor didn't take its settings at boot"
+error shows under Devices, because that Spark may be running without its
+soft limits, zero or follower setting.
 
 And the subsystem builds them from the constants object it's given and
 says what each state does:

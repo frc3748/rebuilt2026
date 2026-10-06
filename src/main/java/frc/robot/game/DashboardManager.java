@@ -69,6 +69,11 @@ public class DashboardManager {
     private Playback playback = Playback.EMPTY;
     private final List<AutoRoutine> catalogAutos = new ArrayList<>();
     private String catalog = "[]";
+    private String[] loggedDiagnostics;
+    private String[] loggedMeasurements;
+    private String[] loggedAutoTune;
+    private String[] loggedTimeline;
+    private Optional<SelfTest.Saved> savedSelfTest;
     private Optional<Alliance> catalogAlliance = Optional.empty();
     private boolean catalogBuilt;
     private Optional<Pose2d> startPose = Optional.empty();
@@ -114,34 +119,46 @@ public class DashboardManager {
         if (DriverStation.isEnabled() && !DriverStation.isTest()) {
             enabledOnce = true;
         }
-        previewSelectedAuto();
+        if (previewSelectedAuto()) {
+            Logger.recordOutput("Cockpit/Auto/Name", getSelectedAuto().name());
+            Logger.recordOutput("Cockpit/Auto/Path", previewPath);
+            Logger.recordOutput("Cockpit/Auto/Start", startPose.stream().toArray(Pose2d[]::new));
+            Logger.recordOutput("Cockpit/Auto/Playback/Poses", playback.poses());
+            Logger.recordOutput("Cockpit/Auto/Playback/Times", playback.times());
+            Logger.recordOutput("Cockpit/Auto/Playback/Speeds", playback.speeds());
+            Logger.recordOutput("Cockpit/Auto/Playback/PathStarts", playback.pathStarts());
+            Logger.recordOutput("Cockpit/Auto/Playback/PathNames", playback.pathNames());
+        }
         disconnects.update();
         if (DriverStation.isDisabled() && (!catalogBuilt || !DriverStation.getAlliance().equals(catalogAlliance))) {
             catalogAlliance = DriverStation.getAlliance();
             catalog = buildCatalog();
             catalogBuilt = true;
+            Logger.recordOutput("Cockpit/Autos", catalog);
         }
-        Logger.recordOutput("Cockpit/Autos", catalog);
-        Logger.recordOutput("Cockpit/Diagnostics", DiagnosticAuto.results());
-        Logger.recordOutput("Cockpit/Measurements", MeasureAuto.results());
-        Logger.recordOutput("Cockpit/AutoTune", MotorAutoTune.results());
+        if (DiagnosticAuto.results() != loggedDiagnostics) {
+            loggedDiagnostics = DiagnosticAuto.results();
+            Logger.recordOutput("Cockpit/Diagnostics", loggedDiagnostics);
+        }
+        if (MeasureAuto.results() != loggedMeasurements) {
+            loggedMeasurements = MeasureAuto.results();
+            Logger.recordOutput("Cockpit/Measurements", loggedMeasurements);
+        }
+        if (MotorAutoTune.results() != loggedAutoTune) {
+            loggedAutoTune = MotorAutoTune.results();
+            Logger.recordOutput("Cockpit/AutoTune", loggedAutoTune);
+        }
 
         Logger.recordOutput("Game/Phase", game.getPhase());
         Logger.recordOutput("Game/HubActive", game.isHubActive());
         Logger.recordOutput("Game/HubActiveNext", game.isHubActiveNext());
-        Logger.recordOutput("Game/Timeline", game.getTimeline());
+        if (game.getTimeline() != loggedTimeline) {
+            loggedTimeline = game.getTimeline();
+            Logger.recordOutput("Game/Timeline", loggedTimeline);
+        }
         Logger.recordOutput("Game/WonAuto", game.wonAuto());
         Logger.recordOutput("Game/SecondsToShift", game.getSecondsUntilShift());
         Logger.recordOutput("Game/DistanceToHub", TrenchZone.getDistanceToClosestShootingPose(state));
-
-        Logger.recordOutput("Cockpit/Auto/Name", getSelectedAuto().name());
-        Logger.recordOutput("Cockpit/Auto/Path", previewPath);
-        Logger.recordOutput("Cockpit/Auto/Start", startPose.stream().toArray(Pose2d[]::new));
-        Logger.recordOutput("Cockpit/Auto/Playback/Poses", playback.poses());
-        Logger.recordOutput("Cockpit/Auto/Playback/Times", playback.times());
-        Logger.recordOutput("Cockpit/Auto/Playback/Speeds", playback.speeds());
-        Logger.recordOutput("Cockpit/Auto/Playback/PathStarts", playback.pathStarts());
-        Logger.recordOutput("Cockpit/Auto/Playback/PathNames", playback.pathNames());
         if (DriverStation.isAutonomousEnabled()) {
             Logger.recordOutput("Cockpit/Auto/Step", autoStep());
             Pose2d robot = state.getLatestFieldToRobot().getValue();
@@ -156,11 +173,11 @@ public class DashboardManager {
         previewed = null;
     }
 
-    private void previewSelectedAuto() {
+    private boolean previewSelectedAuto() {
         AutoRoutine selected = getSelectedAuto();
         Optional<Alliance> alliance = DriverStation.getAlliance();
         if (selected == previewed && alliance.equals(previewedAlliance)) {
-            return;
+            return false;
         }
         previewed = selected;
         previewedAlliance = alliance;
@@ -177,6 +194,7 @@ public class DashboardManager {
         }
         previewPath = poses.toArray(Pose2d[]::new);
         playback = Playback.of(selected.previewPaths(), state.getDrive().getPathPlannerConfig());
+        return true;
     }
 
     private String buildCatalog() {
@@ -506,7 +524,10 @@ public class DashboardManager {
             return Check.fail("Failed: " + String.join(", ", SelfTest.failures()));
         }
         boolean field = DriverStation.isFMSAttached();
-        Optional<SelfTest.Saved> saved = SelfTest.saved();
+        if (savedSelfTest == null) {
+            savedSelfTest = SelfTest.saved();
+        }
+        Optional<SelfTest.Saved> saved = savedSelfTest;
         if (saved.isPresent() && saved.get().passed() && saved.get().sameCode() && saved.get().hoursAgo() < kSelfTestHours) {
             return Check.pass("Passed in the pits " + hoursText(saved.get().hoursAgo()) + " ago");
         }

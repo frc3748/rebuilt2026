@@ -19,7 +19,8 @@ public class HoodConstants {
             .pid(0.8, 0, 0)
             .feedforward(0.195, 0, 0)
             .gravity(0.401)
-            .maxMotion(100000, 3000, 0);
+            .maxMotion(100000, 3000, 0)
+            .quadratureFilter(2, 10);
 
     public double customSetpoint = 0.0;
 

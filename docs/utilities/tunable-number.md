@@ -176,9 +176,8 @@ you never wrote, like a `kG` on a flywheel, isn't tunable; add it to the
 
 ## Logs
 
-- Each value is published at `/Tunable/<key>` and logged under
-  `NetworkInputs/Tunable/…`.
-- Each value's code default is logged once under `TunableDefaults/…`.
+- Each value is published at `/Tunable/<key>`.
+- `Tuning/Catalog` lists every value with its code default and saved value, logged when it changes. A value is logged under `NetworkInputs/Tunable/…` only once it differs from its code default, and NetworkTables is only read while tuning mode is on, so 160-odd tunables cost nothing per loop in a match.
 - The Tune tab reads `Tuning/Catalog`, `Tuning/Enabled`,
   `Tuning/Active` and `Tuning/Pending`.
 

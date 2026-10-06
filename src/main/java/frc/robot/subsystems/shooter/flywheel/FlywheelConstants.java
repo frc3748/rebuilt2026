@@ -17,7 +17,8 @@ public class FlywheelConstants {
             .pid(0.5, 0, 0)
             .feedforward(0.0, 0.38, 0.0)
             .maxMotion(100000000, 100000000, 0.01)
-            .outputRange(0, 1);
+            .outputRange(0, 1)
+            .quadratureFilter(2, 10);
 
     public double speedTolerance = 2;
     public double customSetpoint = 100.0;

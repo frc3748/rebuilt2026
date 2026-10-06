@@ -22,6 +22,7 @@ import frc.robot.SimNoise;
 import frc.robot.commands.autos.MeasureAuto;
 import frc.robot.commands.autos.MeasureSteering;
 import frc.robot.robots.comp.CompRobot;
+import frc.robot.subsystems.intake.IntakeConstants;
 import frc.robot.util.cockpit.Cockpit;
 import frc.robot.util.state.StateMachine;
 import frc.robot.util.tuning.Tuning;
@@ -120,7 +121,7 @@ class MotorAutoTuneTest {
     void intakeExtensionStaysInsideItsSetpointsAndFindsCosineGravity() {
         MotorAutoTune.Result result = tune("Intake Extension");
         assertTrue(result.ok(), result.summary());
-        assertEquals(0.24, gain(result, "kCos"), 0.06);
+        assertEquals(new IntakeConstants().extension.gains.kG, gain(result, "kCos"), 0.06);
     }
 
     @Test

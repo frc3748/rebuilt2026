@@ -17,9 +17,14 @@ import frc.robot.util.LimelightHelpers.RawDetection;
 
 public class CameraIOLimelight implements CameraIO {
     private static final String kColorPipeline = "pipe_color";
+    private static final int kSettingsLoops = 50;
+    private static final ObjectObservation[] kNoObjects = new ObjectObservation[0];
+    private static final int[] kNoTags = new int[0];
 
     private final String name;
     private final boolean hasImu;
+    private final boolean detects;
+    private int loops;
     private final NetworkTable table;
     private final DoubleSubscriber heartbeat;
     private double lastFrame = Double.NaN;
@@ -27,6 +32,7 @@ public class CameraIOLimelight implements CameraIO {
     public CameraIOLimelight(CameraConfig config, boolean hasImu) {
         name = config.networkName();
         this.hasImu = hasImu;
+        detects = config.canDetectObjects();
         table = NetworkTableInstance.getDefault().getTable(name);
         heartbeat = table.getDoubleTopic("hb").subscribe(Double.NaN);
     }
@@ -43,11 +49,13 @@ public class CameraIOLimelight implements CameraIO {
 
     @Override
     public void updateInputs(CameraInputs inputs) {
-        if (hasImu) {
-            LimelightHelpers.SetIMUMode(name, 1);
-            LimelightHelpers.SetIMUAssistAlpha(name, 0.01);
+        if (loops++ % kSettingsLoops == 0) {
+            if (hasImu) {
+                LimelightHelpers.SetIMUMode(name, 1);
+                LimelightHelpers.SetIMUAssistAlpha(name, 0.01);
+            }
+            LimelightHelpers.SetFiducialIDFiltersOverride(name, FieldConstants.TAG_IDS);
         }
-        LimelightHelpers.SetFiducialIDFiltersOverride(name, FieldConstants.TAG_IDS);
 
         inputs.connected = table.containsKey("tv");
         inputs.pipeline = (int) LimelightHelpers.getCurrentPipelineIndex(name);
@@ -61,15 +69,15 @@ public class CameraIOLimelight implements CameraIO {
         inputs.poseObservations = poses.toArray(PoseObservation[]::new);
         inputs.tagIds = isValid(megatag1)
                 ? Arrays.stream(megatag1.rawFiducials).mapToInt(fiducial -> fiducial.id).toArray()
-                : new int[0];
+                : kNoTags;
 
-        inputs.objectObservations = readObjects(seesTag);
+        inputs.objectObservations = detects ? readObjects(seesTag) : kNoObjects;
     }
 
     private ObjectObservation[] readObjects(boolean hasTarget) {
         TimestampedDouble frame = heartbeat.getAtomic();
         if (Double.isNaN(frame.value) || frame.value == lastFrame) {
-            return new ObjectObservation[0];
+            return kNoObjects;
         }
         lastFrame = frame.value;
         double latencySeconds = (LimelightHelpers.getLatency_Pipeline(name) + LimelightHelpers.getLatency_Capture(name)) / 1000.0;
@@ -85,7 +93,7 @@ public class CameraIOLimelight implements CameraIO {
             return new ObjectObservation[] {new ObjectObservation(timestamp, 0, LimelightHelpers.getTX(name),
                     LimelightHelpers.getTY(name), LimelightHelpers.getTA(name), 1.0)};
         }
-        return new ObjectObservation[0];
+        return kNoObjects;
     }
 
     private static void addObservation(List<PoseObservation> poses, PoseEstimate estimate, PoseSource source) {

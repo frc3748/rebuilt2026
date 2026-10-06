@@ -16,6 +16,7 @@ import frc.robot.util.tuning.Tuning;
 
 public abstract class MeasureAuto extends AutoRoutine {
     private static final Map<String, String> results = new LinkedHashMap<>();
+    private static String[] resultLines = new String[0];
 
     public enum Outcome {
         SAME,
@@ -40,7 +41,7 @@ public abstract class MeasureAuto extends AutoRoutine {
     protected abstract Command measure();
 
     public static String[] results() {
-        return results.values().toArray(String[]::new);
+        return resultLines;
     }
 
     public Result lastResult() {
@@ -71,6 +72,7 @@ public abstract class MeasureAuto extends AutoRoutine {
         Logger.recordOutput("Measure/" + id + "/Outcome", outcome.name());
         Logger.recordOutput("Measure/" + id + "/Summary", summary);
         results.put(id, String.join("\t", name(), outcome.name().toLowerCase(), summary, next));
+        resultLines = results.values().toArray(String[]::new);
         Level level = outcome == Outcome.FAILED ? Level.WARNING : Level.INFO;
         String title = name() + switch (outcome) {
             case SAME -> " matches the code";

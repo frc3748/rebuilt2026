@@ -9,13 +9,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.littletonrobotics.junction.LogTable;
 import org.littletonrobotics.junction.Logger;
-import org.littletonrobotics.junction.networktables.LoggedNetworkNumber;
+import org.littletonrobotics.junction.inputs.LoggableInputs;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import edu.wpi.first.networktables.DoubleEntry;
+import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -39,21 +42,66 @@ public final class Tuning {
     private static boolean storeDirty;
     private static boolean catalogDirty = true;
     private static String[] catalog = new String[0];
+    private static final LoggableInputs inputs = new LoggableInputs() {
+        @Override
+        public void toLog(LogTable table) {
+            for (Value value : values.values()) {
+                double effective = value.get();
+                if (!same(effective, value.logged ? value.loggedValue : value.code())) {
+                    table.put(value.key, effective);
+                    value.logged = true;
+                    value.loggedValue = effective;
+                }
+            }
+        }
+
+        @Override
+        public void fromLog(LogTable table) {
+            for (Value value : values.values()) {
+                value.live.value = table.get(value.key, value.live.value);
+            }
+        }
+    };
 
     private record Overridden(double value, Source source) {}
+
+    private static final class Live {
+        private final DoubleEntry entry;
+        private double value;
+
+        private Live(String key, double initial) {
+            entry = NetworkTableInstance.getDefault().getDoubleTopic("/Tunable/" + key).getEntry(initial);
+            value = entry.get(initial);
+            entry.set(value);
+        }
+
+        private double get() {
+            return value;
+        }
+
+        private void set(double next) {
+            value = next;
+            entry.set(next);
+        }
+
+        private void poll() {
+            value = entry.get(value);
+        }
+    }
 
     public static final class Value {
         private final String key;
         private final double declared;
         private final Source source;
-        private final LoggedNetworkNumber live;
+        private final Live live;
         private Overridden override;
         private Double saved;
         private boolean integer;
         private boolean restart;
         private String unit = "";
         private double scale = 1.0;
-        private boolean defaultLogged;
+        private boolean logged;
+        private double loggedValue;
 
         private Value(String key, double declared, Source source) {
             this.key = key;
@@ -61,7 +109,7 @@ public final class Tuning {
             this.source = source;
             override = overrides.get(key);
             loadSaved();
-            live = new LoggedNetworkNumber("/Tunable/" + key, baseline());
+            live = new Live(key, baseline());
         }
 
         public double get() {
@@ -283,19 +331,19 @@ public final class Tuning {
     }
 
     public static void periodic() {
+        if (isActive() && !Logger.hasReplaySource()) {
+            for (Value value : values.values()) {
+                value.live.poll();
+            }
+        }
+        Logger.processInputs("NetworkInputs/Tunable", inputs);
         if (catalogDirty) {
             List<String> lines = new ArrayList<>();
             values.values().forEach(value -> lines.add(value.line()));
             catalog = lines.toArray(String[]::new);
             catalogDirty = false;
+            Logger.recordOutput("Tuning/Catalog", catalog);
         }
-        for (Value value : values.values()) {
-            if (!value.defaultLogged) {
-                Logger.recordOutput("TunableDefaults/" + value.key, value.code());
-                value.defaultLogged = true;
-            }
-        }
-        Logger.recordOutput("Tuning/Catalog", catalog);
         Logger.recordOutput("Tuning/Enabled", enabled);
         Logger.recordOutput("Tuning/Active", isActive());
         Logger.recordOutput("Tuning/Pending", pending());

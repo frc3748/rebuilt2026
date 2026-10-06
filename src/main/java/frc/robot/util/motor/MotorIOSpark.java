@@ -1,6 +1,7 @@
 package frc.robot.util.motor;
 
 import static frc.robot.util.SparkUtil.ifOk;
+import static frc.robot.util.SparkUtil.tryUntilOk;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,12 +26,16 @@ import com.revrobotics.spark.config.SparkFlexConfig;
 import com.revrobotics.spark.config.SparkMaxConfig;
 
 import edu.wpi.first.math.filter.Debouncer;
+import edu.wpi.first.wpilibj.Alert;
+import edu.wpi.first.wpilibj.Alert.AlertType;
 
 import frc.robot.util.SparkUtil;
 import frc.robot.util.motor.MotorConfig.Controller;
 import frc.robot.util.motor.MotorConfig.Follower;
 
 public class MotorIOSpark implements MotorIO {
+    private static final int kConfigAttempts = 5;
+
     private final MotorConfig config;
     private final SparkBase motor;
     private final SparkBase[] followers;
@@ -55,6 +60,12 @@ public class MotorIOSpark implements MotorIO {
         sparkConfig.encoder
                 .positionConversionFactor(config.positionFactor)
                 .velocityConversionFactor(config.velocityFactor);
+        if (config.uvwPeriodMs > 0) {
+            sparkConfig.encoder.uvwMeasurementPeriod(config.uvwPeriodMs).uvwAverageDepth(config.uvwDepth);
+        }
+        if (config.quadraturePeriodMs > 0) {
+            sparkConfig.encoder.quadratureMeasurementPeriod(config.quadraturePeriodMs).quadratureAverageDepth(config.quadratureDepth);
+        }
         sparkConfig.closedLoop
                 .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
                 .outputRange(config.minOutput, config.maxOutput);
@@ -84,7 +95,8 @@ public class MotorIOSpark implements MotorIO {
         if (!Double.isNaN(config.reverseSoftLimit)) {
             sparkConfig.softLimit.reverseSoftLimit(config.reverseSoftLimit).reverseSoftLimitEnabled(true);
         }
-        motor.configure(sparkConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+        boolean configured = tryUntilOk(motor, kConfigAttempts,
+                () -> motor.configure(sparkConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters));
         motor.clearFaults();
 
         followers = new SparkBase[config.followers.size()];
@@ -98,14 +110,17 @@ public class MotorIOSpark implements MotorIO {
                     .smartCurrentLimit(config.currentLimit)
                     .voltageCompensation(12.0)
                     .follow(config.canId, follower.inverted());
-            followers[i].configure(followerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+            SparkBase spark = followers[i];
+            configured &= tryUntilOk(spark, kConfigAttempts,
+                    () -> spark.configure(followerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters));
             followerConfigs[i] = followerConfig;
             followers[i].clearFaults();
         }
 
         if (!Double.isNaN(config.startingPosition)) {
-            encoder.setPosition(config.startingPosition);
+            configured &= tryUntilOk(motor, kConfigAttempts, () -> encoder.setPosition(config.startingPosition));
         }
+        new Alert("Devices", config.name() + " motor didn't take its settings at boot", AlertType.kError).set(!configured);
 
         tune();
     }

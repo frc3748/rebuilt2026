@@ -154,6 +154,10 @@ only the `kSimMaxObjects` balls nearest the robot, within
 | `LIMELIGHT_3` | `CameraIOLimelight` | MegaTag 1 + 2, or neural and color detection. |
 | `LIMELIGHT_3G` | `CameraIOLimelight` | MegaTag 1 + 2. |
 | `LIMELIGHT_4` | `CameraIOLimelight` | Also switches on the camera's internal IMU (`SetIMUMode(1)`). Only LL4 does this. |
+
+The IMU mode, IMU assist and the tag ID filter are sent once a second
+instead of every loop; that's often enough to come back after a camera
+reboots. Cameras that can't detect objects skip the detection reads.
 | `PHOTON` | `CameraIOPhoton` | PhotonVision. Intended for object detection this year. |
 
 In simulation every camera uses `CameraIOPhotonSim`, whatever its type.

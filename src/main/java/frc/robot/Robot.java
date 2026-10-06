@@ -5,8 +5,14 @@ import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.NT4Publisher;
 import org.littletonrobotics.junction.wpilog.WPILOGWriter;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import com.revrobotics.util.StatusLogger;
 
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.robots.RobotDefinition;
 import frc.robot.util.LogFolder;
@@ -16,7 +22,13 @@ import frc.robot.util.state.SubsystemManagerFactory;
 import frc.robot.util.tuning.Tuning;
 
 public class Robot extends LoggedRobot {
+    private static final int kMemoryLoops = 50;
+    private static final double kDisabledCollectSeconds = 5.0;
+    private static final Path kMemInfo = Path.of("/proc/meminfo");
+
     private final RobotState robotState;
+    private final Timer collectTimer = new Timer();
+    private int loops;
 
     public Robot() {
         Logger.recordMetadata("ROBOT", "2026 Recharge");
@@ -42,10 +54,9 @@ public class Robot extends LoggedRobot {
 
     @Override
     public void robotPeriodic() {
-        Runtime runtime = Runtime.getRuntime();
-        Logger.recordOutput("JVM/HeapUsedMB", (runtime.totalMemory() - runtime.freeMemory()) / 1048576.0);
-        Logger.recordOutput("JVM/HeapTotalMB", runtime.totalMemory() / 1048576.0);
-        Logger.recordOutput("JVM/HeapMaxMB", runtime.maxMemory() / 1048576.0);
+        if (loops++ % kMemoryLoops == 0) {
+            logMemory();
+        }
         TunableNumber.pollAll();
         CommandScheduler.getInstance().run();
         Cockpit.update();
@@ -59,6 +70,37 @@ public class Robot extends LoggedRobot {
     @Override
     public void disabledInit() {
         SubsystemManagerFactory.getInstance().disableAllSubsystems();
+        collectTimer.restart();
+    }
+
+    @Override
+    public void disabledPeriodic() {
+        if (collectTimer.advanceIfElapsed(kDisabledCollectSeconds)) {
+            System.gc();
+        }
+    }
+
+    private static void logMemory() {
+        Runtime runtime = Runtime.getRuntime();
+        Logger.recordOutput("JVM/HeapUsedMB", (runtime.totalMemory() - runtime.freeMemory()) / 1048576.0);
+        Logger.recordOutput("JVM/HeapTotalMB", runtime.totalMemory() / 1048576.0);
+        Logger.recordOutput("JVM/HeapMaxMB", runtime.maxMemory() / 1048576.0);
+        if (Constants.kMode == Constants.Mode.REAL) {
+            Logger.recordOutput("System/MemAvailableMB", availableMegabytes());
+        }
+    }
+
+    private static double availableMegabytes() {
+        try (BufferedReader reader = Files.newBufferedReader(kMemInfo)) {
+            for (String line = reader.readLine(); line != null; line = reader.readLine()) {
+                if (line.startsWith("MemAvailable:")) {
+                    return Long.parseLong(line.replaceAll("\\D", "")) / 1024.0;
+                }
+            }
+        } catch (IOException | NumberFormatException e) {
+            return Double.NaN;
+        }
+        return Double.NaN;
     }
 
     @Override

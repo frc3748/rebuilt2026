@@ -32,13 +32,14 @@ public final class SparkUtil {
         consumer.accept(values);
     }
 
-    public static void tryUntilOk(SparkBase spark, int maxAttempts, Supplier<REVLibError> command) {
+    public static boolean tryUntilOk(SparkBase spark, int maxAttempts, Supplier<REVLibError> command) {
         for (int i = 0; i < maxAttempts; i++) {
             if (command.get() == REVLibError.kOk) {
-                return;
+                return true;
             }
             sparkStickyFault = true;
         }
+        return false;
     }
 
     private SparkUtil() {}

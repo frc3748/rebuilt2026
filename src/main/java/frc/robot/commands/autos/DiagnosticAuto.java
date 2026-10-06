@@ -45,6 +45,7 @@ public abstract class DiagnosticAuto extends AutoRoutine {
     private static final double kTurnTimeoutSeconds = 4.0;
     private static final double kSamePlaceMeters = 0.02;
     private static final Map<String, String> results = new LinkedHashMap<>();
+    private static String[] resultLines = new String[0];
 
     public record Result(boolean passed, double errorMeters, double errorDegrees, double trackingMeters) {}
 
@@ -78,7 +79,7 @@ public abstract class DiagnosticAuto extends AutoRoutine {
     }
 
     public static String[] results() {
-        return results.values().toArray(String[]::new);
+        return resultLines;
     }
 
     public Result lastResult() {
@@ -165,6 +166,7 @@ public abstract class DiagnosticAuto extends AutoRoutine {
         String deg = String.format(Locale.ROOT, "%.1f", degrees);
         String tracking = String.format(Locale.ROOT, "%.1f", worstTracking * 100.0);
         results.put(id, String.join("\t", name(), passed ? "pass" : "fail", cm, deg, tracking));
+        resultLines = results.values().toArray(String[]::new);
         Cockpit.toast(passed ? Level.INFO : Level.WARNING, name() + (passed ? " passed" : " missed"),
                 "Ended " + cm + " cm and " + deg + "° from where it should, tracked the path within " + tracking + " cm");
     }

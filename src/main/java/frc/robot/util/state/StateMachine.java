@@ -37,6 +37,11 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
   private final List<Hardware> hardware = new ArrayList<>();
   private Runnable override;
   private int rejectedRequests;
+  private String[] logKeys;
+  private E loggedDesired;
+  private E loggedState;
+  private Set<E> loggedFlags;
+  private int loggedSwitches = -1;
 
   public StateMachine(String name, E undeterminedState, Class<E> enumType) {
     this.enumType = enumType;
@@ -369,17 +374,31 @@ public abstract class StateMachine<E extends Enum<E>> extends SubsystemBase {
   }
 
   private void recordLogs() {
-    Logger.recordOutput(
-        getName() + "/desired",
-        isTransitioning() ? getCurrentTransition().getEndState().name() : getState().name());
-
-    Logger.recordOutput(getName() + "/state", getState().toString());
-
-    Logger.recordOutput(getName() + "/transitioning", isTransitioning());
-    Logger.recordOutput(getName() + "/flags", getCurrentFlagsAsArray());
-
-    Logger.recordOutput(getName() + "/enabled", enabled);
-    Logger.recordOutput(getName() + "/overridden", override != null);
+    if (logKeys == null) {
+      String name = getName();
+      logKeys = new String[] {name + "/desired", name + "/state", name + "/transitioning", name + "/flags",
+          name + "/enabled", name + "/overridden"};
+    }
+    E desired = isTransitioning() ? getCurrentTransition().getEndState() : getState();
+    if (desired != loggedDesired) {
+      loggedDesired = desired;
+      Logger.recordOutput(logKeys[0], desired.name());
+    }
+    if (getState() != loggedState) {
+      loggedState = getState();
+      Logger.recordOutput(logKeys[1], loggedState.toString());
+    }
+    if (!currentFlags.equals(loggedFlags)) {
+      loggedFlags = new HashSet<>(currentFlags);
+      Logger.recordOutput(logKeys[3], getCurrentFlagsAsArray());
+    }
+    int switches = (isTransitioning() ? 1 : 0) | (enabled ? 2 : 0) | (override != null ? 4 : 0);
+    if (switches != loggedSwitches) {
+      loggedSwitches = switches;
+      Logger.recordOutput(logKeys[2], isTransitioning());
+      Logger.recordOutput(logKeys[4], enabled);
+      Logger.recordOutput(logKeys[5], override != null);
+    }
 
     logAdditionalOutputs();
   }

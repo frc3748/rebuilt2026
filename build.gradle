@@ -30,6 +30,8 @@ deploy {
                     jvmArgs.add("-XX:+UseSerialGC")
                     jvmArgs.add("-XX:GCTimeRatio=5")
                     jvmArgs.add("-XX:MaxGCPauseMillis=50")
+                    jvmArgs.add("-XX:+HeapDumpOnOutOfMemoryError")
+                    jvmArgs.add("-XX:HeapDumpPath=/u/frc-usercode.hprof")
                 }
 
                 // Static files artifact
@@ -151,3 +153,4 @@ tasks.withType(JavaCompile) {
 }
 
 apply from: 'tuning.gradle'
+apply from: 'rio.gradle'

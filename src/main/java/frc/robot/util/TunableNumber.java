@@ -53,10 +53,10 @@ public class TunableNumber {
     }
 
     public static void pollAll() {
+        Tuning.periodic();
         for (TunableNumber tunable : all) {
             tunable.poll();
         }
-        Tuning.periodic();
     }
 
     private void poll() {

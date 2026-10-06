@@ -1,0 +1,40 @@
+def rioSetupScript = '''
+/etc/init.d/systemWebServer stop >/dev/null 2>&1 || true
+update-rc.d -f systemWebServer remove >/dev/null 2>&1 || true
+for setting in vm.overcommit_memory=1 vm.vfs_cache_pressure=1000 vm.swappiness=100; do
+  sed -i "/^${setting%%=*}=/d" /etc/sysctl.conf 2>/dev/null || true
+  echo "$setting" >> /etc/sysctl.conf
+done
+sysctl -p >/dev/null
+sync
+free -m
+'''
+
+tasks.register('setupRio') {
+    group = 'frc'
+    description = 'Frees memory on a roboRIO 1: turns off the NI web server and applies the WPILib memory sysctls.'
+    doLast {
+        int team = project.frc.getTeamNumber()
+        List<String> hosts = project.findProperty('robotHost')
+                ? [project.findProperty('robotHost') as String]
+                : ["10.${team.intdiv(100)}.${team % 100}.2", '172.22.11.2', "roborio-${team}-frc.local"]*.toString()
+        String host = hosts.find { candidate ->
+            try {
+                new Socket().withCloseable { it.connect(new InetSocketAddress(candidate, 22), 1000) }
+                return true
+            } catch (IOException ignored) {
+                return false
+            }
+        }
+        if (host == null) {
+            throw new GradleException("No robot reachable (${hosts.join(', ')}).")
+        }
+        Process ssh = new ProcessBuilder('ssh', '-o', 'StrictHostKeyChecking=accept-new', "admin@${host}".toString(), rioSetupScript)
+                .inheritIO()
+                .start()
+        if (ssh.waitFor() != 0) {
+            throw new GradleException("Couldn't set up the roboRIO at ${host}.")
+        }
+        println "Web server off and memory settings applied on ${host}. They survive a reboot; reboot once so the robot code starts with the freed memory."
+    }
+}

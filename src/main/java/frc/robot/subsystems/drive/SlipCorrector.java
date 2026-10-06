@@ -1,6 +1,5 @@
 package frc.robot.subsystems.drive;
 
-import java.util.Arrays;
 
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
@@ -115,8 +114,12 @@ public class SlipCorrector {
     }
 
     private static Translation2d median(Translation2d[] values) {
-        double[] xs = Arrays.stream(values).mapToDouble(Translation2d::getX).sorted().toArray();
-        double[] ys = Arrays.stream(values).mapToDouble(Translation2d::getY).sorted().toArray();
-        return new Translation2d((xs[1] + xs[2]) / 2.0, (ys[1] + ys[2]) / 2.0);
+        return new Translation2d(middle(values[0].getX(), values[1].getX(), values[2].getX(), values[3].getX()),
+                middle(values[0].getY(), values[1].getY(), values[2].getY(), values[3].getY()));
+    }
+
+    private static double middle(double a, double b, double c, double d) {
+        double sum = a + b + c + d;
+        return (sum - Math.min(Math.min(a, b), Math.min(c, d)) - Math.max(Math.max(a, b), Math.max(c, d))) / 2.0;
     }
 }
