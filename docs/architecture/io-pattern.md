@@ -62,6 +62,12 @@ how the Spark averages velocity (hall-sensor NEOs use UVW, quadrature
 encoders use quadrature). Without them the Spark's defaults add lag to
 every velocity loop; the mechanisms use the same values the old code did.
 
+If REVLib can't create a mechanism's Spark at all (it throws "Error (N)
+creating SPARK #ID" when the device answers with an error at startup), that
+motor runs as a no-op and a "<name> motor didn't start" error with REV's
+message shows under Devices, instead of the whole robot program failing to
+start. Drive modules still fail loudly, since the robot can't drive on three.
+
 The Spark IO retries its boot configuration and encoder zero five times.
 If one still fails, a "<name> motor didn't take its settings at boot"
 error shows under Devices, because that Spark may be running without its

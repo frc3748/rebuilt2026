@@ -55,12 +55,19 @@ public class Motor implements Hardware {
 
     private static MotorIO createIO(MotorConfig config) {
         return switch (Constants.kMode) {
-            case REAL -> config.controller == MotorConfig.Controller.TALON_FX
-                    ? new MotorIOTalonFX(config)
-                    : new MotorIOSpark(config);
+            case REAL -> config.controller == MotorConfig.Controller.TALON_FX ? new MotorIOTalonFX(config) : createSpark(config);
             case SIM -> new MotorIOSim(config);
             case REPLAY -> new MotorIO() {};
         };
+    }
+
+    private static MotorIO createSpark(MotorConfig config) {
+        try {
+            return new MotorIOSpark(config);
+        } catch (IllegalStateException e) {
+            new Alert("Devices", config.name() + " motor didn't start: " + e.getMessage(), AlertType.kError).set(true);
+            return new MotorIO() {};
+        }
     }
 
     @Override
