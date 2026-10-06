@@ -10,29 +10,64 @@ sync
 free -m
 '''
 
+def rioMemoryScript = '''
+free -m
+echo
+echo "RSS MB  process"
+for p in /proc/[0-9]*; do
+  r=$(grep VmRSS "$p/status" 2>/dev/null | tr -dc 0-9)
+  [ -n "$r" ] && echo "$((r / 1024)) $(cat "$p/comm" 2>/dev/null)"
+done | sort -rn | head -12
+echo
+grep -E "MemAvailable|MemFree|^Cached|Committed_AS" /proc/meminfo
+echo
+echo "Robot program killed for memory since boot:"
+dmesg 2>/dev/null | grep -i -E "out of memory|killed process|oom-kill" | tail -5 || true
+'''
+
+def findRio = { int port ->
+    int team = project.frc.getTeamNumber()
+    List<String> hosts = project.findProperty('robotHost')
+            ? [project.findProperty('robotHost') as String]
+            : ["10.${team.intdiv(100)}.${team % 100}.2", '172.22.11.2', "roborio-${team}-frc.local"]*.toString()
+    String host = hosts.find { candidate ->
+        try {
+            new Socket().withCloseable { it.connect(new InetSocketAddress(candidate, port), 1000) }
+            return true
+        } catch (IOException ignored) {
+            return false
+        }
+    }
+    if (host == null) {
+        throw new GradleException("No robot reachable (${hosts.join(', ')}).")
+    }
+    return host
+}
+
+def runOnRio = { String host, String script ->
+    Process ssh = new ProcessBuilder('ssh', '-o', 'StrictHostKeyChecking=accept-new', "admin@${host}".toString(), script)
+            .inheritIO()
+            .start()
+    return ssh.waitFor() == 0
+}
+
+tasks.register('rioMemory') {
+    group = 'frc'
+    description = 'Shows what is using memory on the roboRIO right now.'
+    doLast {
+        String host = findRio(22)
+        if (!runOnRio(host, rioMemoryScript)) {
+            throw new GradleException("Couldn't read memory on the roboRIO at ${host}.")
+        }
+    }
+}
+
 tasks.register('setupRio') {
     group = 'frc'
     description = 'Frees memory on a roboRIO 1: turns off the NI web server and applies the WPILib memory sysctls.'
     doLast {
-        int team = project.frc.getTeamNumber()
-        List<String> hosts = project.findProperty('robotHost')
-                ? [project.findProperty('robotHost') as String]
-                : ["10.${team.intdiv(100)}.${team % 100}.2", '172.22.11.2', "roborio-${team}-frc.local"]*.toString()
-        String host = hosts.find { candidate ->
-            try {
-                new Socket().withCloseable { it.connect(new InetSocketAddress(candidate, 22), 1000) }
-                return true
-            } catch (IOException ignored) {
-                return false
-            }
-        }
-        if (host == null) {
-            throw new GradleException("No robot reachable (${hosts.join(', ')}).")
-        }
-        Process ssh = new ProcessBuilder('ssh', '-o', 'StrictHostKeyChecking=accept-new', "admin@${host}".toString(), rioSetupScript)
-                .inheritIO()
-                .start()
-        if (ssh.waitFor() != 0) {
+        String host = findRio(22)
+        if (!runOnRio(host, rioSetupScript)) {
             throw new GradleException("Couldn't set up the roboRIO at ${host}.")
         }
         println "Web server off and memory settings applied on ${host}. They survive a reboot; reboot once so the robot code starts with the freed memory."

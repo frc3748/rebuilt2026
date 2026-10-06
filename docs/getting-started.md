@@ -124,8 +124,29 @@ WPILib recommends (`vm.overcommit_memory=1`, `vm.vfs_cache_pressure=1000`,
 The web server can also be turned off with the **Disable Web Server**
 button in WPILib's roboRIO Team Number Setter.
 
-The robot logs `JVM/HeapUsedMB` and `System/MemAvailableMB` once a second,
-so a log shows how close it got before a restart.
+To see what is using memory right now, with the robot connected:
+
+```bash
+./gradlew rioMemory
+```
+
+It prints `free -m`, the biggest processes, the kernel's memory counters,
+and any time since boot the kernel killed a process for running out of
+memory. The robot program shows up as `java`.
+
+Read `MemAvailable`, not the Driver Station's RAM number. The Driver
+Station shows memory not used for cache, and Linux caches files it just
+wrote, so right after a redeploy (new jar, libraries, logs) it can show
+3 MB free while plenty is available. A reboot empties the cache, which is
+why a fresh boot looks better.
+
+The deploy caps the Java heap at 64 MB (`-Xmx64M` in `build.gradle`); left
+alone, a roboRIO 1 lets it grow to about 100 MB even though the robot only
+keeps about 10 MB alive. Once a second the robot logs
+`System/MemAvailableMB`, `System/MemFreeMB`, `JVM/ProcessMB` (everything
+the robot program uses), `JVM/HeapTotalMB`, `JVM/CodeCacheMB`,
+`JVM/MetaspaceMB` and `JVM/Threads`, so a log shows which one grew
+before a restart.
 
 ## Run the simulator (Ctrl + P)
 
