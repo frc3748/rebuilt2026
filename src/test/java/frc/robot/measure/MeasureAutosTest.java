@@ -17,6 +17,7 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.system.plant.DCMotor;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.simulation.DriverStationSim;
 import edu.wpi.first.wpilibj.simulation.SimHooks;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -39,6 +40,7 @@ abstract class MeasureAutosTest {
     private static final double kStepVolts = 2.0;
     private static final int kStepLoops = 40;
     private static final int kEarlyLoop = 5;
+    private static final double kBlockedSeconds = 10.0;
     private static RobotState state;
     private int collisions;
 
@@ -80,6 +82,8 @@ abstract class MeasureAutosTest {
     }
 
     private void place(Pose2d pose) {
+        state.getDrive().setPose(pose);
+        step(10);
         state.getDrive().setPose(pose);
         step(10);
         collisions = state.getDrive().getCollision().events();
@@ -143,6 +147,17 @@ abstract class MeasureAutosTest {
                 state.getDefinition().name(), kStepVolts, early, kEarlyLoop * 0.02, earlyPredicted, actual, kStepLoops * 0.02, predicted);
         assertEquals(predicted, actual, predicted * 0.05);
         assertEquals(earlyPredicted, early, earlyPredicted * 0.1);
+    }
+
+    @Test
+    void feedforwardStopsWhenItRunsIntoSomething() {
+        double half = (config().wheelBase + kBumperMargin) / 2.0;
+        double start = Timer.getFPGATimestamp();
+        MeasureAuto.Result result = run(new MeasureFeedforward(state), new Pose2d(half + 0.8, 4.0, Rotation2d.k180deg));
+        collisions = state.getDrive().getCollision().events();
+        assertEquals(Outcome.FAILED, result.outcome());
+        assertTrue(result.summary().contains("ran into something"), result.summary());
+        assertTrue(Timer.getFPGATimestamp() - start < kBlockedSeconds, "Kept pushing into the wall");
     }
 
     @Test

@@ -38,6 +38,8 @@ public class MeasureFeedforward extends MeasureAuto {
     private static final double kSameKv = 0.05;
     private static final double kSameKa = 0.05;
     private static final double kVelocityDelaySeconds = 0.02;
+    private static final double kPushingVolts = 2.0;
+    private static final double kStalledSeconds = 0.3;
 
     private record Sample(double time, double volts, double velocity, double amps) {}
 
@@ -46,6 +48,8 @@ public class MeasureFeedforward extends MeasureAuto {
     private final List<Sample> samples = new ArrayList<>();
     private final Timer timer = new Timer();
     private Pose2d start = Pose2d.kZero;
+    private double stalledSince = Double.NaN;
+    private double blockedAt = Double.NaN;
 
     public MeasureFeedforward(RobotState state) {
         super(state, "Feedforward", "Measure: drive feedforward");
@@ -58,14 +62,16 @@ public class MeasureFeedforward extends MeasureAuto {
                 Commands.runOnce(() -> {
                     samples.clear();
                     start = drive.getPose();
+                    stalledSince = Double.NaN;
+                    blockedAt = Double.NaN;
                 }),
                 Commands.run(() -> drive.runCharacterization(0.0), drive).withTimeout(kPointSeconds),
                 Commands.runOnce(timer::restart),
                 Commands.run(() -> drive(Math.min(kMaxVolts, timer.get() * kRampVoltsPerSec)), drive)
-                        .until(() -> traveled() >= kDistanceMeters || timer.get() * kRampVoltsPerSec >= kMaxVolts)
+                        .until(() -> traveled() >= kDistanceMeters || timer.get() * kRampVoltsPerSec >= kMaxVolts || blocked())
                         .withTimeout(kRampTimeoutSeconds),
                 Commands.run(() -> drive(0.0), drive).withTimeout(kStopSeconds),
-                Commands.run(() -> drive(-kStepVolts), drive).until(() -> traveled() <= kReturnMeters)
+                Commands.run(() -> drive(-kStepVolts), drive).until(() -> traveled() <= kReturnMeters || blocked())
                         .withTimeout(kStepTimeoutSeconds),
                 Commands.run(() -> drive(0.0), drive).withTimeout(kStopSeconds),
                 Commands.runOnce(this::finish));
@@ -73,9 +79,19 @@ public class MeasureFeedforward extends MeasureAuto {
 
     private void drive(double volts) {
         Drive drive = state.getDrive();
-        samples.add(new Sample(Timer.getFPGATimestamp(), drive.getDriveAppliedVolts(), drive.getWheelSpeedMetersPerSec(),
-                drive.getDriveCurrentAmps()));
+        double now = Timer.getFPGATimestamp();
+        double speed = drive.getWheelSpeedMetersPerSec();
+        samples.add(new Sample(now, drive.getDriveAppliedVolts(), speed, drive.getDriveCurrentAmps()));
+        boolean pushing = Math.abs(volts) >= kPushingVolts && Math.abs(speed) < kMovingSpeed;
+        stalledSince = !pushing ? Double.NaN : Double.isNaN(stalledSince) ? now : stalledSince;
+        if (pushing && now - stalledSince >= kStalledSeconds && Double.isNaN(blockedAt)) {
+            blockedAt = traveled();
+        }
         drive.runCharacterization(volts);
+    }
+
+    private boolean blocked() {
+        return !Double.isNaN(stalledSince) && Timer.getFPGATimestamp() - stalledSince >= kStalledSeconds;
     }
 
     private double traveled() {
@@ -85,6 +101,12 @@ public class MeasureFeedforward extends MeasureAuto {
 
     private void finish() {
         DriveConfig config = state.getDrive().getConfig();
+        if (!Double.isNaN(blockedAt)) {
+            failed(String.format(Locale.ROOT,
+                    "It ran into something %.1f m from the start. Give it %.0f m of open floor in front and try again",
+                    Math.max(0.0, blockedAt), kDistanceMeters));
+            return;
+        }
         Fit best = null;
         for (int shift = 0; shift <= 1; shift++) {
             Fit fit = fit(shift, config.driveCurrentLimit * kCurrentFraction);

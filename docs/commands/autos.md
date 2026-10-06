@@ -192,6 +192,7 @@ Four autos named **Measure: …** measure the real robot instead of trusting the
 
 - **Results:** each one toasts its result and logs `Measure/<test>/`. The Test tab lists them under **Measurements**.
 - **Matches the code:** a measurement within 1% (wheel radius), 0.05 V and 5% (feedforward) or 3 A (slip current) of the code says so and changes nothing.
+- **Drive feedforward:** if it pushes at 2 V or more without moving for 0.3 s, it stops, backs off, and says how far it got instead of grinding into the wall.
 - **Slip current:** if the wheels hold all the way, the limit can't make them slip and nothing changes. If the wheels spin before the current builds up, the robot wasn't against a wall, and it says so.
 - **From the Tune tab:** **Auto-tune** on the Drive PID or Drive Sim group runs Drive feedforward, and on Turn PID or Turn Sim runs Steering. See [Tuning]({{ '/utilities/tunable-number/' | relative_url }}#auto-tune).
 - **Simulator:** `CompMeasureTest` and `PracticeMeasureTest` run them in maple-sim. The wheel radius has to come out within 2%. The fitted feedforward has to predict a real 2 V step within 5%. The slip current has to match the wheel grip in the drive config.

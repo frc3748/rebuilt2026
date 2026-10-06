@@ -74,6 +74,7 @@ public class DashboardManager {
     private Optional<Pose2d> startPose = Optional.empty();
     private boolean followingPath;
     private boolean enabledOnce;
+    private boolean autoTuning;
     private final DisconnectNotifier disconnects;
 
     public DashboardManager(RobotState state, GameState game, String robotName, List<AutoRoutine> autos) {
@@ -271,9 +272,10 @@ public class DashboardManager {
             robot.getIntake().ifPresent(intake -> intake.requestTransition(Intake.State.STOW));
         }));
         Cockpit.button("selfTest", "Run self-test", Tab.TEST,
-                Commands.either(Commands.defer(() -> SelfTest.build(state), Set.of(state.getDrive())),
-                        disabledSafe(() -> Cockpit.toast(Level.WARNING, "Self-test needs Test mode", "Enable Test mode with the robot on a cart")),
-                        DriverStation::isTest));
+                Commands.either(Commands.defer(() -> SelfTest.build(state), Set.of(state.getDrive())).asProxy(),
+                        disabledSafe(() -> Cockpit.toast(Level.WARNING, "Can't run the self-test",
+                                autoTuning ? "Wait for auto-tune to finish" : "Enable Test mode with the robot on a cart")),
+                        () -> DriverStation.isTest() && DriverStation.isEnabled() && !autoTuning));
         Cockpit.confirmButton("zeroHood", "Zero hood", Tab.TEST, disabledSafe(robot.shooterAction(Shooter::zero)));
         Cockpit.confirmButton("zeroIntake", "Zero intake", Tab.TEST, disabledSafe(robot.intakeAction(Intake::zero)));
         Cockpit.confirmButton("zeroHeading", "Zero heading", Tab.TEST, disabledSafe(state.getDrive()::zeroHeading));
@@ -343,19 +345,23 @@ public class DashboardManager {
         for (StateMachine<?> machine : machines) {
             for (Motor motor : machine.getMotors()) {
                 Cockpit.quietConfirmButton("autotune:" + MotorAutoTune.group(motor), "Auto-tune", Tab.TUNE,
-                        afterSelfTest(MotorAutoTune.build(machine, motor)));
+                        afterSelfTest(tracked(MotorAutoTune.build(machine, motor))));
             }
         }
         for (String group : List.of("Drive PID", "Drive Sim")) {
             Cockpit.quietConfirmButton("autotune:" + group, "Auto-tune", Tab.TUNE,
-                    afterSelfTest(inTestMode(measuring(group,
-                            Commands.defer(() -> new MeasureFeedforward(state).build(), Set.of(state.getDrive()))))));
+                    afterSelfTest(inTestMode(tracked(measuring(group,
+                            Commands.defer(() -> new MeasureFeedforward(state).build(), Set.of(state.getDrive())))))));
         }
         for (String group : List.of("Turn PID", "Turn Sim")) {
             Cockpit.quietConfirmButton("autotune:" + group, "Auto-tune", Tab.TUNE,
-                    afterSelfTest(inTestMode(measuring(group,
-                            Commands.defer(() -> new MeasureSteering(state).build(), Set.of(state.getDrive()))))));
+                    afterSelfTest(inTestMode(tracked(measuring(group,
+                            Commands.defer(() -> new MeasureSteering(state).build(), Set.of(state.getDrive())))))));
         }
+    }
+
+    private Command tracked(Command command) {
+        return command.beforeStarting(() -> autoTuning = true).finallyDo(() -> autoTuning = false);
     }
 
     private static Command measuring(String group, Command command) {
@@ -512,8 +518,8 @@ public class DashboardManager {
             return Check.warn("Not run on this code. It can't run on the field, so run it in the pits next");
         }
         return Check.fail(saved.isPresent() && !saved.get().sameCode()
-                ? "New code since the last self-test. Enable Test mode with the robot on a cart"
-                : "Enable Test mode with the robot on a cart");
+                ? "New code since the last self-test. In Test mode, press Run self-test with the robot on a cart"
+                : "In Test mode, press Run self-test with the robot on a cart");
     }
 
     private Check checkControllers() {

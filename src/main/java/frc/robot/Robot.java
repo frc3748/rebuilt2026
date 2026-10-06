@@ -8,7 +8,6 @@ import org.littletonrobotics.junction.wpilog.WPILOGWriter;
 import com.revrobotics.util.StatusLogger;
 
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
-import frc.robot.commands.SelfTest;
 import frc.robot.robots.RobotDefinition;
 import frc.robot.util.LogFolder;
 import frc.robot.util.TunableNumber;
@@ -76,6 +75,5 @@ public class Robot extends LoggedRobot {
     public void testInit() {
         SubsystemManagerFactory.getInstance().notifyTestStart();
         CommandScheduler.getInstance().cancelAll();
-        CommandScheduler.getInstance().schedule(SelfTest.build(robotState));
     }
 }

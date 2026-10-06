@@ -94,9 +94,12 @@ when the code starts and `Battery/Id` every loop.
 
 ## Self-test
 
-Enabling **Test** mode on the Driver Station runs `SelfTest`
-(`commands/SelfTest.java`). Put the robot on a cart first. The test
-overrides every state machine that owns motors, then works through:
+Test mode is for either tuning or testing, so enabling it starts nothing
+on its own. With the robot on a cart, enable **Test** on the Driver
+Station and press **Run self-test** on the dashboard's Test tab to run
+`SelfTest` (`commands/SelfTest.java`). The button does nothing outside
+Test mode or while Auto-tune is running. The test overrides every state
+machine that owns motors, then works through:
 
 1. Driving all four modules forward at 1.5 V, then turning them to 90°
    and back.
@@ -140,8 +143,8 @@ and an auto, and runs 15 seconds of auto and a scripted teleop. It
 drives the simulator through the Sim Websockets Server extension, which
 `build.gradle` declares with `defaultEnabled = false`, so a normal
 **Simulate Robot Code** leaves it off. Sim logs have no real current or
-temperature for the mechanisms. Add `--self-test` to run the self-test
-in Test mode first.
+temperature for the mechanisms. Add `--self-test` to enable Test mode
+and press **Run self-test** first.
 
 `.github/workflows/sim-check.yml` does this on every push and pull request.
 It runs the tests, records a sim match with the self-test, and runs
