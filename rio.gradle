@@ -45,9 +45,12 @@ def findRio = { int port ->
 }
 
 def runOnRio = { String host, String script ->
-    Process ssh = new ProcessBuilder('ssh', '-o', 'StrictHostKeyChecking=accept-new', "admin@${host}".toString(), script)
-            .inheritIO()
+    Process ssh = new ProcessBuilder('ssh', '-o', 'StrictHostKeyChecking=accept-new', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5',
+            "admin@${host}".toString(), 'sh -s')
+            .redirectErrorStream(true)
             .start()
+    ssh.outputStream.withWriter('UTF-8') { it.write(script.replace('\r', '')) }
+    ssh.inputStream.eachLine('UTF-8') { println it }
     return ssh.waitFor() == 0
 }
 
