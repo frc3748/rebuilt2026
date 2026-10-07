@@ -61,9 +61,14 @@ profile from wherever the mechanism is once it falls more than
 a loaded arm; at 2° the intake could only ask for about 2 V while lifting.
 
 `uvwFilter(periodMs, depth)` and `quadratureFilter(periodMs, depth)` set
-how the Spark averages velocity (hall-sensor NEOs use UVW, quadrature
-encoders use quadrature). Without them the Spark's defaults add lag to
-every velocity loop; the mechanisms use the same values the old code did.
+how the Spark averages velocity. A NEO on a SPARK MAX uses UVW (its hall
+sensor). A Vortex on a SPARK Flex uses quadrature: REV only applies the
+UVW settings to a Flex with a Flex Dock. Without the right one the Spark's
+defaults apply, and on a Flex that's a 100 ms window averaged over 64
+samples, so the speed reading lags far behind the motor. The intake
+roller had `uvwFilter` and its auto-tune couldn't fit the lagging data;
+every Flex now uses `quadratureFilter(2, 10)`, and `MotorAutoTuneTest`
+fails if one doesn't.
 
 If REVLib can't create a mechanism's Spark at all (it throws "Error (N)
 creating SPARK #ID" when the device answers with an error at startup, or
@@ -76,6 +81,16 @@ The Spark IO retries its boot configuration and encoder zero five times.
 If one still fails, a "<name> motor didn't take its settings" error shows
 under Devices, because that Spark may be running without its soft limits,
 zero or follower setting.
+
+A position-controlled motor that pushes into something for a second stops
+pushing: still more than 1% of its travel from the goal, moving less than
+2% of its travel per second, and drawing at least 80% of its current
+limit. It stays off, resting where it is, until it gets a goal more than
+1% of its travel away, and shows "<name> was pushing into a hard stop, so
+it stopped. Check its zero". It's logged as `Motors/<name>/Stalled`. The
+usual cause is a zero that's off, so the setpoint sits past the hard stop.
+It only applies to motors with a travel range (soft limits or
+`tuneRange`).
 
 Once a second the IO also checks its Sparks. If one that missed its
 settings at boot shows up, or one reboots (REV's sticky "has reset"

@@ -50,6 +50,24 @@ class AutoTuneTest {
     }
 
     @Test
+    void movingOnlyOneWayIsNotEnoughToSeparateGravity() {
+        double[] up = new double[200];
+        for (int i = 0; i < up.length; i++) {
+            up[i] = 0.6 + 0.02 * i;
+        }
+        assertTrue(AutoTune.fit(drive(0.15, 0.7, 0.07, 0.4, Gravity.CONSTANT, 1.0, up), Gravity.CONSTANT, 1.0, 0.05, 100.0).isEmpty());
+    }
+
+    @Test
+    void identicalSamplesDontThrow() {
+        List<Sample> still = new ArrayList<>();
+        for (int i = 0; i < 50; i++) {
+            still.add(new Sample(i * kDt, 2.0, 0.0, 1.0, 1.0));
+        }
+        assertTrue(AutoTune.fit(still, Gravity.NONE, 1.0, 0.1, 100.0).isEmpty());
+    }
+
+    @Test
     void recoversGravityOnAnArm() {
         Model constant = AutoTune.fit(drive(0.15, 0.7, 0.07, 0.4, Gravity.CONSTANT, 1.0, ramps()), Gravity.CONSTANT, 1.0, 0.05, 100.0).orElseThrow();
         assertEquals(0.4, constant.kG(), 0.03);

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.ejml.data.SingularMatrixException;
 import org.ejml.simple.SimpleMatrix;
 
 
@@ -15,6 +16,8 @@ public final class AutoTune {
     private static final double kMinVelocityRatio = 0.2;
     private static final double kMinDrivenVolts = 0.05;
     private static final int kMinRows = 20;
+    private static final double kMaxGapSeconds = 0.1;
+    private static final int kMinRowsEachWay = 3;
     private static final int kSignificantDigits = 4;
 
     public enum Gravity {
@@ -52,7 +55,7 @@ public final class AutoTune {
             double volts = samples.get(k + shift).volts();
             double dt = to.time() - from.time();
             double velocity = (from.velocity() + to.velocity()) / 2.0;
-            if (dt <= 0.0 || Math.abs(velocity) < minSpeed || Math.abs(volts) < kMinDrivenVolts
+            if (dt <= 0.0 || dt > kMaxGapSeconds || Math.abs(velocity) < minSpeed || Math.abs(volts) < kMinDrivenVolts
                     || Math.max(from.amps(), to.amps()) > maxAmps) {
                 continue;
             }
@@ -65,7 +68,9 @@ public final class AutoTune {
             rows.add(new double[] {Math.signum(velocity), velocity, (to.velocity() - from.velocity()) / dt, load, volts});
         }
         int columns = gravity == Gravity.NONE ? 3 : 4;
-        if (rows.size() < kMinRows) {
+        long forward = rows.stream().filter(row -> row[0] > 0.0).count();
+        long backward = rows.size() - forward;
+        if (rows.size() < kMinRows || (columns == 4 && Math.min(forward, backward) < kMinRowsEachWay)) {
             return Optional.empty();
         }
         SimpleMatrix x = new SimpleMatrix(rows.size(), columns);
@@ -77,7 +82,12 @@ public final class AutoTune {
             }
             y.set(i, 0, row[4]);
         }
-        SimpleMatrix gains = x.solve(y);
+        SimpleMatrix gains;
+        try {
+            gains = x.solve(y);
+        } catch (SingularMatrixException e) {
+            return Optional.empty();
+        }
         double residual = Math.sqrt(x.mult(gains).minus(y).elementPower(2).elementSum() / rows.size());
         double kV = gains.get(1);
         double kA = gains.get(2);

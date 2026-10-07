@@ -61,7 +61,11 @@ intake.clearOverride();
 
 - **Extension** — Spark MAX on CAN 46 with a follower on 47. MAXMotion
   position with cosine gravity feedforward, added on the roboRIO since
-  the Spark won't take a negative kCos; gains are tunable live.
+  the Spark won't take a negative kCos; gains are tunable live. Soft
+  limits at −96° and 0° keep it from driving past stowed or deployed.
+  Once it's within `restTolerance` (3°) of down, it stops pushing and
+  gravity sets it on its stop; holding exactly at the stop made it buzz
+  against it.
 - **Rollers** — Spark Flex on CAN 48, velocity control with a kV
   feedforward (12 V over the Vortex's 113 rps free speed), so they reach
   speed instead of stalling short on P alone.

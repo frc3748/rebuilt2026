@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 
+import edu.wpi.first.math.system.plant.DCMotor;
+import edu.wpi.first.math.util.Units;
 import frc.robot.util.tuning.Source;
 
 public class MotorConfig {
@@ -57,6 +59,18 @@ public class MotorConfig {
 
     public String name() {
         return name;
+    }
+
+    DCMotor dcMotor() {
+        return switch (controller) {
+            case SPARK_FLEX -> DCMotor.getNeoVortex(1);
+            case SPARK_MAX -> DCMotor.getNEO(1);
+            case TALON_FX -> DCMotor.getKrakenX60(1);
+        };
+    }
+
+    double nominalFreeSpeed() {
+        return Units.radiansPerSecondToRotationsPerMinute(dcMotor().freeSpeedRadPerSec) * Math.abs(velocityFactor);
     }
 
     public MotorConfig follower(int canId, boolean inverted) {

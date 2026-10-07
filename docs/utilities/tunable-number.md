@@ -78,10 +78,14 @@ why and does nothing.
   more than 10% or oscillates.
 - **Arms, hoods and the intake** (`PosMotor`): only inside the motor's
   travel range, from `tuneRange(min, max)` or else its soft limits. A
-  motor without either has no button. It moves to the middle, ramps
-  slowly up and down at 0.5 V/s, and pulses ±3 V for at most 0.15 s near
-  each end, staying 12% away from the limits. The fit adds kG (constant)
-  or kCos (`cosineGravity`). Then it steps between two points and raises
+  motor without either has no button. Every move is a position move
+  between 25% and 75% of the travel, never raw voltage, so gravity or a
+  fast mechanism can't carry it into an end. It sweeps back and forth at
+  four speeds up to the full travel in 0.5 s (capped at the MAXMotion
+  cruise and acceleration), then snaps between the two points once each
+  way to see how hard it accelerates. The fit uses every sample and adds
+  kG (constant) or kCos (`cosineGravity`). Then it steps between two
+  points and raises
   kP ×1.5 until it settles within 2% of the move, up to 7 rounds. If it
   overshoots more than 10% or oscillates, it goes back to the last kP
   that didn't. A MAXMotion profile faster than 80%
@@ -90,10 +94,18 @@ why and does nothing.
   [Measure autos]({{ '/commands/autos/' | relative_url }}#measuring-autos)
   (Drive feedforward or Steering), so drive and turn motors get tuned too.
 
-While it runs, the other motors in the same mechanism hold still and the
-motor's current limit drops to 30 A (or its own limit, if lower). It
-stops and puts everything back if the motor moves more than 2% past the
-range, or stalls for 0.5 s while being pushed. When it finishes, the
+While it runs, the other motors in the same mechanism hold still; one
+resting within 5% of an end of its travel (the intake pivot down while
+its rollers are tuned) is let go instead, so it doesn't shake against its
+stop. A
+`PosMotor`'s current limit drops to 30 A (or its own limit, if lower); a
+roller or flywheel keeps its own limit, since a loaded roller can need
+far more than 30 A just to turn. It stops and puts everything back if the
+motor moves more than 2% past the range, stalls for 0.5 s while being
+pushed, or barely moves at all. That last one says how much current it
+drew, which usually means something is rubbing or jammed. If the samples
+can't be fit (an arm or hood has to move cleanly both ways to tell
+friction from gravity), it says so and stops instead of crashing. When it finishes, the
 proposed values show on the Tune tab like any edit. **Save** keeps them;
 **Revert** drops them. The card shows each step while it runs, then the
 result.

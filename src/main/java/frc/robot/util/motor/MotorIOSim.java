@@ -7,7 +7,6 @@ import java.util.function.DoubleConsumer;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
-import edu.wpi.first.math.util.Units;
 
 public class MotorIOSim implements MotorIO {
     private enum Mode {
@@ -45,12 +44,8 @@ public class MotorIOSim implements MotorIO {
 
     public MotorIOSim(MotorConfig config) {
         this.config = config;
-        DCMotor motor = switch (config.controller) {
-            case SPARK_FLEX -> DCMotor.getNeoVortex(1);
-            case SPARK_MAX -> DCMotor.getNEO(1);
-            case TALON_FX -> DCMotor.getKrakenX60(1);
-        };
-        double freeSpeed = Units.radiansPerSecondToRotationsPerMinute(motor.freeSpeedRadPerSec) * Math.abs(config.velocityFactor);
+        DCMotor motor = config.dcMotor();
+        double freeSpeed = config.nominalFreeSpeed();
         Gains declared = config.gains;
         plantKv = motor.nominalVoltageVolts / freeSpeed;
         plantKa = plantKv * config.simVelocityLagSeconds;

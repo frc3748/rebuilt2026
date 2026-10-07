@@ -29,7 +29,10 @@ import frc.robot.util.tuning.Tuning;
 
 class MotorAutoTuneTest {
     private static final int kMaxLoops = 3000;
+    private static final double kEdgeMargin = 0.1;
     private static RobotState state;
+    private static double lowest;
+    private static double highest;
 
     @BeforeAll
     static void boot() {
@@ -62,6 +65,16 @@ class MotorAutoTuneTest {
     }
 
     @Test
+    void sparkFlexMotorsFilterTheirVortexEncoder() {
+        List<StateMachine<?>> machines = new ArrayList<>();
+        collect(state, machines);
+        machines.stream().flatMap(machine -> machine.getMotors().stream()).map(Motor::config)
+                .filter(config -> config != null && config.controller == MotorConfig.Controller.SPARK_FLEX)
+                .forEach(config -> assertTrue(config.quadraturePeriodMs > 0 && config.uvwPeriodMs == 0,
+                        config.name() + " is a SPARK Flex, so it needs quadratureFilter; UVW settings only apply with a Flex Dock"));
+    }
+
+    @Test
     void everyMotorHasAnAutoTuneButton() {
         for (String group : List.of("Flywheel", "Hood", "Intake Extension", "Intake Roller", "Hopper", "Kicker", "Drive PID", "Drive Sim",
                 "Turn PID", "Turn Sim")) {
@@ -75,7 +88,20 @@ class MotorAutoTuneTest {
         for (StateMachine<?> machine : machines) {
             for (Motor motor : machine.getMotors()) {
                 if (MotorAutoTune.group(motor).equals(name)) {
-                    run(MotorAutoTune.build(machine, motor));
+                    lowest = Double.POSITIVE_INFINITY;
+                    highest = Double.NEGATIVE_INFINITY;
+                    double[] range = motor.config().tuningRange();
+                    run(MotorAutoTune.build(machine, motor), () -> {
+                        if (range == null) {
+                            return;
+                        }
+                        double margin = kEdgeMargin * (range[1] - range[0]);
+                        boolean inside = motor.getPosition() > range[0] + margin && motor.getPosition() < range[1] - margin;
+                        if (inside || Double.isFinite(lowest)) {
+                            lowest = Math.min(lowest, motor.getPosition());
+                            highest = Math.max(highest, motor.getPosition());
+                        }
+                    });
                     MotorAutoTune.Result result = MotorAutoTune.lastResult(name).orElseThrow();
                     System.out.printf(Locale.ROOT, "%s: %s %s%n", name, result.ok() ? "ok" : "failed", result.summary());
                     return result;
@@ -86,11 +112,31 @@ class MotorAutoTuneTest {
     }
 
     private static void run(Command command) {
+        run(command, () -> {});
+    }
+
+    private static void run(Command command, Runnable watch) {
         CommandScheduler.getInstance().schedule(command);
         for (int loops = 0; command.isScheduled() && loops < kMaxLoops; loops++) {
             step(1);
+            watch.run();
         }
         assertTrue(!command.isScheduled(), command.getName() + " didn't finish");
+    }
+
+    private static void assertStayedInside(String name) {
+        double[] range = findConfig(name).tuningRange();
+        double margin = kEdgeMargin * (range[1] - range[0]);
+        assertTrue(Double.isFinite(lowest), name + " never reached the middle of its travel");
+        assertTrue(lowest >= range[0] + margin && highest <= range[1] - margin, String.format(Locale.ROOT,
+                "%s went from %.3f to %.3f once it was moving, closer than 10%% to its travel %.3f to %.3f", name, lowest, highest, range[0], range[1]));
+    }
+
+    private static MotorConfig findConfig(String name) {
+        List<StateMachine<?>> machines = new ArrayList<>();
+        collect(state, machines);
+        return machines.stream().flatMap(machine -> machine.getMotors().stream())
+                .filter(motor -> MotorAutoTune.group(motor).equals(name)).findFirst().orElseThrow().config();
     }
 
     private static double gain(MotorAutoTune.Result result, String gain) {
@@ -115,6 +161,7 @@ class MotorAutoTuneTest {
         assertTrue(result.ok(), result.summary());
         assertEquals(0.401, gain(result, "kG"), 0.06);
         assertTrue(gain(result, "kP") > 0.0 && gain(result, "kD") >= 0.0);
+        assertStayedInside("Hood");
     }
 
     @Test
@@ -122,6 +169,7 @@ class MotorAutoTuneTest {
         MotorAutoTune.Result result = tune("Intake Extension");
         assertTrue(result.ok(), result.summary());
         assertEquals(new IntakeConstants().extension.gains.kG, gain(result, "kCos"), 0.06);
+        assertStayedInside("Intake Extension");
     }
 
     @Test

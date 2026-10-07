@@ -153,7 +153,10 @@ Cockpit.camera("limelight-fuel", "Fuel Camera", "limelight-fuel", "http://limeli
 under `/CameraPublisher/<stream>/streams`, then tries the fallback URL.
 A camera tile only appears once its stream sends a frame, and disappears
 when the robot says the camera is offline or the dashboard loses the
-robot. The field shrinks to make room. In simulation the stream is
+robot. The field shrinks to make room: camera tiles go in a column beside
+it when the area is wide, or a row under it when it isn't, so they never
+cover the field. Tap a tile to enlarge it; the others hide and the field
+shrinks further until you tap it again. In simulation the stream is
 `<networkName>-processed`, which `CameraIOPhotonSim` leaves off to save
 CPU.
 

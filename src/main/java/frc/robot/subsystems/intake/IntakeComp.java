@@ -69,7 +69,12 @@ public class IntakeComp extends Intake {
     }
 
     protected void goTo(double extensionPosition, double rollerSpeed) {
-        extension.set(extensionPosition);
+        boolean down = extensionPosition >= intakeSetpoint.get() - constants.restTolerance;
+        if (down && extension.getPosition() >= extensionPosition - constants.restTolerance) {
+            extension.stop();
+        } else {
+            extension.set(extensionPosition);
+        }
         rollers.set(rollerSpeed);
     }
 

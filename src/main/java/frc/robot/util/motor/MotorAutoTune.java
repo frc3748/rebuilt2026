@@ -2,15 +2,18 @@ package frc.robot.util.motor;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BooleanSupplier;
 
 import org.littletonrobotics.junction.Logger;
 
+import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -29,6 +32,8 @@ public final class MotorAutoTune {
     private static final double kCurrentFraction = 0.8;
     private static final double kMinSpeedFraction = 0.02;
     private static final double kMaxResidualVolts = 0.5;
+    private static final double kMaxSpinResidualVolts = 1.0;
+    private static final double kMinMoveFraction = 0.05;
 
     private static final double kRampVoltsPerSec = 2.0;
     private static final double kMaxRampVolts = 6.0;
@@ -37,19 +42,18 @@ public final class MotorAutoTune {
     private static final double kStepSeconds = 1.0;
     private static final double kVerifySpeedFraction = 0.5;
 
-    private static final double kEdgeFraction = 0.12;
-    private static final double kQuickFraction = 0.6;
-    private static final double kSlowVoltsPerSec = 0.5;
-    private static final double kMaxSlowVolts = 4.0;
-    private static final double kSlowTraverseSeconds = 2.0;
-    private static final double kLoopSeconds = 0.02;
-    private static final double kQuickVolts = 3.0;
+    private static final double kSweepLow = 0.25;
+    private static final double kSweepHigh = 0.75;
+    private static final double[] kSweepSpeeds = {0.2, 0.45, 0.7, 1.0};
+    private static final double kSweepTraverseSeconds = 0.5;
+    private static final double kSweepAccelSeconds = 0.2;
+    private static final double kSweepSettleSeconds = 0.3;
+    private static final double kSweepTimeoutSeconds = 5.0;
+    private static final double kSnapSeconds = 1.0;
     private static final double kCenterSeconds = 1.5;
-    private static final double kPauseSeconds = 0.5;
-    private static final double kSlowTimeoutSeconds = 10.0;
-    private static final double kQuickTimeoutSeconds = 0.15;
     private static final double kOvertravelFraction = 0.02;
-    private static final double kEdgeSampleFraction = 0.03;
+    private static final double kBehindFraction = 0.1;
+    private static final double kRestingFraction = 0.05;
 
     private static final double kStartBandwidth = 6.0;
     private static final double kLoadVolts = 2.0;
@@ -80,6 +84,7 @@ public final class MotorAutoTune {
     private enum Drive {
         VOLTAGE,
         HOLD,
+        SWEEP,
         SPIN
     }
 
@@ -91,14 +96,14 @@ public final class MotorAutoTune {
     private final double[] range;
     private final List<Sample> samples = new ArrayList<>();
     private final Map<Motor, Double> resting = new HashMap<>();
+    private final Set<Motor> released = new HashSet<>();
     private final Map<String, Double> originals = new LinkedHashMap<>();
     private final Timer timer = new Timer();
     private Drive drive = Drive.VOLTAGE;
     private double command;
     private double load;
-    private double startVolts;
-    private double slowVolts;
     private double peakSpeed;
+    private double peakAmps;
     private double stalledSince = Double.NaN;
     private String failure;
     private Model model;
@@ -164,6 +169,7 @@ public final class MotorAutoTune {
         return Commands.sequence(
                 Commands.runOnce(this::start),
                 positional ? positionTests() : speedTests(),
+                Commands.runOnce(this::checkMoved),
                 Commands.runOnce(this::calculate),
                 verify(),
                 Commands.runOnce(this::report))
@@ -179,11 +185,14 @@ public final class MotorAutoTune {
         proposed = new LinkedHashMap<>();
         worstOvershoot = 0.0;
         peakSpeed = 0.0;
+        peakAmps = 0.0;
         stalledSince = Double.NaN;
         resting.clear();
+        released.clear();
         originals.clear();
         machine.getMotors().forEach(each -> resting.put(each, each.getPosition()));
-        motor.setCurrentLimit((int) Math.min(kTestCurrentLimit, config.currentLimit));
+        machine.getMotors().stream().filter(each -> each != motor && restingAtAnEnd(each)).forEach(released::add);
+        motor.setCurrentLimit((int) testCurrentLimit());
         drive(Drive.HOLD, positional ? middle() : 0.0);
         machine.setOverride(this::apply);
         Logger.recordOutput("AutoTune/Active", true);
@@ -192,7 +201,7 @@ public final class MotorAutoTune {
 
     private void apply() {
         machine.getMotors().stream().filter(each -> each != motor).forEach(each -> {
-            if (each instanceof PosMotor) {
+            if (each instanceof PosMotor && !released.contains(each)) {
                 each.holdPosition(resting.get(each));
             } else {
                 each.stop();
@@ -200,7 +209,7 @@ public final class MotorAutoTune {
         });
         switch (drive) {
             case VOLTAGE -> motor.setVoltage(command);
-            case HOLD -> {
+            case HOLD, SWEEP -> {
                 if (positional) {
                     motor.holdPosition(command);
                 } else {
@@ -241,42 +250,56 @@ public final class MotorAutoTune {
     }
 
     private Command positionTests() {
-        double span = range[1] - range[0];
-        double low = range[0] + kEdgeFraction * span;
-        double high = range[1] - kEdgeFraction * span;
-        double middle = middle();
-        return Commands.sequence(
-                step("Center", () -> drive(Drive.HOLD, middle), () -> false, kCenterSeconds),
-                Commands.runOnce(() -> startVolts = motor.getAppliedVolts()),
-                Commands.runOnce(() -> slowVolts = 0.0),
-                step("Slow up", () -> drive(Drive.VOLTAGE, startVolts + slowRamp(span)),
-                        () -> motor.getPosition() + stoppingDistance() >= high, kSlowTimeoutSeconds),
-                step("Pause", () -> drive(Drive.HOLD, high), () -> false, kPauseSeconds),
-                Commands.runOnce(() -> slowVolts = 0.0),
-                step("Slow down", () -> drive(Drive.VOLTAGE, startVolts - slowRamp(span)),
-                        () -> motor.getPosition() - stoppingDistance() <= low, kSlowTimeoutSeconds),
-                step("Pause", () -> drive(Drive.HOLD, low), () -> false, kPauseSeconds),
-                step("Quick up", () -> drive(Drive.VOLTAGE, startVolts + kQuickVolts),
-                        () -> motor.getPosition() >= low + kQuickFraction * span, kQuickTimeoutSeconds),
-                step("Pause", () -> drive(Drive.HOLD, motor.getPosition()), () -> false, kPauseSeconds),
-                step("Over", () -> drive(Drive.HOLD, high), () -> false, kCenterSeconds),
-                step("Quick down", () -> drive(Drive.VOLTAGE, startVolts - kQuickVolts),
-                        () -> motor.getPosition() <= high - kQuickFraction * span, kQuickTimeoutSeconds),
-                step("Pause", () -> drive(Drive.HOLD, motor.getPosition()), () -> false, kPauseSeconds),
-                step("Settle", () -> drive(Drive.HOLD, middle), () -> false, kCenterSeconds));
-    }
-
-    private double slowRamp(double span) {
-        if (Math.abs(motor.getVelocity()) < span / kSlowTraverseSeconds) {
-            slowVolts = Math.min(kMaxSlowVolts, slowVolts + kSlowVoltsPerSec * kLoopSeconds);
+        double low = range[0] + kSweepLow * span();
+        double high = range[0] + kSweepHigh * span();
+        double fastest = span() / kSweepTraverseSeconds;
+        if (config.maxMotion && config.gains.cruiseVel > 0.0) {
+            fastest = Math.min(fastest, config.gains.cruiseVel);
         }
-        return slowVolts;
+        List<Command> steps = new ArrayList<>();
+        steps.add(step("Center", () -> drive(Drive.HOLD, low), () -> false, kCenterSeconds));
+        for (double fraction : kSweepSpeeds) {
+            steps.add(sweep(low, high, fraction * fastest));
+            steps.add(sweep(high, low, fraction * fastest));
+        }
+        steps.add(step("Snap", () -> drive(Drive.SWEEP, high), () -> false, kSnapSeconds));
+        steps.add(step("Snap", () -> drive(Drive.SWEEP, low), () -> false, kSnapSeconds));
+        steps.add(step("Settle", () -> drive(Drive.HOLD, middle()), () -> false, kCenterSeconds));
+        return Commands.sequence(steps.toArray(Command[]::new));
     }
 
-    private double stoppingDistance() {
-        double velocity = motor.getVelocity();
-        double deceleration = config.maxMotion ? config.gains.maxAccel : 0.0;
-        return deceleration > 0.0 ? velocity * velocity / (2.0 * deceleration) : 0.0;
+    private Command sweep(double from, double to, double speed) {
+        double accel = speed / kSweepAccelSeconds;
+        if (config.maxMotion && config.gains.maxAccel > 0.0) {
+            accel = Math.min(accel, config.gains.maxAccel);
+        }
+        TrapezoidProfile profile = new TrapezoidProfile(new TrapezoidProfile.Constraints(speed, accel));
+        TrapezoidProfile.State start = new TrapezoidProfile.State(from, 0.0);
+        TrapezoidProfile.State goal = new TrapezoidProfile.State(to, 0.0);
+        return step("Sweep", () -> drive(Drive.SWEEP, profile.calculate(timer.get(), start, goal).position),
+                () -> timer.get() > profile.totalTime() + kSweepSettleSeconds, kSweepTimeoutSeconds);
+    }
+
+    private boolean restingAtAnEnd(Motor each) {
+        double[] travel = each.config() == null ? null : each.config().tuningRange();
+        if (!(each instanceof PosMotor) || travel == null) {
+            return false;
+        }
+        double margin = kRestingFraction * (travel[1] - travel[0]);
+        double at = resting.get(each);
+        return at <= travel[0] + margin || at >= travel[1] - margin;
+    }
+
+    private double span() {
+        return range == null ? 0.0 : range[1] - range[0];
+    }
+
+    private double testCurrentLimit() {
+        return positional ? Math.min(kTestCurrentLimit, config.currentLimit) : config.currentLimit;
+    }
+
+    private double referenceSpeed() {
+        return positional ? span() : config.nominalFreeSpeed();
     }
 
     private double middle() {
@@ -286,19 +309,19 @@ public final class MotorAutoTune {
     private void record() {
         double speed = Math.abs(motor.getVelocity());
         peakSpeed = Math.max(peakSpeed, speed);
-        if (drive == Drive.VOLTAGE && !nearEdge()) {
+        peakAmps = Math.max(peakAmps, Math.abs(motor.getCurrentAmps()));
+        if (drive == Drive.VOLTAGE || drive == Drive.SWEEP) {
             samples.add(new Sample(Timer.getFPGATimestamp(), motor.getAppliedVolts(), motor.getPosition(), motor.getVelocity(),
                     motor.getCurrentAmps()));
         }
-        if (positional) {
-            double span = range[1] - range[0];
-            if (motor.getPosition() < range[0] - kOvertravelFraction * span || motor.getPosition() > range[1] + kOvertravelFraction * span) {
-                failure = "It went past its travel range, so the test stopped";
-            }
+        if (positional && (motor.getPosition() < range[0] - kOvertravelFraction * span()
+                || motor.getPosition() > range[1] + kOvertravelFraction * span())) {
+            failure = "It went past its travel range, so the test stopped";
         }
-        boolean pushing = drive == Drive.VOLTAGE && Math.abs(command) > 1.0;
-        boolean stopped = speed <= kStallSpeedFraction * Math.max(peakSpeed, 1e-9);
-        boolean loaded = motor.getCurrentAmps() >= kCurrentFraction * Math.min(kTestCurrentLimit, config.currentLimit);
+        boolean pushing = drive == Drive.VOLTAGE ? Math.abs(command) > 1.0
+                : drive == Drive.SWEEP && Math.abs(motor.getPosition() - command) > kBehindFraction * span();
+        boolean stopped = speed <= kStallSpeedFraction * Math.max(peakSpeed, referenceSpeed());
+        boolean loaded = Math.abs(motor.getCurrentAmps()) >= kCurrentFraction * testCurrentLimit();
         if (pushing && stopped && loaded) {
             stalledSince = Double.isNaN(stalledSince) ? Timer.getFPGATimestamp() : stalledSince;
             if (Timer.getFPGATimestamp() - stalledSince > kStallSeconds) {
@@ -309,21 +332,21 @@ public final class MotorAutoTune {
         }
     }
 
-    private boolean nearEdge() {
-        if (!positional) {
-            return false;
+    private void checkMoved() {
+        if (peakSpeed < kMinMoveFraction * referenceSpeed()) {
+            failure = String.format(Locale.ROOT, "It barely moved while drawing up to %.0f A. Check it turns freely by hand and nothing is rubbing or jammed",
+                    peakAmps);
         }
-        double edge = kEdgeSampleFraction * (range[1] - range[0]);
-        return motor.getPosition() <= range[0] + edge || motor.getPosition() >= range[1] - edge;
     }
 
     private void calculate() {
         Gravity gravity = !positional ? Gravity.NONE : config.gains.gravityIsCosine ? Gravity.COSINE : Gravity.CONSTANT;
-        double maxAmps = kCurrentFraction * Math.min(kTestCurrentLimit, config.currentLimit);
+        double maxAmps = kCurrentFraction * testCurrentLimit();
         Optional<Model> fit = AutoTune.fit(samples, gravity, config.gains.unitsPerRotation, kMinSpeedFraction * peakSpeed, maxAmps);
-        if (fit.isEmpty() || fit.get().residual() > kMaxResidualVolts) {
-            failure = fit.isEmpty() ? "Not enough clean movement to measure" : String.format(Locale.ROOT,
-                    "The measurements were too noisy (off by %.2f V)", fit.get().residual());
+        if (fit.isEmpty() || fit.get().residual() > (positional ? kMaxResidualVolts : kMaxSpinResidualVolts)) {
+            failure = fit.isEmpty() ? "Not enough clean movement both ways to measure. Check it moves freely in both directions" : String.format(Locale.ROOT,
+                    "Its speed didn't follow the voltage closely enough to trust (off by %.2f V on average). Usually something is rubbing or binding: turn it by hand and feel for tight spots",
+                    fit.get().residual());
             return;
         }
         model = fit.get();
