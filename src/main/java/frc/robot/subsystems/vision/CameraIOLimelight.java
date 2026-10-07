@@ -10,6 +10,7 @@ import edu.wpi.first.networktables.DoubleSubscriber;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.TimestampedDouble;
+import edu.wpi.first.wpilibj.DriverStation;
 import frc.robot.game.FieldConstants;
 import frc.robot.util.LimelightHelpers;
 import frc.robot.util.LimelightHelpers.PoseEstimate;
@@ -18,6 +19,9 @@ import frc.robot.util.LimelightHelpers.RawDetection;
 public class CameraIOLimelight implements CameraIO {
     private static final String kColorPipeline = "pipe_color";
     private static final int kSettingsLoops = 50;
+    private static final int kImuSeedMode = 1;
+    private static final int kImuAssistedMode = 4;
+    private static final double kImuAssistAlpha = 0.001;
     private static final ObjectObservation[] kNoObjects = new ObjectObservation[0];
     private static final int[] kNoTags = new int[0];
 
@@ -25,6 +29,7 @@ public class CameraIOLimelight implements CameraIO {
     private final boolean hasImu;
     private final boolean detects;
     private int loops;
+    private int imuMode = -1;
     private final NetworkTable table;
     private final DoubleSubscriber heartbeat;
     private double lastFrame = Double.NaN;
@@ -49,12 +54,17 @@ public class CameraIOLimelight implements CameraIO {
 
     @Override
     public void updateInputs(CameraInputs inputs) {
-        if (loops++ % kSettingsLoops == 0) {
-            if (hasImu) {
-                LimelightHelpers.SetIMUMode(name, 1);
-                LimelightHelpers.SetIMUAssistAlpha(name, 0.01);
-            }
+        boolean refresh = loops++ % kSettingsLoops == 0;
+        if (refresh) {
             LimelightHelpers.SetFiducialIDFiltersOverride(name, FieldConstants.TAG_IDS);
+        }
+        if (hasImu) {
+            int mode = DriverStation.isEnabled() ? kImuAssistedMode : kImuSeedMode;
+            if (refresh || mode != imuMode) {
+                LimelightHelpers.SetIMUMode(name, mode);
+                LimelightHelpers.SetIMUAssistAlpha(name, kImuAssistAlpha);
+                imuMode = mode;
+            }
         }
 
         inputs.connected = table.containsKey("tv");

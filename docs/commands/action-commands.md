@@ -83,6 +83,8 @@ shooter buttons only when it has a shooter:
 | Back | Shooter | Reset the shot speed multiplier. |
 | Start | Any | `Superstructure.clearOverrides()`. |
 
+![Operator controller]({{ '/assets/controls/operator.png' | relative_url }})
+
 The hood stays down unless the shooter is `SHOOTING` or `PASSING`.
 Tracking keeps the flywheel spinning so a shot starts fast, but holds the
 hood at its lower limit, so nothing has to watch for the trench.

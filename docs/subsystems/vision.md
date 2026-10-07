@@ -154,12 +154,23 @@ only the `kSimMaxObjects` balls nearest the robot, within
 | --- | --- | --- |
 | `LIMELIGHT_3` | `CameraIOLimelight` | MegaTag 1 + 2, or neural and color detection. |
 | `LIMELIGHT_3G` | `CameraIOLimelight` | MegaTag 1 + 2. |
-| `LIMELIGHT_4` | `CameraIOLimelight` | Also switches on the camera's internal IMU (`SetIMUMode(1)`). Only LL4 does this. |
-
-The IMU mode, IMU assist and the tag ID filter are sent once a second
-instead of every loop; that's often enough to come back after a camera
-reboots. Cameras that can't detect objects skip the detection reads.
+| `LIMELIGHT_4` | `CameraIOLimelight` | Also uses the camera's internal IMU for MegaTag 2. Only LL4 has one. |
 | `PHOTON` | `CameraIOPhoton` | PhotonVision. Intended for object detection this year. |
+
+An LL4 runs IMU mode 1 while disabled: MegaTag 2 uses the heading the
+robot sends, and the internal IMU is set to match it, so it starts from
+the heading MegaTag 1 confirmed. Once enabled it switches to mode 4:
+MegaTag 2 uses the internal IMU, read at the same instant as the frame,
+while the robot's heading slowly pulls it back (assist alpha 0.001,
+Limelight's default). The heading the robot sends arrives a loop or two
+late, which puts MegaTag 2's position off by tens of centimeters while
+turning; the internal IMU doesn't have that lag. Short turns follow the
+camera's IMU and long-term drift follows the robot's gyro.
+
+The tag ID filter and IMU assist are sent once a second instead of every
+loop, and the IMU mode whenever it changes; that's often enough to come
+back after a camera reboots. Cameras that can't detect objects skip the
+detection reads.
 
 In simulation every camera uses `CameraIOPhotonSim`, whatever its type.
 

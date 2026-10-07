@@ -105,6 +105,8 @@ in a subclass. The driver only drives:
 | Left bumper or left trigger (hold) | Turbo: full speed instead of the limit. Turning speed isn't limited either way. |
 | D-pad down | Reset heading to zero. Only bound when not in a match. |
 
+![Driver controller]({{ '/assets/controls/driver.png' | relative_url }})
+
 The operator runs the mechanisms. Intake buttons are bound only if the
 robot has an intake, shooter buttons only if it has a shooter; both are
 listed on [Action Commands]({{ '/commands/action-commands/' | relative_url }}#where-these-get-bound).
