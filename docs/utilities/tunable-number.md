@@ -151,7 +151,7 @@ printed. Running it twice changes nothing the second time.
 ## `TunableNumber`
 
 ```java
-new TunableNumber("Trench/Hood Down Radius", 0.8);              // literal: records this line
+new TunableNumber("FixedPos/RPS", 9.8);                          // literal: records this line
 TunableNumber.field("Flywheel/Speed Tolerance", constants, "speedTolerance");  // reads the field, records the class chain
 new TunableNumber(key, value, source);                          // explicit source (shot table, camera factor)
 

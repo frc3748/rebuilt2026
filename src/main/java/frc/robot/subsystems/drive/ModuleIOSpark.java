@@ -42,6 +42,7 @@ import frc.robot.util.motor.MotorConfig.Controller;
 public class ModuleIOSpark implements ModuleIO {
     private static final double kTurnMin = 0;
     private static final double kTurnMax = 2 * Math.PI;
+    private static final double kSeedTimeoutSeconds = 0.25;
 
     private final DriveConfig config;
     private final Rotation2d zeroRotation;
@@ -51,6 +52,8 @@ public class ModuleIOSpark implements ModuleIO {
     private final DoubleSupplier turnPosition;
     private final DoubleSupplier turnVelocity;
     private final CANcoder canCoder;
+    private RelativeEncoder seededEncoder;
+    private boolean seeded;
     private final SparkClosedLoopController driveController;
     private final SparkClosedLoopController turnController;
     private final TunableNumber driveKs;
@@ -148,7 +151,10 @@ public class ModuleIOSpark implements ModuleIO {
             turnSpark.configure(turnConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
             RelativeEncoder relative = turnSpark.getEncoder();
-            tryUntilOk(turnSpark, 5, () -> relative.setPosition(canCoder.getAbsolutePosition().getValue().in(Radians)));
+            seededEncoder = relative;
+            var absolute = canCoder.getAbsolutePosition().waitForUpdate(kSeedTimeoutSeconds);
+            seeded = absolute.getStatus().isOK()
+                    && tryUntilOk(turnSpark, 5, () -> relative.setPosition(absolute.getValue().in(Radians)));
             turnPosition = relative::getPosition;
             turnVelocity = relative::getVelocity;
         } else {
@@ -227,6 +233,10 @@ public class ModuleIOSpark implements ModuleIO {
             var absolute = canCoder.getAbsolutePosition();
             inputs.encoderConnected = encoderConnectedDebounce.calculate(absolute.getStatus().isOK());
             inputs.canPosition = new Rotation2d(absolute.getValue().in(Radians));
+            if (!seeded && absolute.getStatus().isOK()) {
+                double radians = absolute.getValue().in(Radians);
+                seeded = tryUntilOk(turnSpark, 5, () -> seededEncoder.setPosition(radians));
+            }
         } else {
             inputs.encoderConnected = inputs.turnConnected;
         }

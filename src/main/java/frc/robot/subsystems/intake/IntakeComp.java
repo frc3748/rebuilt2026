@@ -6,7 +6,6 @@ import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
 import frc.robot.RobotState;
-import frc.robot.game.TrenchZone;
 import frc.robot.util.TunableNumber;
 import frc.robot.util.Visuals;
 import frc.robot.util.motor.PosMotor;
@@ -54,13 +53,6 @@ public class IntakeComp extends Intake {
                 extension.stop();
                 rollers.set(0);
             }
-        }
-    }
-
-    @Override
-    protected void applyConstraints() {
-        if (TrenchZone.intakeLowerRequired(robotState)) {
-            extension.set(intakeSetpoint.get());
         }
     }
 

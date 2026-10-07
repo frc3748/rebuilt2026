@@ -65,26 +65,27 @@ wall and the hub; otherwise the shot becomes a pass to
 ## Where these get bound
 
 [`Controls.bind(state)`]({{ '/architecture/robot-state/' | relative_url }}#controls)
-binds every button. The drive bindings, including **D-pad up** (hold)
-for `turnToHub`, are bound on every robot. Intake buttons are bound only
-when the robot has an intake, shooter buttons only when it has a
-shooter:
+binds every button. The driver only drives; the operator runs the
+mechanisms. Intake buttons are bound only when the robot has an intake,
+shooter buttons only when it has a shooter:
 
-| Driver input | Bound with | Command |
+| Operator input | Bound with | Command |
 | --- | --- | --- |
-| Right trigger | Shooter | `drive.stopWithX()`, then `shootOrPassBasedOnPos`; release runs `trackBasedOnPos`. |
-| Left trigger | Intake | Intake `INTAKE` while held, `IDLE` on release. |
-| Left bumper | Intake | Intake `STOW`. |
-| A | Intake, shooter | Intake `OUTAKE` (release: `IDLE`) and shooter `OUTTAKE` (release: `trackBasedOnPos`), each bound with its mechanism. |
-| X (hold) | Shooter | `goToFixedPosAndShoot`; release calls `shooter.releaseShot()`. |
-| B (hold) | Intake | `shakeIntake`. |
+| Left bumper | Intake | Intake down: `IDLE` (deployed, rollers off). |
+| Left trigger (hold) | Intake | Intake `INTAKE` (down and spinning); `IDLE` on release. |
+| Right bumper | Intake | Intake up: `STOW`. |
+| Right trigger (hold) | Shooter | `shootOrPassBasedOnPos`; release runs `trackBasedOnPos`. |
+| B (hold) | Intake | `shakeIntake`; `IDLE` on release. |
+| A (hold) | Intake, shooter | Eject: intake `OUTAKE` and shooter `OUTTAKE`; release goes back to `IDLE` and `trackBasedOnPos`. |
+| Y (hold) | Shooter | `fixedShot`: the hub-front shot from `FixedPos/RPS` and `FixedPos/Hood`, no vision needed. |
+| X (hold) | Shooter | Unjam: `reverseFeed` while held, `releaseFeed` on release. |
+| D-pad up / down | Shooter | Shot speed multiplier +2% / −2%. |
+| Back | Shooter | Reset the shot speed multiplier. |
+| Start | Any | `Superstructure.clearOverrides()`. |
 
-The operator controller holds overrides. Hold **X** (the shooter's
-feed), **B** (intake) or **A** (the shooter's shot) and press a trigger
-or bumper to override that group, or the right stick to clear it. The
-left stick calls `Superstructure.clearOverrides()`. Operator buttons are
-bound on every robot and go through `intakeAction` and `shooterAction`,
-so they do nothing without the mechanism.
+The hood stays down unless the shooter is `SHOOTING` or `PASSING`.
+Tracking keeps the flywheel spinning so a shot starts fast, but holds the
+hood at its lower limit, so nothing has to watch for the trench.
 
 ## Adding a new action
 

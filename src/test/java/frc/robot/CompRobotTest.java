@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.littletonrobotics.junction.LogTable;
 
@@ -195,6 +196,7 @@ class CompRobotTest {
     }
 
     @Test
+    @Disabled("The fuel camera is off COMP's camera list for now")
     void simulatedFuelCameraSeesTheFuel() throws InterruptedException {
         state.getDrive().setPose(new Pose2d(6.5, 4.03, Rotation2d.kZero));
         for (int i = 0; i < 40; i++) {

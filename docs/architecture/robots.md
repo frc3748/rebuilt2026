@@ -245,7 +245,7 @@ time-of-flight maps. Its constructor fills the maps with `addShot`; a
 robot with its own table calls `clearShots()` and adds its shots.
 `RobotState` creates it once, along with a `ShotCalculator` that uses
 it, and exposes them as `getShooterConstants()` and
-`getShotCalculator()`. Aiming in `Drive`, `TrenchZone`,
+`getShotCalculator()`. Aiming in `Drive`, the dashboard's hub distance,
 `ShotVisualizer`, the fuel sim and `Hood`'s pose read it from there.
 `CompRobot.shooterCamera()` calls `shooter()` itself, so the camera
 follows an override too.

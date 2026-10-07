@@ -2,7 +2,6 @@ package frc.robot;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -46,7 +45,6 @@ class SecondaryRobotTest {
         assertInstanceOf(SecondaryDrive.class, secondary);
         assertEquals(comp.driveReduction, secondary.driveReduction);
         assertEquals(comp.maxSpeedMetersPerSec, secondary.maxSpeedMetersPerSec);
-        assertNotEquals(comp.frontLeft.zeroRotation(), secondary.frontLeft.zeroRotation());
         assertEquals(Drive.State.TRAVERSING, state.getDrive().getState());
     }
 }

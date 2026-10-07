@@ -11,7 +11,6 @@ public class HoodConstants {
     public double radiansPerRotation = 2.0 * Math.PI / 3.0 / (367.0 / 32.0);
     public double minLimit = Units.degreesToRadians(25.0);
     public double maxLimit = Units.degreesToRadians(50.0);
-    public double maxSetpointUnderTrench = Units.degreesToRadians(25.0);
     public double readyTolerance = Units.degreesToRadians(1.5);
 
     public MotorConfig motor = new MotorConfig("Hood", 54, Controller.SPARK_MAX)

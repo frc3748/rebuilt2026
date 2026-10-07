@@ -76,6 +76,7 @@ public class DriveConfig {
 
     public double maxSpeedMetersPerSec;
     public double slowSpeedMetersPerSec = 0.5;
+    public double teleopSpeedLimitMetersPerSec = 3.0;
     public boolean aimInSlowMode = true;
     public double maxLinearAcceleration = 5.0;
     public double teleopAcceleration = 6.0;

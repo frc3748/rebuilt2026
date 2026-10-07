@@ -93,25 +93,28 @@ owns the driver (port 0) and operator (port 1) `CommandXboxController`s.
 Its constructor calls `DriverStation.silenceJoystickConnectionWarning(true)`.
 `RobotState` gets it from `definition.createControls()` and calls
 `controls.bind(this)` once to bind every button. `bind` calls the
-protected `bindDrive`, `bindIntake`, `bindShooter` and `bindOperator`,
+protected `bindDriver`, `bindIntake`, `bindShooter` and `bindOperator`,
 so a robot can
 [change one binding]({{ '/architecture/robots/' | relative_url }}#adding-a-robot)
-in a subclass. The drive bindings are bound on every robot:
+in a subclass. The driver only drives:
 
 | Driver input | Action |
 | --- | --- |
-| Left stick / right stick X | Translate / rotate (the drive's default command). |
-| Right bumper (hold) | Drive `SLOW`. |
-| D-pad left | Drive `TRAVERSING_AT_ANGLE` (auto-aim heading). |
-| D-pad right | Drive `TRAVERSING`. |
-| D-pad up (hold) | `ActionCommands.turnToHub`. |
+| Left stick / right stick X | Translate / rotate (the drive's default command). Translation tops out at `Drive/Speed Limit` (3 m/s). |
+| Right bumper or right trigger (hold) | Align to shoot: drive `TRAVERSING_AT_ANGLE`, which turns toward the hub or the pass target while you keep driving. |
+| Left bumper or left trigger (hold) | Turbo: full speed instead of the limit. Turning speed isn't limited either way. |
 | D-pad down | Reset heading to zero. Only bound when not in a match. |
 
-Intake buttons are bound only if the robot has an intake, and shooter
-buttons only if it has a shooter. The operator's override chords are
-always bound and call `Superstructure.intakeAction` and
-`shooterAction`, which do nothing without that mechanism. Both are
+The operator runs the mechanisms. Intake buttons are bound only if the
+robot has an intake, shooter buttons only if it has a shooter; both are
 listed on [Action Commands]({{ '/commands/action-commands/' | relative_url }}#where-these-get-bound).
+
+Every binding is registered with `Cockpit.control(controller, inputs,
+label)`, logged as `Cockpit/Controls`. The dashboard's Teleop tab shows
+them as a cheat sheet and lights up whatever is pressed: yellow for the
+driver, cyan for the operator. The top bar has a Driver and an Operator
+pill that light up while anything on that controller is pressed, so
+it's obvious which controller is which.
 
 `controls.rumble(seconds)` rumbles both controllers. `RobotState` uses
 it for half a second whenever the hub turns on or off.

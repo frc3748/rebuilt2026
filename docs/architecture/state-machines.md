@@ -55,7 +55,7 @@ Every `StateMachine` runs the same loop each robot cycle, in this order:
 1. **Read.** Every device registered with `addHardware(...)` reads its sensors and logs its inputs.
 2. **Update.** `update()` runs for anything that is not motor output: telemetry, stall detection, deciding to request another state.
 3. **Apply the state.** If an override is set it runs; otherwise `applyState(getState())` runs. This is the only place a subsystem commands its motors.
-4. **Apply constraints.** `applyConstraints()` runs last and wins over both the state and any override. Safety rules such as "lower the intake under the trench" live here.
+4. **Apply constraints.** `applyConstraints()` runs last and wins over both the state and any override. Safety rules that must win over every state and override live here.
 5. **Write.** Every registered device sends its final command to the hardware once.
 
 Because motors only send in step 5, a constraint can replace a state's command without two conflicting CAN writes in the same loop.
@@ -97,13 +97,6 @@ public class IntakeComp extends Intake {
             case IDLE -> goTo(intakeSetpoint.get(), 0);
             case INTAKE -> goTo(intakeSetpoint.get(), intakeRollerSpeed.get());
             ...
-        }
-    }
-
-    @Override
-    protected void applyConstraints() {
-        if (TrenchZone.intakeLowerRequired(robotState)) {
-            extension.set(intakeSetpoint.get());
         }
     }
 }

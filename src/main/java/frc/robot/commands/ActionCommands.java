@@ -87,6 +87,18 @@ public final class ActionCommands {
         }, requirements);
     }
 
+    public static Command fixedShot(RobotState state) {
+        return state.getSuperstructure().shooterCommand(shooter -> Commands.startEnd(
+                () -> {
+                    shooter.holdShot(kFixedShotSpeed.get(), kFixedShotHood.get(), kFixedShotHoodFF.get());
+                    shooter.requestTransition(Shooter.State.SHOOTING);
+                },
+                () -> {
+                    shooter.releaseShot();
+                    shooter.requestTransition(state.shouldShootHub() ? Shooter.State.HUB_TRACKING : Shooter.State.PASS_TRACKING);
+                }));
+    }
+
     public static Command toggleFixedShot(RobotState state) {
         return Commands.runOnce(() -> state.getSuperstructure().getShooter().ifPresent(shooter -> {
             if (shooter.isHoldingShot()) {

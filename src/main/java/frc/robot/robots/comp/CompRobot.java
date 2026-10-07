@@ -35,7 +35,7 @@ public class CompRobot extends RobotDefinition {
 
     @Override
     public CameraConfig[] cameras() {
-        return new CameraConfig[] { chassisCamera(), shooterCamera(), fuelCamera() };
+        return new CameraConfig[] { chassisCamera(), shooterCamera() /* , fuelCamera() */ };
     }
 
     protected CameraConfig chassisCamera() {

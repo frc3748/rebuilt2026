@@ -8,7 +8,6 @@ import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
 import frc.robot.RobotState;
 import frc.robot.game.ShooterSetpoint;
-import frc.robot.game.TrenchZone;
 import frc.robot.util.TunableNumber;
 import frc.robot.util.Visuals;
 import frc.robot.util.motor.PosMotor;
@@ -28,7 +27,6 @@ public class Hood extends StateMachine<Hood.State> {
     private final PosMotor hood;
     private final TunableNumber customSetpoint;
     private final TunableNumber readyTolerance;
-    private final TunableNumber maxUnderTrench;
 
     public Hood(RobotState robotState, HoodConstants constants) {
         super("Hood", State.UNDETERMINED, State.class);
@@ -40,7 +38,6 @@ public class Hood extends StateMachine<Hood.State> {
                 .startingPosition(constants.minLimit));
         customSetpoint = TunableNumber.field("Hood/Custom Setpoint", constants, "customSetpoint").degrees();
         readyTolerance = TunableNumber.field("Hood/Ready Tolerance", constants, "readyTolerance").degrees();
-        maxUnderTrench = TunableNumber.field("Hood/Max Under Trench", constants, "maxSetpointUnderTrench").degrees();
         addHardware(hood);
         allowAllTransitions();
 
@@ -53,7 +50,8 @@ public class Hood extends StateMachine<Hood.State> {
             case HUB_TRACKING -> aim(robotState.getCurrentHubSetpoint());
             case PASS_TRACKING -> aim(robotState.getCurrentPassSetpoint());
             case TUNING -> setPos(customSetpoint.get(), 0);
-            case IDLE, UNDETERMINED -> hood.stop();
+            case IDLE -> setPos(constants.minLimit, 0);
+            case UNDETERMINED -> hood.stop();
         }
     }
 
@@ -88,8 +86,7 @@ public class Hood extends StateMachine<Hood.State> {
     }
 
     public void setPos(double position, double feedforward) {
-        double max = TrenchZone.hoodLowerRequired(robotState) ? Math.min(maxUnderTrench.get(), constants.maxLimit) : constants.maxLimit;
-        hood.set(MathUtil.clamp(position, constants.minLimit, max), feedforward);
+        hood.set(MathUtil.clamp(position, constants.minLimit, constants.maxLimit), feedforward);
     }
 
     @Override

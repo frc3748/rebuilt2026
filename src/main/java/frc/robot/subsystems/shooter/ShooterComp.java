@@ -54,9 +54,9 @@ public class ShooterComp extends Shooter {
         registerStateCommand(State.IDLE,
                 () -> request(Flywheel.State.IDLE, Hood.State.IDLE, Hopper.State.IDLE, Kicker.State.IDLE));
         registerStateCommand(State.HUB_TRACKING,
-                () -> request(Flywheel.State.TRACKING, Hood.State.HUB_TRACKING, Hopper.State.IDLE, Kicker.State.IDLE));
+                () -> request(Flywheel.State.TRACKING, Hood.State.IDLE, Hopper.State.IDLE, Kicker.State.IDLE));
         registerStateCommand(State.PASS_TRACKING,
-                () -> request(Flywheel.State.TRACKING, Hood.State.PASS_TRACKING, Hopper.State.IDLE, Kicker.State.IDLE));
+                () -> request(Flywheel.State.TRACKING, Hood.State.IDLE, Hopper.State.IDLE, Kicker.State.IDLE));
         registerStateCommand(State.SHOOTING,
                 () -> request(Flywheel.State.SHOOT, Hood.State.HUB_TRACKING, Hopper.State.SHOOT, Kicker.State.SHOOT));
         registerStateCommand(State.PASSING,
@@ -115,6 +115,11 @@ public class ShooterComp extends Shooter {
     @Override
     public void resetMultiplier() {
         flywheel.setMultiplier(1.0);
+    }
+
+    @Override
+    public void adjustMultiplier(double step) {
+        flywheel.setMultiplier(flywheel.getMultiplier() + step);
     }
 
     @Override

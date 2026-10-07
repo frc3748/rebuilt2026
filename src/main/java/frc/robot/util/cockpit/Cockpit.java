@@ -73,6 +73,8 @@ public final class Cockpit {
 
     private record Assist(String id, String label, BooleanSupplier active) {}
 
+    private record Control(String controller, String inputs, String label) {}
+
     private record Camera(String id, String label, String stream, String fallbackUrl, BooleanSupplier connected) {}
 
     private record Gauge(String id, String label, String unit, DoubleSupplier value, DoubleSupplier goal, BooleanSupplier ok,
@@ -84,6 +86,8 @@ public final class Cockpit {
     private static final List<Camera> cameras = new ArrayList<>();
     private static final List<MarkerEntry> markers = new ArrayList<>();
     private static final List<Assist> assists = new ArrayList<>();
+    private static final List<Control> controls = new ArrayList<>();
+    private static boolean controlsDirty;
     private static final int kMaxToasts = 30;
     private static final Deque<String> toasts = new ArrayDeque<>();
     private static final Map<String, Command> running = new HashMap<>();
@@ -166,6 +170,12 @@ public final class Cockpit {
         dirty = true;
     }
 
+    public static void control(String controller, String inputs, String label) {
+        controls.removeIf(control -> control.controller().equals(controller) && control.inputs().equals(inputs));
+        controls.add(new Control(controller, inputs, label));
+        controlsDirty = true;
+    }
+
     public static void assist(String id, String label, BooleanSupplier active) {
         assists.removeIf(assist -> assist.id().equals(id));
         assists.add(new Assist(id, label, active));
@@ -204,6 +214,12 @@ public final class Cockpit {
         if (toastsDirty) {
             toastsDirty = false;
             Logger.recordOutput("Cockpit/Toasts", toasts.toArray(String[]::new));
+        }
+        if (controlsDirty) {
+            controlsDirty = false;
+            Logger.recordOutput("Cockpit/Controls", controls.stream()
+                    .map(control -> String.join("\t", control.controller(), control.inputs(), control.label()))
+                    .toArray(String[]::new));
         }
         if (!dirty && loop++ % kSlowLoops != 0) {
             return;

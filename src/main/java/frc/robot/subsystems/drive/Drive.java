@@ -17,6 +17,7 @@ import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.hal.HAL;
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -48,7 +49,6 @@ import frc.robot.commands.FollowPath;
 import frc.robot.util.RobotTime;
 import frc.robot.util.TunableNumber;
 import frc.robot.game.ShotCalculator;
-import frc.robot.game.TrenchZone;
 import frc.robot.util.state.StateMachine;
 import frc.robot.util.tuning.Source;
 
@@ -82,6 +82,8 @@ public class Drive extends StateMachine<Drive.State> {
 
   private final DriveConfig config;
   private final TunableNumber slowSpeed;
+  private final TunableNumber speedLimit;
+  private boolean turbo;
   private final SwerveDriveKinematics kinematics;
   private Rotation2d rawGyroRotation = Rotation2d.kZero;
   private ChassisSpeeds desiredSpeeds = new ChassisSpeeds();
@@ -111,6 +113,7 @@ public class Drive extends StateMachine<Drive.State> {
     gyroDisconnectedAlert = new Alert(Module.kAlertGroup, gyroName() + " disconnected, heading comes from the wheels", AlertType.kError);
     config.wheelRadiusMeters = TunableNumber.field("Drive/Wheel Radius", config, "wheelRadiusMeters").restartToApply().get();
     slowSpeed = TunableNumber.field("Drive/Slow Speed", config, "slowSpeedMetersPerSec");
+    speedLimit = TunableNumber.field("Drive/Speed Limit", config, "teleopSpeedLimitMetersPerSec");
     this.robotState = robotState;
     kinematics = new SwerveDriveKinematics(config.moduleTranslations());
     slip = new SlipCorrector(config.moduleTranslations());
@@ -221,12 +224,6 @@ public class Drive extends StateMachine<Drive.State> {
   }
 
    public Rotation2d getAimRotationForHub() {
-    if (TrenchZone.driveRotationOverrideRequired(robotState) && getState() == State.SLOW) {
-      Pose2d currentPose = robotState.getLatestFieldToRobot().getValue();
-      double degrees = currentPose.getRotation().getDegrees();
-      return (Math.abs(degrees) <= 90) ? Rotation2d.fromDegrees(0) : Rotation2d.fromDegrees(180);
-    }
-
     Pose2d currentPose = getPose().plus(
       new Transform2d(robotState.getShooterConstants().shooterToRobotCenter.getTranslation().toTranslation2d(), Rotation2d.kZero)
     );
@@ -328,6 +325,7 @@ public class Drive extends StateMachine<Drive.State> {
     Logger.recordOutput("Drive/Collision/Tilted", collision.isTilted());
     Logger.recordOutput("Drive/Collision/TrustingVision", collision.isUpset());
     Logger.recordOutput("Drive/Collision/Events", collision.events());
+    Logger.recordOutput("Drive/Turbo", turbo);
 
     gyroDisconnectedAlert.set(!gyroInputs.connected && Constants.kMode != Mode.SIM);
   }
@@ -564,11 +562,31 @@ public class Drive extends StateMachine<Drive.State> {
   }
 
   public double getMaxLinearSpeedMetersPerSec() {
-    return getState() == State.SLOW ? slowSpeed.get() : config.maxSpeedMetersPerSec;
+    if (getState() == State.SLOW) {
+      return slowSpeed.get();
+    }
+    return turbo ? config.maxSpeedMetersPerSec : Math.min(speedLimit.get(), config.maxSpeedMetersPerSec);
   }
 
   public double getMaxAngularSpeedRadPerSec() {
-    return getMaxLinearSpeedMetersPerSec() / config.driveBaseRadius();
+    return (getState() == State.SLOW ? slowSpeed.get() : config.maxSpeedMetersPerSec) / config.driveBaseRadius();
+  }
+
+  public Command turbo() {
+    return Commands.startEnd(() -> turbo = true, () -> turbo = false);
+  }
+
+  public boolean isTurbo() {
+    return turbo;
+  }
+
+  public double[] measuredOffsets() {
+    double[] offsets = new double[modules.length];
+    for (int index = 0; index < modules.length; index++) {
+      double offset = config.module(index).zeroRotation().getRotations() - modules[index].getCanPosition().getRotations();
+      offsets[index] = MathUtil.inputModulus(offset, -0.5, 0.5);
+    }
+    return offsets;
   }
 
   public DriveConfig getConfig() {

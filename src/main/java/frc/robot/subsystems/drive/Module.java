@@ -142,6 +142,10 @@ public class Module {
     return inputs.driveAppliedVolts;
   }
 
+  public Rotation2d getCanPosition() {
+    return inputs.canPosition;
+  }
+
   public Rotation2d getAngle() {
     return inputs.turnPosition;
   }

@@ -7,7 +7,10 @@ for setting in vm.overcommit_memory=1 vm.vfs_cache_pressure=1000 vm.swappiness=1
 done
 sysctl -p >/dev/null
 sync
-free -m
+echo "vm.overcommit_memory is now $(cat /proc/sys/vm/overcommit_memory) (want 1)"
+echo "Other places that set it:"
+grep -rn "overcommit" /etc/sysctl.d /etc/init.d /etc/rc*.d 2>/dev/null | grep -v "^/etc/sysctl.conf" || echo "  none"
+grep -E "CommitLimit|Committed_AS|MemAvailable" /proc/meminfo
 '''
 
 def rioMemoryScript = '''
@@ -19,10 +22,19 @@ for p in /proc/[0-9]*; do
   [ -n "$r" ] && echo "$((r / 1024)) $(cat "$p/comm" 2>/dev/null)"
 done | sort -rn | head -12
 echo
-grep -E "MemAvailable|MemFree|^Cached|Committed_AS" /proc/meminfo
+grep -E "MemAvailable|MemFree|^Cached|CommitLimit|Committed_AS" /proc/meminfo
 echo
 echo "Robot program killed for memory since boot:"
 dmesg 2>/dev/null | grep -i -E "out of memory|killed process|oom-kill" | tail -5 || true
+echo
+echo "vm.overcommit_memory = $(cat /proc/sys/vm/overcommit_memory) (1 means setupRio has been run)"
+echo
+echo "Java crash reports in /home/lvuser:"
+for f in /home/lvuser/hs_err_pid*.log; do
+  [ -f "$f" ] || continue
+  echo "$(date -r "$f" 2>/dev/null) $f"
+  grep -m4 -E "insufficient memory|Native memory allocation|Out of Memory|SIGSEGV|SIGBUS|SIGILL|Problematic frame" "$f"
+done
 '''
 
 def findRio = { int port ->

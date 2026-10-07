@@ -94,9 +94,17 @@ comes from PathPlanner's per-module feedforwards, and in teleop it's 0.
 `ModuleIOSpark` builds a Spark Flex or Spark MAX for the drive motor
 from `driveController`, and throws if it is `TALON_FX` (Kraken swerve
 needs its own `ModuleIO`). For turning, `CANCODER` writes `zeroRotation` as
-the CANcoder's magnet offset and seeds the Spark's relative encoder
-from it; `SPARK_ABSOLUTE_ENCODER` reads the Spark's absolute encoder and
-subtracts `zeroRotation` in code. Drive and turn PID are tunable live as
+the CANcoder's magnet offset at every boot (so an offset set in Phoenix
+Tuner gets overwritten; it has to be in the code) and seeds the Spark's
+relative encoder from a fresh CANcoder reading, retrying until it gets
+one; `SPARK_ABSOLUTE_ENCODER` reads the Spark's absolute encoder and
+subtracts `zeroRotation` in code.
+
+To find the offsets, point every wheel straight forward with the bevel
+gears facing the same way, then press **Read swerve offsets** on the
+dashboard's Test tab. It toasts the four values in rotations (and logs
+them as `Drive/MeasuredOffsets`); put them in the robot's drive file as
+`Rotation2d.fromRotations(...)` and deploy. Drive and turn PID are tunable live as
 `Drive PID/…` and `Turn PID/…` through
 [`SparkUtil.tune`]({{ '/utilities/tunable-number/' | relative_url }}#motor-gains).
 
@@ -176,7 +184,9 @@ Before the speeds reach the modules:
 - **The swerve setpoint generator** (PathPlanner's, from 254) is off by default (`useSetpointGenerator`). It turns every `runVelocity(ChassisSpeeds)` into module states the robot can reach, limiting each module's acceleration to its motor, current limit and grip, and turning modules no faster than the turn motor can. Driving the simulator with it on, direction changes lagged: stick circles were 43° behind instead of 6°. At the current limits the wheels can't slip anyway (the slip-current test finds about 79 A on COMP against a 45 A limit), so it isn't worth the lag. Turn it on for a robot whose current limit is near its slip current. Path following never uses it, and `stop()` is always immediate.
 - **Steering feedforward:** each module works out how fast its target angle is moving and adds `steerFeedforward × steerKv()` volts per rad/s on top of the turn PID, so modules turn with the motion instead of lagging behind it. A jump faster than the turn motor can follow, like a 180° flip, gets none. Tunable as `Turn PID/Steer FF`.
 
-The shared bindings (slow mode, aim, heading reset) are listed under
+Teleop translation tops out at `Drive/Speed Limit` (3 m/s) unless the
+driver holds turbo; turning speed isn't limited. The bindings (align to
+shoot, turbo, heading reset) are listed under
 [Controls]({{ '/architecture/robot-state/' | relative_url }}#controls).
 
 ## Logging

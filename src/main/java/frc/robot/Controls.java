@@ -11,8 +11,12 @@ import frc.robot.commands.ActionCommands;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.shooter.Shooter;
+import frc.robot.util.cockpit.Cockpit;
 
 public class Controls {
+    private static final double kTriggerThreshold = 0.5;
+    private static final double kShotSpeedStep = 0.02;
+
     protected final CommandXboxController driver = new CommandXboxController(0);
     protected final CommandXboxController operator = new CommandXboxController(1);
 
@@ -22,98 +26,74 @@ public class Controls {
 
     public void bind(RobotState state) {
         Superstructure robot = state.getSuperstructure();
-        bindDrive(state);
+        bindDriver(state);
         robot.getIntake().ifPresent(intake -> bindIntake(state, intake));
         robot.getShooter().ifPresent(shooter -> bindShooter(state, shooter));
-        bindOperator(state, robot);
+        bindOperator(robot);
     }
 
-    protected void bindDrive(RobotState state) {
+    protected void bindDriver(RobotState state) {
         Drive drive = state.getDrive();
-        if (DriverStation.getMatchType() == MatchType.None) {
-            headingResetButton().onTrue(Commands.runOnce(drive::zeroHeading, drive).ignoringDisable(true));
-        }
-        slowButton()
-                .onTrue(drive.transitionCommand(Drive.State.SLOW))
+        driverControl("RB RT", "Align to shoot", driver.rightBumper().or(driver.rightTrigger(kTriggerThreshold)))
+                .onTrue(drive.transitionCommand(Drive.State.TRAVERSING_AT_ANGLE))
                 .onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
-        driver.povLeft().onTrue(drive.transitionCommand(Drive.State.TRAVERSING_AT_ANGLE));
-        driver.povRight().onTrue(drive.transitionCommand(Drive.State.TRAVERSING));
-        driver.povUp().whileTrue(ActionCommands.turnToHub(state));
-    }
-
-    protected Trigger headingResetButton() {
-        return driver.povDown();
-    }
-
-    protected Trigger slowButton() {
-        return driver.rightBumper();
+        driverControl("LB LT", "Turbo", driver.leftBumper().or(driver.leftTrigger(kTriggerThreshold)))
+                .whileTrue(drive.turbo());
+        if (DriverStation.getMatchType() == MatchType.None) {
+            driverControl("Down", "Zero heading", driver.povDown())
+                    .onTrue(Commands.runOnce(drive::zeroHeading, drive).ignoringDisable(true));
+        }
     }
 
     protected void bindIntake(RobotState state, Intake intake) {
-        driver.leftTrigger(0.5)
+        operatorControl("LB", "Intake down", operator.leftBumper())
+                .onTrue(intake.transitionCommand(Intake.State.IDLE));
+        operatorControl("RB", "Intake up", operator.rightBumper())
+                .onTrue(intake.transitionCommand(Intake.State.STOW));
+        operatorControl("LT", "Intake", operator.leftTrigger(kTriggerThreshold))
                 .onTrue(intake.transitionCommand(Intake.State.INTAKE))
                 .onFalse(intake.transitionCommand(Intake.State.IDLE));
-        driver.leftBumper().onTrue(intake.transitionCommand(Intake.State.STOW));
-        driver.a()
-                .onTrue(Commands.runOnce(() -> intake.requestTransition(Intake.State.OUTAKE)))
-                .onFalse(Commands.runOnce(() -> intake.requestTransition(Intake.State.IDLE)));
-        driver.b().whileTrue(ActionCommands.shakeIntake(state));
+        operatorControl("B", "Shake", operator.b())
+                .whileTrue(ActionCommands.shakeIntake(state))
+                .onFalse(intake.transitionCommand(Intake.State.IDLE));
+        operatorControl("A", "Eject", operator.a())
+                .onTrue(intake.transitionCommand(Intake.State.OUTAKE))
+                .onFalse(intake.transitionCommand(Intake.State.IDLE));
     }
 
     protected void bindShooter(RobotState state, Shooter shooter) {
-        Drive drive = state.getDrive();
-        driver.rightTrigger(0.5)
-                .onTrue(Commands.sequence(
-                        Commands.runOnce(drive::stopWithX),
-                        ActionCommands.shootOrPassBasedOnPos(state)))
+        operatorControl("RT", "Shoot", operator.rightTrigger(kTriggerThreshold))
+                .onTrue(ActionCommands.shootOrPassBasedOnPos(state))
                 .onFalse(ActionCommands.trackBasedOnPos(state));
-        driver.a()
+        operator.a()
                 .onTrue(Commands.runOnce(() -> shooter.requestTransition(Shooter.State.OUTTAKE)))
                 .onFalse(ActionCommands.trackBasedOnPos(state));
-        driver.x()
-                .whileTrue(ActionCommands.goToFixedPosAndShoot(state))
-                .onFalse(Commands.runOnce(shooter::releaseShot));
+        operatorControl("Y", "Hub-front shot", operator.y())
+                .whileTrue(ActionCommands.fixedShot(state));
+        operatorControl("X", "Unjam", operator.x())
+                .onTrue(Commands.runOnce(shooter::reverseFeed))
+                .onFalse(Commands.runOnce(shooter::releaseFeed));
+        operatorControl("Up", "Shot speed +2%", operator.povUp())
+                .onTrue(Commands.runOnce(() -> shooter.adjustMultiplier(kShotSpeedStep)));
+        operatorControl("Down", "Shot speed -2%", operator.povDown())
+                .onTrue(Commands.runOnce(() -> shooter.adjustMultiplier(-kShotSpeedStep)));
+        operatorControl("Back", "Reset shot speed", operator.back())
+                .onTrue(Commands.runOnce(shooter::resetMultiplier));
     }
 
-    protected void bindOperator(RobotState state, Superstructure robot) {
-        operator.leftStick().onTrue(Commands.runOnce(robot::clearOverrides));
-
-        bindChord(operator.rightStick(),
-                robot.shooterAction(Shooter::releaseFeed),
-                robot.intakeAction(Intake::clearOverride),
-                robot.shooterAction(Shooter::releaseShot));
-
-        bindChord(operator.leftTrigger(0.5),
-                robot.shooterAction(Shooter::stopFeed),
-                robot.intakeAction(intake -> intake.setOverride(intake::rollIn)),
-                robot.shooterAction(shooter -> shooter.holdShot(state.getCurrentHubSetpoint(), true)));
-
-        bindChord(operator.rightTrigger(0.5),
-                robot.shooterAction(Shooter::stopFeed),
-                robot.intakeAction(intake -> intake.setOverride(intake::rollOut)),
-                robot.shooterAction(shooter -> shooter.holdShot(state.getCurrentPassSetpoint(), true)));
-
-        bindChord(operator.leftBumper(),
-                robot.shooterAction(Shooter::forceFeed),
-                robot.intakeAction(intake -> intake.setOverride(Intake.State.STOW)),
-                robot.shooterAction(shooter -> shooter.holdShot(state.getCurrentHubSetpoint(), false)));
-
-        bindChord(operator.rightBumper(),
-                robot.shooterAction(Shooter::reverseFeed),
-                robot.intakeAction(intake -> intake.setOverride(Intake.State.INTAKE)),
-                robot.shooterAction(shooter -> shooter.holdShot(state.getCurrentPassSetpoint(), false)));
+    protected void bindOperator(Superstructure robot) {
+        operatorControl("Start", "Clear overrides", operator.start())
+                .onTrue(Commands.runOnce(robot::clearOverrides));
     }
 
-    protected void bindChord(Trigger button, Runnable feedAction, Runnable intakeAction, Runnable shooterAction) {
-        button.onTrue(Commands.runOnce(() -> {
-            if (operator.x().getAsBoolean()) {
-                feedAction.run();
-            } else if (operator.b().getAsBoolean()) {
-                intakeAction.run();
-            } else if (operator.a().getAsBoolean()) {
-                shooterAction.run();
-            }
-        }));
+    private Trigger driverControl(String inputs, String label, Trigger trigger) {
+        Cockpit.control("driver", inputs, label);
+        return trigger;
+    }
+
+    private Trigger operatorControl(String inputs, String label, Trigger trigger) {
+        Cockpit.control("operator", inputs, label);
+        return trigger;
     }
 
     public Command pulse(double seconds) {

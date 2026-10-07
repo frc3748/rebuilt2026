@@ -12,6 +12,7 @@ public class IntakeConstants {
             .currentLimit(80)
             .conversion(1.0, 1.0 / 60.0)
             .pid(0.022, 0, 0)
+            .feedforward(0.1, 0.106, 0)
             .uvwFilter(10, 2);
 
     public MotorConfig extension = new MotorConfig("Intake Extension", 46, Controller.SPARK_MAX)

@@ -45,12 +45,15 @@ under 1 A also falls back to 40 A (`MotorConfig.safeCurrentLimit`), so a
 missing or zero limit can't leave a motor unprotected.
 
 `cosineGravity(kCos, unitsPerRotation)` takes how many position units make
-one mechanism rotation (360 for degrees). The Spark needs it to turn the
-position into an angle for its cosine term; without it a mechanism in
-degrees got the wrong gravity compensation. The sign matters: kCos pushes
-the same way as positive output, so an arm whose positive direction falls
-with gravity (the intake, 0° deployed and level) needs a negative kCos.
-Auto-tune measures it with the right sign.
+one mechanism rotation (360 for degrees), so the position turns into an
+angle for the cosine term. The sign matters: kCos pushes the same way as
+positive output, so an arm whose positive direction falls with gravity
+(the intake, 0° deployed and level) needs a negative kCos. Auto-tune
+measures it with the right sign. On a Spark the roboRIO adds
+`kCos × cos(angle)` to each position command's feedforward from the last
+measured position, instead of using the Spark's own kCos: the Spark
+rejects a negative kCos ("Invalid parameter value"), which left the
+intake pivot with no settings and no output at all.
 
 `maxMotion(maxAccel, cruiseVel, allowedError)`: the Spark regenerates the
 profile from wherever the mechanism is once it falls more than
@@ -63,15 +66,26 @@ encoders use quadrature). Without them the Spark's defaults add lag to
 every velocity loop; the mechanisms use the same values the old code did.
 
 If REVLib can't create a mechanism's Spark at all (it throws "Error (N)
-creating SPARK #ID" when the device answers with an error at startup), that
+creating SPARK #ID" when the device answers with an error at startup, or
+REV's message when the Spark rejects a setting at boot), that
 motor runs as a no-op and a "<name> motor didn't start" error with REV's
 message shows under Devices, instead of the whole robot program failing to
 start. Drive modules still fail loudly, since the robot can't drive on three.
 
 The Spark IO retries its boot configuration and encoder zero five times.
-If one still fails, a "<name> motor didn't take its settings at boot"
-error shows under Devices, because that Spark may be running without its
-soft limits, zero or follower setting.
+If one still fails, a "<name> motor didn't take its settings" error shows
+under Devices, because that Spark may be running without its soft limits,
+zero or follower setting.
+
+Once a second the IO also checks its Sparks. If one that missed its
+settings at boot shows up, or one reboots (REV's sticky "has reset"
+warning, from a power blip or a loose wire), it sends the settings again
+and puts the encoder back at the starting position. Without that the hood
+came back reading 0° at its bottom stop and drove 25° past its top. The
+settings error clears once they go through, and "<name> motor rebooted,
+check its power and CAN wires" stays up for the rest of the session.
+Changes while running (tuning, current limits) use `configureAsync`, so a
+bad tuned value can't stall the loop or stop the program.
 
 And the subsystem builds them from the constants object it's given and
 says what each state does:

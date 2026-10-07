@@ -106,8 +106,9 @@ fast spin it pulled the pose 9 cm off with tags 12 m away.
 A camera reports objects only while it runs its detection pipeline.
 `.pipelines(tags, detection)` gives a camera both jobs, and it switches
 when `Vision` is in `OBJECTS`. `.detector(pipeline)` makes a camera that
-only detects objects, like the Limelight 3 fuel camera on COMP. Its
-pose observations are ignored.
+only detects objects, like the Limelight 3 fuel camera in `CompRobot`
+(left out of COMP's camera list for now, since it isn't on the robot).
+Its pose observations are ignored.
 
 `Camera` projects each object observation onto the floor, using the
 camera's robot→camera transform and the configured object height. It

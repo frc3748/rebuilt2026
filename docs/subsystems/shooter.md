@@ -51,8 +51,13 @@ is true, which is the flywheel being within tolerance of its setpoint.
 Spark MAX, MAXMotion position, gravity feedforward. `Hood` applies the
 conversion from `radiansPerRotation`, the soft limits from `minLimit` and
 `maxLimit` (25° to 50°), and a starting position of `minLimit` when it
-is built; "Hood Zero" on the dashboard resets it to `minLimit`. Near a
-trench every hood command is clamped to `maxSetpointUnderTrench`.
+is built; "Zero hood" on the dashboard's Test tab resets it to `minLimit`,
+so press it with the hood resting on its bottom stop. If the hood's Spark
+reboots (a power blip drops it), it comes back reading 0°, so the IO sets
+it back to `minLimit`, where the unpowered hood has fallen to. Every hood command
+is clamped to the limits. The hood is driven down to `minLimit` in
+`IDLE`, and the shooter's tracking states use `IDLE`, so the hood only
+rises while shooting or passing.
 
 ## Flywheel
 

@@ -40,6 +40,8 @@ public abstract class Shooter extends StateMachine<Shooter.State> {
 
     public void resetMultiplier() {}
 
+    public void adjustMultiplier(double step) {}
+
     public boolean isReadyToShoot() {
         return false;
     }

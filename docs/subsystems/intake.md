@@ -43,21 +43,11 @@ What `IntakeComp` does in each:
 0.6 s to knock stuck pieces loose. It runs while the driver holds **B**,
 and in autos through `shake(seconds)`.
 
-## Trench constraint
+## No trench constraint
 
-When the robot is near a trench (see [`TrenchZone`](https://github.com/frc3748/rebuilt2026/blob/main/src/main/java/frc/robot/game/TrenchZone.java)),
-the intake extension is forced to the intake setpoint so it fits under.
-This lives in `IntakeComp.applyConstraints()`, so it wins over
-every state and every operator override:
-
-```java
-@Override
-protected void applyConstraints() {
-    if (TrenchZone.intakeLowerRequired(robotState)) {
-        extension.set(intakeSetpoint.get());
-    }
-}
-```
+The intake used to be forced down whenever the robot was within 1 m of a
+trench. That's gone: the operator raises and lowers it (left bumper down,
+right bumper up), so lower it before driving under a trench.
 
 ## Operator override
 
@@ -70,8 +60,11 @@ intake.clearOverride();
 ## Mechanism
 
 - **Extension** — Spark MAX on CAN 46 with a follower on 47. MAXMotion
-  position with cosine gravity feedforward; gains are tunable live.
-- **Rollers** — Spark Flex on CAN 48, velocity control.
+  position with cosine gravity feedforward, added on the roboRIO since
+  the Spark won't take a negative kCos; gains are tunable live.
+- **Rollers** — Spark Flex on CAN 48, velocity control with a kV
+  feedforward (12 V over the Vortex's 113 rps free speed), so they reach
+  speed instead of stalling short on P alone.
 
 The extension uses its relative encoder. The "Intake Zero" dashboard
 button resets it to 0.

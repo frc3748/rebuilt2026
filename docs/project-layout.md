@@ -54,7 +54,6 @@ frc/robot/
 │   ├── ShotCalculator.java           ← Projectile-motion shot math, built from a robot's ShooterConstants
 │   ├── ShotVisualizer.java           ← 3D trajectory logging
 │   ├── BallTargetFactory.java, PassTargetFactory.java  ← Hub and pass targets
-│   ├── TrenchZone.java               ← Trench proximity checks
 │   └── FuelSim.java, FuelSimulation.java  ← Game-piece physics and its robot wrapper
 │
 ├── subsystems/

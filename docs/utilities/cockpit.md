@@ -110,7 +110,6 @@ Cockpit.marker("driveTo", "Drive to", Marker.TARGET, AutoAlignToPoseCommand::act
 Cockpit.marker("hub", "Hub", Marker.AIM, () -> Optional.of(state.getDriveAnglePos()));
 Cockpit.marker("fuel", "Fuel", Marker.POINT, () -> state.getVision().getClosestObjectPose());
 Cockpit.marker("aimPoint", "Aiming here", Marker.CROSSHAIR, () -> state.getDrive().getRecentAimTarget().map(...));
-Cockpit.zone("trench", "Hood down", () -> TrenchZone.hoodLowerRequired(state) ? Optional.of(...) : Optional.empty(), TrenchZone.hoodLowerRadius());
 ```
 
 Markers are drawn on the dashboard's live field while the supplier
@@ -119,8 +118,8 @@ to, with a line from the robot and the distance. `AIM` draws a line from
 the robot to a point, green when `Shooter/Ready/Aim` is true. `POINT`
 rings a spot. `CROSSHAIR` marks where the drive is actually aiming (the
 lead point while moving), and the hub's aim line ends there. `ZONE`
-draws an orange circle of the given radius with its label on top; the
-trench zone shows while the hood has to stay down. They're logged as
+draws an orange circle of the given radius with its label on top.
+They're logged as
 `Cockpit/Markers` (`id`, kind, label, x, y, degrees, radius). The auto
 path only shows while auto is running; after that the field shows
 markers, the robot's trail and velocity, and vision fixes.

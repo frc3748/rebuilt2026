@@ -3,6 +3,7 @@ package frc.robot.util.motor;
 import static frc.robot.util.SparkUtil.ifOk;
 import static frc.robot.util.SparkUtil.tryUntilOk;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.DoubleConsumer;
@@ -28,6 +29,7 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
+import edu.wpi.first.wpilibj.Timer;
 
 import frc.robot.util.SparkUtil;
 import frc.robot.util.motor.MotorConfig.Controller;
@@ -35,6 +37,8 @@ import frc.robot.util.motor.MotorConfig.Follower;
 
 public class MotorIOSpark implements MotorIO {
     private static final int kConfigAttempts = 5;
+    private static final int kResetWarning = 0x40;
+    private static final double kRecoverPeriodSeconds = 1.0;
 
     private final MotorConfig config;
     private final SparkBase motor;
@@ -44,6 +48,17 @@ public class MotorIOSpark implements MotorIO {
     private final SparkClosedLoopController controller;
     private final SparkBaseConfig sparkConfig;
     private final Debouncer connectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.kFalling);
+    private final boolean[] followerConfigured;
+    private final boolean[] followerReachable;
+    private final boolean[] followerResetHandled;
+    private final Alert settingsAlert;
+    private final Alert rebootAlert;
+
+    private boolean configured;
+    private boolean resetHandled = true;
+    private double nextRecoverTime;
+    private double cosineGravity;
+    private double lastPosition;
 
     public MotorIOSpark(MotorConfig config) {
         this.config = config;
@@ -78,7 +93,7 @@ public class MotorIOSpark implements MotorIO {
                 .kV(config.gains.kV)
                 .kA(config.gains.kA);
         if (config.gains.gravityIsCosine) {
-            sparkConfig.closedLoop.feedForward.kCos(config.gains.kG).kCosRatio(1.0 / config.gains.unitsPerRotation);
+            cosineGravity = config.gains.kG;
         } else {
             sparkConfig.closedLoop.feedForward.kG(config.gains.kG);
         }
@@ -95,12 +110,16 @@ public class MotorIOSpark implements MotorIO {
         if (!Double.isNaN(config.reverseSoftLimit)) {
             sparkConfig.softLimit.reverseSoftLimit(config.reverseSoftLimit).reverseSoftLimitEnabled(true);
         }
-        boolean configured = tryUntilOk(motor, kConfigAttempts,
+        configured = tryUntilOk(motor, kConfigAttempts,
                 () -> motor.configure(sparkConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters));
         motor.clearFaults();
 
         followers = new SparkBase[config.followers.size()];
         followerConfigs = new SparkBaseConfig[followers.length];
+        followerConfigured = new boolean[followers.length];
+        followerReachable = new boolean[followers.length];
+        followerResetHandled = new boolean[followers.length];
+        Arrays.fill(followerResetHandled, true);
         for (int i = 0; i < followers.length; i++) {
             Follower follower = config.followers.get(i);
             followers[i] = newSpark(config.controller, follower.canId());
@@ -111,7 +130,7 @@ public class MotorIOSpark implements MotorIO {
                     .voltageCompensation(12.0)
                     .follow(config.canId, follower.inverted());
             SparkBase spark = followers[i];
-            configured &= tryUntilOk(spark, kConfigAttempts,
+            followerConfigured[i] = tryUntilOk(spark, kConfigAttempts,
                     () -> spark.configure(followerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters));
             followerConfigs[i] = followerConfig;
             followers[i].clearFaults();
@@ -120,7 +139,9 @@ public class MotorIOSpark implements MotorIO {
         if (!Double.isNaN(config.startingPosition)) {
             configured &= tryUntilOk(motor, kConfigAttempts, () -> encoder.setPosition(config.startingPosition));
         }
-        new Alert("Devices", config.name() + " motor didn't take its settings at boot", AlertType.kError).set(!configured);
+        settingsAlert = new Alert("Devices", config.name() + " motor didn't take its settings", AlertType.kError);
+        rebootAlert = new Alert("Devices", config.name() + " motor rebooted, check its power and CAN wires", AlertType.kWarning);
+        settingsAlert.set(!allConfigured());
 
         tune();
     }
@@ -134,7 +155,7 @@ public class MotorIOSpark implements MotorIO {
         edits.put("kV", apply(value -> sparkConfig.closedLoop.feedForward.kV(value)));
         edits.put("kA", apply(value -> sparkConfig.closedLoop.feedForward.kA(value)));
         edits.put("kG", apply(value -> sparkConfig.closedLoop.feedForward.kG(value)));
-        edits.put("kCos", apply(value -> sparkConfig.closedLoop.feedForward.kCos(value)));
+        edits.put("kCos", value -> cosineGravity = value);
         edits.put("kMaxAccel", apply(value -> sparkConfig.closedLoop.maxMotion.maxAcceleration(value)));
         edits.put("kCruiseVel", apply(value -> sparkConfig.closedLoop.maxMotion.cruiseVelocity(value)));
         edits.put("kDeviationErr", apply(value -> sparkConfig.closedLoop.maxMotion.allowedProfileError(value)));
@@ -145,7 +166,7 @@ public class MotorIOSpark implements MotorIO {
     private DoubleConsumer apply(DoubleConsumer edit) {
         return value -> {
             edit.accept(value);
-            motor.configure(sparkConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+            motor.configureAsync(sparkConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
         };
     }
 
@@ -169,10 +190,12 @@ public class MotorIOSpark implements MotorIO {
                 values -> inputs.appliedVolts = values[0] * values[1]);
         ifOk(motor, motor::getOutputCurrent, value -> inputs.currentAmps = value);
         ifOk(motor, motor::getMotorTemperature, value -> inputs.tempCelsius = value);
-        inputs.connected = connectedDebounce.calculate(!SparkUtil.sparkStickyFault);
+        boolean reachable = !SparkUtil.sparkStickyFault;
+        inputs.connected = connectedDebounce.calculate(reachable);
         inputs.faults = motor.getFaults().rawBits;
         inputs.stickyFaults = motor.getStickyFaults().rawBits;
         inputs.stickyWarnings = motor.getStickyWarnings().rawBits;
+        lastPosition = inputs.position;
 
         if (inputs.followerAppliedVolts.length != followers.length) {
             inputs.followerAppliedVolts = new double[followers.length];
@@ -181,11 +204,62 @@ public class MotorIOSpark implements MotorIO {
         for (int i = 0; i < followers.length; i++) {
             SparkBase follower = followers[i];
             int index = i;
+            SparkUtil.sparkStickyFault = false;
             ifOk(follower,
                     new DoubleSupplier[] { follower::getAppliedOutput, follower::getBusVoltage },
                     values -> inputs.followerAppliedVolts[index] = values[0] * values[1]);
             ifOk(follower, follower::getOutputCurrent, value -> inputs.followerCurrentAmps[index] = value);
+            followerReachable[i] = !SparkUtil.sparkStickyFault;
         }
+
+        double now = Timer.getFPGATimestamp();
+        if (now >= nextRecoverTime) {
+            nextRecoverTime = now + kRecoverPeriodSeconds;
+            recover(reachable, inputs.stickyWarnings);
+        }
+    }
+
+    private void recover(boolean reachable, int stickyWarnings) {
+        if (reachable) {
+            boolean reset = (stickyWarnings & kResetWarning) != 0;
+            if (!configured || (reset && !resetHandled)) {
+                motor.configureAsync(sparkConfig, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
+                if (!Double.isNaN(config.startingPosition)) {
+                    encoder.setPosition(config.startingPosition);
+                }
+                rebootAlert.set(rebootAlert.get() || (configured && reset));
+                configured = true;
+            }
+            if (reset) {
+                motor.clearFaults();
+            }
+            resetHandled = reset;
+        }
+        for (int i = 0; i < followers.length; i++) {
+            SparkBase follower = followers[i];
+            if (!followerReachable[i]) {
+                continue;
+            }
+            boolean reset = follower.getStickyWarnings().hasReset;
+            if (!followerConfigured[i] || (reset && !followerResetHandled[i])) {
+                follower.configureAsync(followerConfigs[i], ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
+                rebootAlert.set(rebootAlert.get() || (followerConfigured[i] && reset));
+                followerConfigured[i] = true;
+            }
+            if (reset) {
+                follower.clearFaults();
+            }
+            followerResetHandled[i] = reset;
+        }
+        settingsAlert.set(!allConfigured());
+    }
+
+    private boolean allConfigured() {
+        boolean all = configured;
+        for (boolean follower : followerConfigured) {
+            all &= follower;
+        }
+        return all;
     }
 
     @Override
@@ -208,7 +282,8 @@ public class MotorIOSpark implements MotorIO {
     public void setPosition(double position, double feedforwardVolts, int slot) {
         ControlType type = config.maxMotion ? ControlType.kMAXMotionPositionControl : ControlType.kPosition;
         ClosedLoopSlot closedLoopSlot = slot == 1 ? ClosedLoopSlot.kSlot1 : ClosedLoopSlot.kSlot0;
-        controller.setSetpoint(position, type, closedLoopSlot, feedforwardVolts, ArbFFUnits.kVoltage);
+        double gravity = cosineGravity * Math.cos(lastPosition / config.gains.unitsPerRotation * 2.0 * Math.PI);
+        controller.setSetpoint(position, type, closedLoopSlot, feedforwardVolts + gravity, ArbFFUnits.kVoltage);
     }
 
     @Override
@@ -225,10 +300,10 @@ public class MotorIOSpark implements MotorIO {
     public void setCurrentLimit(int requested) {
         int amps = MotorConfig.safeCurrentLimit(requested);
         sparkConfig.smartCurrentLimit(amps);
-        motor.configure(sparkConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+        motor.configureAsync(sparkConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
         for (int i = 0; i < followers.length; i++) {
             followerConfigs[i].smartCurrentLimit(amps);
-            followers[i].configure(followerConfigs[i], ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+            followers[i].configureAsync(followerConfigs[i], ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
         }
     }
 

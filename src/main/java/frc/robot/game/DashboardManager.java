@@ -38,6 +38,7 @@ import frc.robot.commands.autos.MeasureAuto;
 import frc.robot.commands.autos.MeasureFeedforward;
 import frc.robot.commands.autos.MeasureSteering;
 import frc.robot.subsystems.drive.Drive;
+import frc.robot.subsystems.drive.DriveConfig;
 import frc.robot.subsystems.drive.HeadingLock;
 import frc.robot.subsystems.intake.Intake;
 import frc.robot.subsystems.shooter.Shooter;
@@ -158,7 +159,7 @@ public class DashboardManager {
         }
         Logger.recordOutput("Game/WonAuto", game.wonAuto());
         Logger.recordOutput("Game/SecondsToShift", game.getSecondsUntilShift());
-        Logger.recordOutput("Game/DistanceToHub", TrenchZone.getDistanceToClosestShootingPose(state));
+        Logger.recordOutput("Game/DistanceToHub", distanceToHub());
         if (DriverStation.isAutonomousEnabled()) {
             Logger.recordOutput("Cockpit/Auto/Step", autoStep());
             Pose2d robot = state.getLatestFieldToRobot().getValue();
@@ -289,6 +290,7 @@ public class DashboardManager {
             robot.clearOverrides();
             robot.getIntake().ifPresent(intake -> intake.requestTransition(Intake.State.STOW));
         }));
+        Cockpit.button("swerveOffsets", "Read swerve offsets", Tab.TEST, disabledSafe(this::readSwerveOffsets));
         Cockpit.button("selfTest", "Run self-test", Tab.TEST,
                 Commands.either(Commands.defer(() -> SelfTest.build(state), Set.of(state.getDrive())).asProxy(),
                         disabledSafe(() -> Cockpit.toast(Level.WARNING, "Can't run the self-test",
@@ -312,9 +314,6 @@ public class DashboardManager {
         Cockpit.marker("aimPoint", "Aiming here", Marker.CROSSHAIR, () -> shooterWorking()
                 ? state.getDrive().getRecentAimTarget().map(target -> new Pose2d(target, Rotation2d.kZero))
                 : Optional.empty());
-        Cockpit.zone("trench", "Hood down", () -> TrenchZone.hoodLowerRequired(state)
-                ? Optional.of(new Pose2d(TrenchZone.closestTrench(state), Rotation2d.kZero))
-                : Optional.empty(), TrenchZone::hoodLowerRadius);
         Cockpit.assist("align", "Auto-align", () -> AutoAlignToPoseCommand.activeTarget().isPresent());
         Cockpit.assist("aim", "Aim lock", () -> state.getDrive().getState() == Drive.State.TRAVERSING_AT_ANGLE);
         Cockpit.assist("path", "Path", () -> followingPath);
@@ -415,6 +414,31 @@ public class DashboardManager {
         machine.getChildSubsystems().forEach(child -> collectMechanisms(child, machines));
     }
 
+    private void readSwerveOffsets() {
+        Drive drive = state.getDrive();
+        if (drive.getConfig().turnSensor != DriveConfig.TurnSensor.CANCODER) {
+            Cockpit.toast(Level.WARNING, "No CANcoders", "This robot's modules zero through their absolute encoders instead");
+            return;
+        }
+        double[] offsets = drive.measuredOffsets();
+        Logger.recordOutput("Drive/MeasuredOffsets", offsets);
+        String[] names = {"FL", "FR", "BL", "BR"};
+        List<String> parts = new ArrayList<>();
+        for (int index = 0; index < offsets.length; index++) {
+            parts.add(String.format(Locale.ROOT, "%s %.4f", names[index], offsets[index]));
+        }
+        Cockpit.toast(Level.INFO, "Swerve offsets (rotations)", String.join(" · ", parts)
+                + ". Only valid with every wheel pointing straight forward and the bevel gears the same way. Put them in "
+                + state.getDefinition().name() + "'s drive file as Rotation2d.fromRotations(...).");
+    }
+
+    private double distanceToHub() {
+        Translation2d shooter = state.getLatestFieldToRobot().getValue().getTranslation()
+                .plus(state.getShooterConstants().shooterToRobotCenter.getTranslation().toTranslation2d());
+        return Math.min(FieldConstants.HUB_BLUE.toTranslation2d().getDistance(shooter),
+                FieldConstants.HUB_RED.toTranslation2d().getDistance(shooter));
+    }
+
     private static Command disabledSafe(Runnable action) {
         return Commands.runOnce(action).ignoringDisable(true);
     }
@@ -425,7 +449,7 @@ public class DashboardManager {
         Cockpit.check("tuning", "Tuning", () -> Tuning.isEnabled() ? Check.warn("Tuning mode is on")
                 : Tuning.pending() > 0 ? Check.warn(Tuning.pending() + " tuned on the robot but not in the code yet. Deploy to write them in.")
                         : Check.pass("Every value is in the code"));
-        Cockpit.gauge("distance", "To hub", "m", () -> TrenchZone.getDistanceToClosestShootingPose(state),
+        Cockpit.gauge("distance", "To hub", "m", this::distanceToHub,
                 this::shooterWorking);
         Cockpit.check("battery", "Battery voltage", this::checkBattery);
         Cockpit.check("batteryPicked", "Battery picked", () -> state.getBattery().isPicked()
