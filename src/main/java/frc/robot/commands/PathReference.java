@@ -11,15 +11,11 @@ import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
-import frc.robot.game.FieldObstacles;
 
 public final class PathReference {
     private static final double kSearchBackMeters = 0.5;
     private static final double kSearchAheadMeters = 2.0;
     private static final double kMinSegmentMeters = 1e-6;
-    private static final double kSquareGain = 0.02;
-    private static final double kSmoothMeters = 0.4;
-    private static final double kWallMargin = 0.03;
 
     public record Sample(Pose2d pose, double distance, double speed, double omega) {}
 
@@ -44,89 +40,31 @@ public final class PathReference {
         }
     }
 
-    public static PathReference build(PathPlannerTrajectory trajectory, double length, double width, double margin,
-            double maxTurnRate) {
+    public static PathReference build(PathPlannerTrajectory trajectory, double maxTurnRate) {
         List<PathPlannerTrajectoryState> states = trajectory.getStates();
         int n = states.size();
         double[] time = new double[n];
         double[] speed = new double[n];
-        Rotation2d[] desired = new Rotation2d[n];
-        Rotation2d[] square = new Rotation2d[n];
-        boolean[] required = new boolean[n];
+        double[] x = new double[n];
+        double[] y = new double[n];
+        Rotation2d[] headings = new Rotation2d[n];
         for (int i = 0; i < n; i++) {
             PathPlannerTrajectoryState state = states.get(i);
             time[i] = state.timeSeconds;
             speed[i] = state.linearVelocity;
-            desired[i] = state.pose.getRotation();
-            square[i] = Rotation2d.fromDegrees(Math.round(desired[i].getDegrees() / 90.0) * 90.0);
-            double turned = FieldObstacles.clearance(state.pose.getTranslation(), desired[i], length, width);
-            double squared = FieldObstacles.clearance(state.pose.getTranslation(), square[i], length, width);
-            required[i] = turned < margin && squared > turned + kSquareGain;
-        }
-        Rotation2d[] headings = new Rotation2d[n];
-        for (int i = 0; i < n; i++) {
-            headings[i] = required[i] ? square[i]
-                    : i == 0 ? desired[i] : approach(headings[i - 1], desired[i], maxTurnRate * (time[i] - time[i - 1]));
+            x[i] = state.pose.getX();
+            y[i] = state.pose.getY();
+            Rotation2d desired = state.pose.getRotation();
+            headings[i] = i == 0 ? desired : approach(headings[i - 1], desired, maxTurnRate * (time[i] - time[i - 1]));
         }
         for (int i = n - 2; i >= 0; i--) {
-            if (!required[i]) {
-                headings[i] = approach(headings[i + 1], headings[i], maxTurnRate * (time[i + 1] - time[i]));
-            }
+            headings[i] = approach(headings[i + 1], headings[i], maxTurnRate * (time[i + 1] - time[i]));
         }
-        double[] x = new double[n];
-        double[] y = new double[n];
         double[] heading = new double[n];
-        boolean[] walled = new boolean[n];
         for (int i = 0; i < n; i++) {
-            Translation2d point = states.get(i).pose.getTranslation();
-            Translation2d inside = FieldObstacles.insideWalls(point, headings[i], length, width, kWallMargin);
-            x[i] = inside.getX();
-            y[i] = inside.getY();
             heading[i] = headings[i].getRadians();
-            walled[i] = !inside.equals(point);
         }
-        smoothNearWalls(x, y, headings, walled, length, width);
         return new PathReference(time, x, y, heading, speed);
-    }
-
-    private static void smoothNearWalls(double[] x, double[] y, Rotation2d[] headings, boolean[] walled, double length,
-            double width) {
-        int n = x.length;
-        double[] along = new double[n];
-        for (int i = 1; i < n; i++) {
-            along[i] = along[i - 1] + Math.hypot(x[i] - x[i - 1], y[i] - y[i - 1]);
-        }
-        double[] smoothX = x.clone();
-        double[] smoothY = y.clone();
-        int nearest = -1;
-        for (int i = 0; i < n; i++) {
-            boolean near = false;
-            for (int j = 0; j < n && !near; j++) {
-                near = walled[j] && Math.abs(along[j] - along[i]) <= kSmoothMeters;
-            }
-            if (!near) {
-                continue;
-            }
-            double sumX = 0.0;
-            double sumY = 0.0;
-            int count = 0;
-            for (int k = 0; k < n; k++) {
-                if (Math.abs(along[k] - along[i]) <= kSmoothMeters) {
-                    sumX += x[k];
-                    sumY += y[k];
-                    count++;
-                }
-            }
-            Translation2d inside = FieldObstacles.insideWalls(new Translation2d(sumX / count, sumY / count), headings[i], length, width,
-                    kWallMargin);
-            smoothX[i] = inside.getX();
-            smoothY[i] = inside.getY();
-            nearest = i;
-        }
-        if (nearest >= 0) {
-            System.arraycopy(smoothX, 0, x, 0, n);
-            System.arraycopy(smoothY, 0, y, 0, n);
-        }
     }
 
     private static Rotation2d approach(Rotation2d from, Rotation2d to, double maxStep) {

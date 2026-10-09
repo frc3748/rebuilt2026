@@ -40,7 +40,6 @@ public class FollowPath extends Command {
     private static final TunableNumber feedforwardLead = new TunableNumber("Path/Feedforward Lead", 0.25);
     private static final TunableNumber maxCorrection = new TunableNumber("Path/Max Correction", 1.5);
     private static final TunableNumber settleSeconds = new TunableNumber("Path/Settle Seconds", 0.75);
-    private static final TunableNumber wallMargin = new TunableNumber("Path/Wall Margin", 0.05);
 
     private final Drive drive;
     private final PathPlannerPath original;
@@ -82,8 +81,7 @@ public class FollowPath extends Command {
         trajectory = idealTrajectory(pose, speeds)
                 .orElseGet(() -> path.generateTrajectory(speeds, pose.getRotation(), robotConfig));
         DriveConfig config = drive.getConfig();
-        reference = PathReference.build(trajectory, config.bumperLength(), config.bumperWidth(), wallMargin.get(),
-                config.autoTurnLimit());
+        reference = PathReference.build(trajectory, config.autoTurnLimit());
         alongTrack.reset();
         crossTrack.reset();
         rotation.reset();
