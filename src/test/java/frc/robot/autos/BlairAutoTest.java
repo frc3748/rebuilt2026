@@ -35,6 +35,7 @@ import frc.robot.subsystems.drive.DriveConfig;
 
 class BlairAutoTest {
     private static final double kMaxOffPathMeters = 0.15;
+    private static final double kMaxDrivingSeconds = 11.0;
     private static final double kWallMargin = 0.03;
     private static final int kSettleLoops = 3;
     private static final int kMaxLoops = 1250;
@@ -96,6 +97,7 @@ class BlairAutoTest {
         List<String> finished = new ArrayList<>();
         String active = "";
         int loopsOnPath = 0;
+        int drivingLoops = 0;
         double worst = 0.0;
         for (int loop = 0; command.isScheduled() && loop < kMaxLoops; loop++) {
             step(1);
@@ -104,16 +106,19 @@ class BlairAutoTest {
                 finished.add(active);
             }
             loopsOnPath = now.equals(active) ? loopsOnPath + 1 : 0;
+            drivingLoops += now.isEmpty() ? 0 : 1;
             active = now;
             if (reachable.containsKey(active) && loopsOnPath > kSettleLoops) {
                 worst = Math.max(worst, distanceToLine(state.getDrive().getPose().getTranslation(), reachable.get(active)));
             }
         }
         CommandScheduler.getInstance().cancel(command);
-        System.out.printf(Locale.ROOT, "%s: worst %.1f cm off the path, finished %s%n", autoName, worst * 100.0, finished);
+        double driving = drivingLoops * 0.02;
+        System.out.printf(Locale.ROOT, "%s: worst %.1f cm off the path, %.1f s driving, finished %s%n", autoName, worst * 100.0, driving, finished);
         assertEquals(new ArrayList<>(reachable.keySet()).stream().sorted().toList(), finished.stream().sorted().toList(),
                 autoName + " didn't finish every path");
         assertTrue(worst < kMaxOffPathMeters, String.format(Locale.ROOT, "%s strayed %.1f cm off its path", autoName, worst * 100.0));
+        assertTrue(driving <= kMaxDrivingSeconds, String.format(Locale.ROOT, "%s drove for %.1f s, leaving too little time to shoot", autoName, driving));
     }
 
     @Test

@@ -35,11 +35,18 @@ public class FollowPath extends Command {
     private static final double kStalledMeters = 0.05;
     private static final double kStalledSpeed = 0.05;
     private static final double kPushingSpeed = 0.2;
+    private static final double kContactCrossTrack = 0.05;
+    private static final double kContactSpeed = 0.08;
+    private static final double kContactSeconds = 0.3;
+    private static final double kContactPush = 0.1;
+    private static final double kContactReleaseMeters = 0.03;
+    private static final double kContactSlackMeters = 0.05;
     private static final int kReferencePoses = 80;
     private static final TunableNumber maxLead = new TunableNumber("Path/Max Lead", 0.5);
     private static final TunableNumber feedforwardLead = new TunableNumber("Path/Feedforward Lead", 0.25);
     private static final TunableNumber maxCorrection = new TunableNumber("Path/Max Correction", 1.5);
     private static final TunableNumber settleSeconds = new TunableNumber("Path/Settle Seconds", 0.75);
+    private static final TunableNumber contactProbe = new TunableNumber("Path/Contact Probe Meters", 1.0);
 
     private final Drive drive;
     private final PathPlannerPath original;
@@ -57,6 +64,9 @@ public class FollowPath extends Command {
     private double time;
     private double overtime;
     private double commandedSpeed;
+    private double pressingSeconds;
+    private double contactCross = Double.NaN;
+    private double contactDistance;
 
     public FollowPath(Drive drive, PathPlannerPath path, PIDConstants translation, PIDConstants turning, RobotConfig robotConfig,
             BooleanSupplier shouldFlip) {
@@ -88,6 +98,8 @@ public class FollowPath extends Command {
         time = 0.0;
         overtime = 0.0;
         commandedSpeed = 0.0;
+        pressingSeconds = 0.0;
+        contactCross = Double.NaN;
         projection = reference.project(pose.getTranslation(), 0);
         target = reference.atTime(0.0);
         PathPlannerAuto.setCurrentTrajectory(trajectory);
@@ -125,8 +137,28 @@ public class FollowPath extends Command {
         double along = target.distance() - projection.distance();
         double limit = maxCorrection.get();
         double speed = (held ? 0.0 : target.speed()) + MathUtil.clamp(alongTrack.calculate(-along, 0.0), -limit, limit);
-        double correction = MathUtil.clamp(crossTrack.calculate(projection.crossTrack(), 0.0), -limit, limit);
+        double cross = projection.crossTrack();
+        if (!Double.isNaN(contactCross) && (Math.signum(cross) != Math.signum(contactCross)
+                || Math.abs(cross) < Math.abs(contactCross) - kContactReleaseMeters
+                || projection.distance() - contactDistance > contactProbe.get())) {
+            contactCross = Double.NaN;
+        }
+        boolean touching = !Double.isNaN(contactCross);
+        double slack = touching ? contactCross + Math.copySign(kContactSlackMeters, contactCross) : 0.0;
+        double correction = MathUtil.clamp(crossTrack.calculate(cross, slack), -limit, limit);
+        if (touching && Math.abs(cross) <= Math.abs(slack)) {
+            correction = 0.0;
+        }
         Translation2d tangent = projection.tangent();
+        ChassisSpeeds measured = ChassisSpeeds.fromRobotRelativeSpeeds(drive.getChassisSpeeds(), pose.getRotation());
+        double towardLine = (tangent.getX() * measured.vyMetersPerSecond - tangent.getY() * measured.vxMetersPerSecond) * Math.signum(correction);
+        boolean pressing = Math.abs(cross) > kContactCrossTrack && Math.abs(correction) > kContactPush && towardLine < kContactSpeed;
+        pressingSeconds = pressing ? pressingSeconds + kLoopSeconds : 0.0;
+        if (pressingSeconds >= kContactSeconds) {
+            contactCross = cross;
+            contactDistance = projection.distance();
+            pressingSeconds = 0.0;
+        }
         double vx = tangent.getX() * speed - tangent.getY() * correction;
         double vy = tangent.getY() * speed + tangent.getX() * correction;
         commandedSpeed = Math.hypot(vx, vy);
@@ -144,6 +176,7 @@ public class FollowPath extends Command {
         Logger.recordOutput("Auto/Path/CrossTrackMeters", projection.crossTrack());
         Logger.recordOutput("Auto/Path/AlongTrackMeters", along);
         Logger.recordOutput("Auto/Path/Held", held);
+        Logger.recordOutput("Auto/Path/Touching", !Double.isNaN(contactCross));
         Logger.recordOutput("Auto/Path/Time", time);
         events.execute(time);
     }
