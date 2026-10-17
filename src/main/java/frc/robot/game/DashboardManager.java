@@ -457,7 +457,6 @@ public class DashboardManager {
                 : Check.warn("Pick the battery that's in the robot"));
         Cockpit.check("auto", "Auto picked", this::checkAuto);
         Cockpit.check("startPose", "On the start pose", this::checkStartPose);
-        Cockpit.check("heading", "Heading confirmed", this::checkHeading);
         Cockpit.check("devices", "Everything connected", () -> {
             List<String> missing = state.disconnectedDevices();
             return missing.isEmpty() ? Check.pass("All connected") : Check.fail(String.join(", ", missing) + " disconnected");
@@ -496,10 +495,11 @@ public class DashboardManager {
         if (startPose.isEmpty()) {
             return Check.pass("This auto has no start pose");
         }
-        if (!state.getVision().isHeadingConfirmed()) {
+        Optional<Pose2d> seen = state.getVision().recentMegaTag1Pose();
+        if (seen.isEmpty()) {
             return Check.fail("Waiting for vision to place the robot");
         }
-        Pose2d robot = state.getLatestFieldToRobot().getValue();
+        Pose2d robot = seen.get();
         Pose2d start = startPose.get();
         Translation2d offset = start.getTranslation().minus(robot.getTranslation());
         double turn = start.getRotation().minus(robot.getRotation()).getDegrees();
@@ -528,13 +528,6 @@ public class DashboardManager {
             text = text.isEmpty() ? Character.toUpperCase(turn.charAt(0)) + turn.substring(1) : text + ", " + turn;
         }
         return text;
-    }
-
-    private Check checkHeading() {
-        if (enabledOnce || state.getVision().isHeadingConfirmed()) {
-            return Check.pass(enabledOnce && !state.getVision().isHeadingConfirmed() ? "Match started" : "Confirmed by MegaTag 1");
-        }
-        return Check.fail("Waiting for MegaTag 1 to see 2 or more tags up close");
     }
 
     private Check checkSelfTest() {

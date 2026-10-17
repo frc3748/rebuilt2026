@@ -116,8 +116,8 @@ following:
 - **Steering:** every loop it finds the closest point on the path. It drives along the path's direction there, with one correction that pulls the robot back onto the line (`Path/Translation kP`) and one that closes the distance to the target along the path.
 - **No running away:** the profile's clock only runs while the robot keeps up. The target never gets more than `Path/Max Lead` (0.5 m) ahead, so it can't pull the robot across a corner.
 - **Ending:** a path ends when the robot is within 2 cm and 2° of the end. If it's pushing against something, like a wall, with less than 5 cm left along the path, it ends there. Otherwise it gives up after `Path/Settle Seconds` (0.75 s). A path that ends moving hands off as soon as its profile ends.
-- **Paths are followed as drawn:** positions and headings come straight from PathPlanner, with turns spread out at the auto turn rate. A turned robot is wider than a square one, so draw paths square to the wall where they hug it or go through the trench, and turn once clear.
-- **Touching something:** if the robot is trying to reach the path but something stops it sideways for 0.3 s, like a wall the path runs into, it keeps that sideways spot instead of pushing. A wheel that can't move still shoves hard even at low voltage, so pushing makes the robot grind along at a crawl. It keeps driving along the path at full speed and only pushes back if it drifts more than 5 cm off that spot. It lets go and heads for the drawn line again when the path comes back toward it, or after `Path/Contact Probe Meters` (1 m). It logs `Auto/Path/Touching`.
+- **Turning near walls:** `PathReference` checks the bumper footprint (`DriveConfig#bumperLength`, `bumperWidth`) against the field walls, the trench walls and the hubs (`game/FieldObstacles`). Where a turned robot wouldn't fit but a square one would, like inside the trench, it holds the nearest 90° heading. The turn is spread out at the auto turn rate, so the robot squares up before it reaches the tight spot.
+- **Paths drawn past the wall:** some paths are drawn past the field wall on purpose, to make up for slip. Where that happens the robot rides 3 cm off the wall at full speed instead of grinding into it, with the join rounded off over about ±40 cm.
 
 It logs `Auto/Path/CrossTrackMeters`, `AlongTrackMeters`, `Held`, `Time`
 and the followed line as `Auto/Path/Reference`. robotTools' match grade
@@ -125,9 +125,8 @@ scores "Followed the path" from the cross-track error.
 
 `BlairAutoTest` runs both Blair autos on the full REBUILT field in the
 simulator. Every path has to finish, staying within 15 cm of the
-reachable path, and the four paths together can drive for at most 11 s
-so there's time to shoot. They stay within about 8–11 cm and drive for
-about 10.3 s. With PathPlanner's follower they cut up to 85 cm.
+reachable path. They stay within about 8–11 cm. With PathPlanner's
+follower they cut up to 85 cm.
 
 ## The catalog
 
@@ -148,7 +147,7 @@ the dashboard:
 | **Depot Side Quick Shoot (GAME)** | Quick shoot | Two runs to mid, coming back to the start to shoot after each. |
 | **HP Side Quick Shoot (GAME)** | Quick shoot | Same, from the HP side. |
 | **Depot Side Circut Shoot (GAME)** | Circuit | Two circuits through mid, shooting after each. |
-| **Depot Side Blair (GAME)** | Blair | Two intake runs from the depot side, shooting after each. Each path is about 2.5 s at up to 4.4 m/s and 3.5 m/s², slowing to 2.5 m/s at the end of each intake run. The flywheel spins up for the whole run back, so it shoots the moment it arrives. The runs back hug the wall square, 1 cm off it, and turn to the hub on arrival. |
+| **Depot Side Blair (GAME)** | Blair | Two intake runs from the depot side, shooting after each. |
 | **HP Side Blair (GAME)** | Blair | Same, from the HP side. |
 | **Depot Side Bump (GAME)** | Bump | Like Depot Side Blair, coming back over the bump. |
 

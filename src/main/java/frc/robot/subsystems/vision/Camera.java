@@ -40,9 +40,10 @@ public class Camera {
     private final Map<PoseSource, Double> lastTimestamps = new EnumMap<>(PoseSource.class);
     private final List<VisionMeasurement> measurements = new ArrayList<>();
     private final List<DetectedObject> objects = new ArrayList<>();
-    private final List<HeadingSample> headings = new ArrayList<>();
     private int requestedPipeline = -1;
     private double lastFixTime = Double.NEGATIVE_INFINITY;
+    private Pose2d megaTag1Pose;
+    private double megaTag1Time = Double.NEGATIVE_INFINITY;
     private final Alert disconnectedAlert;
     private final DoubleSupplier stdDevFactor;
 
@@ -83,7 +84,6 @@ public class Camera {
 
         measurements.clear();
         objects.clear();
-        headings.clear();
         if (config.estimatesPose()) {
             estimatePose(state);
         }
@@ -115,8 +115,9 @@ public class Camera {
                 measurements.add(toMeasurement(observation, pose));
                 lastFixTime = Timer.getFPGATimestamp();
                 accepted.add(pose);
-                if (observation.source().headingSource && isStrictHeading(observation, state)) {
-                    headings.add(new HeadingSample(observation.timestamp(), pose.getRotation()));
+                if (observation.source() == PoseSource.MEGATAG_1) {
+                    megaTag1Pose = pose;
+                    megaTag1Time = Timer.getFPGATimestamp();
                 }
             } else {
                 rejected.add(pose);
@@ -217,8 +218,8 @@ public class Camera {
         return objects;
     }
 
-    public List<HeadingSample> getHeadings() {
-        return headings;
+    public Optional<Pose2d> recentMegaTag1Pose() {
+        return Timer.getFPGATimestamp() - megaTag1Time < kRecentFixSeconds ? Optional.ofNullable(megaTag1Pose) : Optional.empty();
     }
 
     public int tagCount() {

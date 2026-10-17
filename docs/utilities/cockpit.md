@@ -60,7 +60,6 @@ can show it too. The results are logged as `Cockpit/Checks` and
 | Battery picked | Warns when no battery is picked. |
 | Auto picked | Warns when the auto is None or not a "(GAME)" auto. |
 | On the start pose | More than 5 cm or 2° off, with directions from the drivers' view. |
-| Heading confirmed | MegaTag 1 hasn't confirmed the heading. |
 | Everything connected | Any motor, encoder, gyro or camera is offline. |
 | Controllers | Warns when the driver (port 0) or operator (port 1) controller is unplugged. |
 | Self-test | It hasn't passed, until the first enable. A pass is saved on the roboRIO (`/home/lvuser/selftest.txt`), so on the field the check shows "Passed in the pits 40 min ago" for 12 hours on the same code. With the FMS attached it only warns, since Test mode can't run on the field. |
@@ -68,7 +67,7 @@ can show it too. The results are logged as `Cockpit/Checks` and
 ## Notifications
 
 ```java
-Cockpit.toast(Level.INFO, "Heading fixed by MegaTag 1", "Corrected 2.4°");
+Cockpit.toast(Level.INFO, "Hub-front shot on", "");
 Cockpit.toast(Level.ERROR, "Self-test failed", String.join(", ", failures));
 ```
 

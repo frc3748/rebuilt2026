@@ -8,22 +8,20 @@ import edu.wpi.first.math.geometry.Transform3d;
 
 public interface CameraIO {
     enum PoseSource {
-        MEGATAG_1(Double.POSITIVE_INFINITY, 1.0, true, true),
-        MEGATAG_2(0.5, Double.POSITIVE_INFINITY, false, false),
-        MULTI_TAG(1.0, 1.0, false, true),
-        SINGLE_TAG(1.0, 1.0, true, false),
-        TRIG_SOLVE(0.5, Double.POSITIVE_INFINITY, false, false);
+        MEGATAG_1(Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, true),
+        MEGATAG_2(0.5, Double.POSITIVE_INFINITY, false),
+        MULTI_TAG(1.0, 1.0, false),
+        SINGLE_TAG(1.0, 1.0, true),
+        TRIG_SOLVE(0.5, Double.POSITIVE_INFINITY, false);
 
         public final double linearStdDevFactor;
         public final double angularStdDevFactor;
         public final boolean rejectAmbiguous;
-        public final boolean headingSource;
 
-        PoseSource(double linearStdDevFactor, double angularStdDevFactor, boolean rejectAmbiguous, boolean headingSource) {
+        PoseSource(double linearStdDevFactor, double angularStdDevFactor, boolean rejectAmbiguous) {
             this.linearStdDevFactor = linearStdDevFactor;
             this.angularStdDevFactor = angularStdDevFactor;
             this.rejectAmbiguous = rejectAmbiguous;
-            this.headingSource = headingSource;
         }
     }
 

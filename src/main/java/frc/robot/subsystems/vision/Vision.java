@@ -1,10 +1,8 @@
 package frc.robot.subsystems.vision;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -12,7 +10,6 @@ import java.util.Optional;
 import org.littletonrobotics.junction.Logger;
 
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
@@ -22,7 +19,6 @@ import frc.robot.Constants;
 import frc.robot.Constants.Mode;
 import frc.robot.RobotState;
 import frc.robot.util.cockpit.Cockpit;
-import frc.robot.util.cockpit.Cockpit.Level;
 import frc.robot.util.state.StateMachine;
 
 public class Vision extends StateMachine<Vision.State> {
@@ -35,10 +31,6 @@ public class Vision extends StateMachine<Vision.State> {
     private final RobotState robotState;
     private final Camera[] cameras;
     private final List<DetectedObject> objects = new ArrayList<>();
-    private final Deque<HeadingSample> headings = new ArrayDeque<>();
-    private Optional<Rotation2d> headingFix = Optional.empty();
-    private static final double kAnnounceCorrectionDegrees = 1.0;
-    private boolean headingConfirmed;
     private boolean estimating = true;
     private double lastVisionTime = Double.NEGATIVE_INFINITY;
     private final Alert noVisionAlert = new Alert("No vision pose for " + (int) VisionConstants.kNoVisionSeconds + " s", AlertType.kWarning);
@@ -82,12 +74,12 @@ public class Vision extends StateMachine<Vision.State> {
                 }
             }
             if (estimating) {
-                camera.getMeasurements().forEach(robotState::addVisionMeasurement);
+                camera.getMeasurements().stream()
+                        .filter(measurement -> Double.isFinite(measurement.stdDevs().get(0, 0)) || Double.isFinite(measurement.stdDevs().get(2, 0)))
+                        .forEach(robotState::addVisionMeasurement);
             }
             camera.getObjects().forEach(this::remember);
-            headings.addAll(camera.getHeadings());
         }
-        checkHeading(now);
         boolean watching = DriverStation.isEnabled() && estimating && Arrays.stream(cameras).anyMatch(camera -> camera.getConfig().estimatesPose());
         noVisionAlert.set(watching && now - lastVisionTime > VisionConstants.kNoVisionSeconds);
         disagreeAlert.setText(String.format("Vision and odometry disagree by %.1f m", disagreement));
@@ -106,46 +98,6 @@ public class Vision extends StateMachine<Vision.State> {
         Logger.recordOutput("Vision/ClosestObject", getClosestObjectPose().stream().toArray(Pose2d[]::new));
     }
 
-    private void checkHeading(double now) {
-        headings.removeIf(sample -> now - sample.timestamp() > VisionConstants.kHeadingWindowSeconds);
-        headingFix = agreedHeading();
-        Pose2d robot = robotState.getLatestFieldToRobot().getValue();
-        headingFix.ifPresent(fix -> {
-            double error = Math.abs(fix.minus(robot.getRotation()).getDegrees());
-            if (DriverStation.isDisabled() && estimating && error > VisionConstants.kHeadingCorrectionDegrees) {
-                if (error > kAnnounceCorrectionDegrees) {
-                    Cockpit.toast(Level.INFO, "Heading fixed by MegaTag 1", String.format("Corrected %.1f°", error));
-                }
-                robotState.getDrive().setPose(new Pose2d(robot.getTranslation(), fix));
-                headings.clear();
-                error = 0.0;
-            }
-            headingConfirmed = error <= VisionConstants.kHeadingAgreementDegrees;
-        });
-        Logger.recordOutput("Vision/HeadingConfirmed", headingConfirmed);
-        Logger.recordOutput("Vision/HeadingSamples", headings.size());
-        headingFix.ifPresent(fix -> Logger.recordOutput("Vision/HeadingFix", fix));
-    }
-
-    private Optional<Rotation2d> agreedHeading() {
-        if (headings.size() < VisionConstants.kHeadingSamples) {
-            return Optional.empty();
-        }
-        double sin = 0.0;
-        double cos = 0.0;
-        for (HeadingSample sample : headings) {
-            sin += sample.heading().getSin();
-            cos += sample.heading().getCos();
-        }
-        Rotation2d mean = new Rotation2d(cos, sin);
-        for (HeadingSample sample : headings) {
-            if (Math.abs(sample.heading().minus(mean).getDegrees()) > VisionConstants.kHeadingAgreementDegrees) {
-                return Optional.empty();
-            }
-        }
-        return Optional.of(mean);
-    }
-
     public void setEstimating(boolean estimating) {
         this.estimating = estimating;
     }
@@ -162,12 +114,8 @@ public class Vision extends StateMachine<Vision.State> {
         return cameras.length;
     }
 
-    public boolean isHeadingConfirmed() {
-        return headingConfirmed;
-    }
-
-    public Optional<Rotation2d> getHeadingFix() {
-        return headingFix;
+    public Optional<Pose2d> recentMegaTag1Pose() {
+        return Arrays.stream(cameras).map(Camera::recentMegaTag1Pose).flatMap(Optional::stream).findFirst();
     }
 
     private void remember(DetectedObject object) {

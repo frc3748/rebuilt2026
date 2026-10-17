@@ -33,7 +33,6 @@ import frc.robot.subsystems.vision.CameraConfig;
 import frc.robot.subsystems.vision.CameraIO;
 import frc.robot.subsystems.vision.CameraIO.PoseObservation;
 import frc.robot.subsystems.vision.CameraIO.PoseSource;
-import frc.robot.subsystems.vision.HeadingSample;
 import frc.robot.util.cockpit.Cockpit;
 import frc.robot.util.cockpit.Cockpit.Check;
 
@@ -118,7 +117,7 @@ class CockpitTest {
     }
 
     @Test
-    void onlyStrictMegaTag1FramesGiveHeadings() {
+    void onlyStrictMegaTag1FramesAreUsed() {
         double now = Timer.getFPGATimestamp();
         Pose2d robot = state.getLatestFieldToRobot().getValue();
         Pose3d seen = new Pose3d(new Pose2d(robot.getX() + 3, robot.getY() + 2, Rotation2d.fromDegrees(30)));
@@ -141,13 +140,14 @@ class CockpitTest {
         Camera camera = new Camera(config, fake);
 
         camera.update(state, false);
-        List<HeadingSample> headings = camera.getHeadings();
-        assertEquals(1, headings.size());
-        assertEquals(30.0, headings.get(0).heading().getDegrees(), 1e-6);
+        assertEquals(1, camera.getMeasurements().size());
+        assertEquals(30.0, camera.getMeasurements().get(0).robotPose().getRotation().getDegrees(), 1e-6);
 
-        for (frame[0] = 1; frame[0] < frames.length; frame[0]++) {
+        for (frame[0] = 1; frame[0] < frames.length - 1; frame[0]++) {
             camera.update(state, false);
-            assertTrue(camera.getHeadings().isEmpty(), "frame " + frame[0] + " shouldn't be trusted for heading");
+            assertTrue(camera.getMeasurements().isEmpty(), "frame " + frame[0] + " shouldn't be trusted");
         }
+        camera.update(state, false);
+        assertEquals(1, camera.getMeasurements().size(), "MegaTag 2 frames don't need to be strict");
     }
 }

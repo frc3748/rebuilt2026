@@ -157,7 +157,7 @@ class CompRobotTest {
         List<VisionMeasurement> measurements = camera.getMeasurements();
         assertEquals(2, measurements.size());
         assertTrue(Double.isInfinite(measurements.get(0).stdDevs().get(0, 0)));
-        assertTrue(Double.isFinite(measurements.get(0).stdDevs().get(2, 0)));
+        assertTrue(Double.isInfinite(measurements.get(0).stdDevs().get(2, 0)));
         assertTrue(Double.isFinite(measurements.get(1).stdDevs().get(0, 0)));
         assertTrue(Double.isInfinite(measurements.get(1).stdDevs().get(2, 0)));
         assertTrue(camera.getObjects().isEmpty());

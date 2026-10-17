@@ -37,7 +37,7 @@ Each `CameraIO` fills `CameraInputs`:
 
 | Source | Translation | Heading | Ambiguity check |
 | --- | --- | --- | --- |
-| `MEGATAG_1` | ignored | trusted | yes |
+| `MEGATAG_1` | ignored | ignored | yes |
 | `MEGATAG_2` | trusted ×0.5 | ignored | no |
 | `MULTI_TAG` | trusted | trusted | no |
 | `SINGLE_TAG` | trusted | trusted | yes |
@@ -46,40 +46,23 @@ Each `CameraIO` fills `CameraInputs`:
 This is the old "MegaTag 2 translation, MegaTag 1 rotation" rule written
 as data, so a new vendor only has to say where its poses came from.
 
-## Heading from MegaTag 1
+## Heading
 
-MegaTag 2 needs the robot's heading to be right already, so the heading
-comes from MegaTag 1, and only from frames that can't be wrong. A
-MegaTag 1 frame is rejected as "not strict" unless it sees at least
-`kStrictHeadingMinTags` (2) tags, the tags average under
-`kStrictHeadingMaxDistanceMeters` (4 m), ambiguity is under
+Vision never changes the robot's heading. The heading comes from the gyro,
+and the auto's starting pose resets it at the start of the match, so the
+pose you start from is the truth. Zeroing the heading by hand also sticks.
+MegaTag 1 is ignored for both position and heading (`MEGATAG_1` is ignored
+for both in the table above); MegaTag 2 gives the position, using that
+heading.
+
+MegaTag 1 frames are still checked: a frame is rejected as "not strict"
+unless it sees at least `kStrictHeadingMinTags` (2) tags, the tags average
+under `kStrictHeadingMaxDistanceMeters` (4 m), ambiguity is under
 `kStrictHeadingMaxAmbiguity`, and the chassis is turning slower than
-`kStrictHeadingMaxYawRateRadPerSec`. `MULTI_TAG` frames (PhotonVision)
-count too.
-
-Each strict frame adds a heading sample. `Vision` keeps the last
-`kHeadingWindowSeconds` of them, and once `kHeadingSamples` (5) samples
-all agree within `kHeadingAgreementDegrees` (1°), their average is the
-heading fix:
-
-- **While disabled**, if the fix is more than
-  `kHeadingCorrectionDegrees` off, `Vision` resets the pose's rotation to
-  it. This fixes the gyro on the start line.
-- **During the match**, strict frames still go into the pose estimator,
-  so the heading keeps getting corrected by good frames only.
-- `Vision/HeadingConfirmed` turns true when the fix and the robot's
-  heading agree. The dashboard's **Heading confirmed** check waits for
-  it. Once confirmed it stays confirmed while the gyro holds the heading.
-
-If the cameras can't see two tags within 4 m from your start pose,
-the check stays red. Turn the robot past some tags while setting it up
-(it stays confirmed afterwards), or relax the limits in
-`VisionConstants`.
-
-Vision also raises alerts for the dashboard: a camera disconnected
-(warning), no accepted pose for `kNoVisionSeconds` while enabled
-(warning), and vision and odometry disagreeing by more than
-`kDisagreeMeters` (error).
+`kStrictHeadingMaxYawRateRadPerSec`. The last strict frame from the last
+2 s (`kRecentFixSeconds`) only feeds the dashboard's **On the start pose**
+check, which compares it to the auto's start pose. It never moves the
+robot's pose.
 
 ## Filtering
 

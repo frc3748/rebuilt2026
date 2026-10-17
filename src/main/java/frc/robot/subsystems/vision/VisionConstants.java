@@ -23,10 +23,7 @@ public final class VisionConstants {
     public static final double kStrictHeadingMaxDistanceMeters = 4.0;
     public static final double kStrictHeadingMaxAmbiguity = 0.15;
     public static final double kStrictHeadingMaxYawRateRadPerSec = Units.degreesToRadians(30.0);
-    public static final int kHeadingSamples = 5;
-    public static final double kHeadingWindowSeconds = 1.0;
-    public static final double kHeadingAgreementDegrees = 1.0;
-    public static final double kHeadingCorrectionDegrees = 0.25;
+    public static final double kRecentFixSeconds = 2.0;
     public static final double kNoVisionSeconds = 5.0;
     public static final double kDisagreeMeters = 0.5;
 
