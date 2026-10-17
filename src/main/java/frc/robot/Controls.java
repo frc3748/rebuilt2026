@@ -19,6 +19,7 @@ public class Controls {
 
     protected final CommandXboxController driver = new CommandXboxController(0);
     protected final CommandXboxController operator = new CommandXboxController(1);
+    protected final CommandXboxController solo = new CommandXboxController(2);
 
     public Controls() {
         DriverStation.silenceJoystickConnectionWarning(true);
@@ -30,6 +31,7 @@ public class Controls {
         robot.getIntake().ifPresent(intake -> bindIntake(state, intake));
         robot.getShooter().ifPresent(shooter -> bindShooter(state, shooter));
         bindOperator(robot);
+        bindSolo(state, robot);
     }
 
     protected void bindDriver(RobotState state) {
@@ -86,6 +88,69 @@ public class Controls {
                 .onTrue(Commands.runOnce(robot::clearOverrides));
     }
 
+    protected void bindSolo(RobotState state, Superstructure robot) {
+        Drive drive = state.getDrive();
+        if (DriverStation.getMatchType() == MatchType.None) {
+            soloControl("Down", "Zero heading", solo.povDown())
+                    .onTrue(Commands.runOnce(drive::zeroHeading, drive).ignoringDisable(true));
+        }
+        soloControl("RB", "Slow", solo.rightBumper())
+                .onTrue(drive.transitionCommand(Drive.State.SLOW))
+                .onFalse(drive.transitionCommand(Drive.State.TRAVERSING));
+        soloControl("Left", "Aim lock on", solo.povLeft())
+                .onTrue(drive.transitionCommand(Drive.State.TRAVERSING_AT_ANGLE));
+        soloControl("Right", "Aim lock off", solo.povRight())
+                .onTrue(drive.transitionCommand(Drive.State.TRAVERSING));
+        soloControl("Up", "Turn to hub", solo.povUp())
+                .whileTrue(ActionCommands.turnToHub(state));
+        robot.getIntake().ifPresent(intake -> {
+            soloControl("LT", "Intake", solo.leftTrigger(kTriggerThreshold))
+                    .onTrue(intake.transitionCommand(Intake.State.INTAKE))
+                    .onFalse(intake.transitionCommand(Intake.State.IDLE));
+            soloControl("LB", "Intake up", solo.leftBumper())
+                    .onTrue(intake.transitionCommand(Intake.State.STOW));
+            soloControl("A", "Eject", solo.a())
+                    .onTrue(Commands.runOnce(() -> intake.requestTransition(Intake.State.OUTAKE)))
+                    .onFalse(Commands.runOnce(() -> intake.requestTransition(Intake.State.IDLE)));
+            soloControl("B", "Shake", solo.b())
+                    .whileTrue(ActionCommands.shakeIntake(state));
+        });
+        robot.getShooter().ifPresent(shooter -> {
+            soloControl("RT", "Stop and shoot", solo.rightTrigger(kTriggerThreshold))
+                    .onTrue(Commands.sequence(
+                            Commands.runOnce(drive::stopWithX),
+                            ActionCommands.shootOrPassBasedOnPos(state)))
+                    .onFalse(ActionCommands.trackBasedOnPos(state));
+            solo.a()
+                    .onTrue(Commands.runOnce(() -> shooter.requestTransition(Shooter.State.OUTTAKE)))
+                    .onFalse(ActionCommands.trackBasedOnPos(state));
+            soloControl("X", "Drive to hub and shoot", solo.x())
+                    .whileTrue(ActionCommands.goToFixedPosAndShoot(state))
+                    .onFalse(Commands.runOnce(shooter::releaseShot));
+        });
+    }
+
+    public double forward() {
+        return -stronger(driver.getLeftY(), solo.getLeftY());
+    }
+
+    public double left() {
+        return -stronger(driver.getLeftX(), solo.getLeftX());
+    }
+
+    public double turn() {
+        return -stronger(driver.getRightX(), solo.getRightX());
+    }
+
+    private static double stronger(double driverValue, double soloValue) {
+        return Math.abs(soloValue) > Math.abs(driverValue) ? soloValue : driverValue;
+    }
+
+    private Trigger soloControl(String inputs, String label, Trigger trigger) {
+        Cockpit.control("solo", inputs, label);
+        return trigger;
+    }
+
     private Trigger driverControl(String inputs, String label, Trigger trigger) {
         Cockpit.control("driver", inputs, label);
         return trigger;
@@ -105,8 +170,12 @@ public class Controls {
     }
 
     public Command driverBuzz(double seconds) {
-        return Commands.startEnd(() -> driver.getHID().setRumble(RumbleType.kRightRumble, 0.6),
-                () -> driver.getHID().setRumble(RumbleType.kRightRumble, 0.0)).withTimeout(seconds);
+        return Commands.startEnd(() -> setDriverBuzz(0.6), () -> setDriverBuzz(0.0)).withTimeout(seconds);
+    }
+
+    private void setDriverBuzz(double value) {
+        driver.getHID().setRumble(RumbleType.kRightRumble, value);
+        solo.getHID().setRumble(RumbleType.kRightRumble, value);
     }
 
     public Command rumble(double seconds) {
@@ -116,6 +185,7 @@ public class Controls {
     private void setRumble(double value) {
         driver.getHID().setRumble(RumbleType.kBothRumble, value);
         operator.getHID().setRumble(RumbleType.kBothRumble, value);
+        solo.getHID().setRumble(RumbleType.kBothRumble, value);
     }
 
     public CommandXboxController driver() {
@@ -124,5 +194,9 @@ public class Controls {
 
     public CommandXboxController operator() {
         return operator;
+    }
+
+    public CommandXboxController solo() {
+        return solo;
     }
 }

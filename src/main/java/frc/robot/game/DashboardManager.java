@@ -568,6 +568,9 @@ public class DashboardManager {
     }
 
     private Check checkControllers() {
+        if (DriverStation.isJoystickConnected(2)) {
+            return Check.pass("Solo controller plugged in, one person drives everything");
+        }
         List<String> missing = new ArrayList<>();
         if (!DriverStation.isJoystickConnected(0)) {
             missing.add("Driver");

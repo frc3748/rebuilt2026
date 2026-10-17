@@ -125,7 +125,7 @@ public class RobotState extends StateMachine<RobotState.State> {
 
     @Override
     protected void update() {
-        if (Math.abs(controls.driver().getRightX()) > 0.1) {
+        if (Math.abs(controls.turn()) > 0.1) {
             drive.requestTransition(Drive.State.TRAVERSING);
         }
         gameState.update();

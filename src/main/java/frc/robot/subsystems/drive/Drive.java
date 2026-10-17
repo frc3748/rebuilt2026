@@ -183,9 +183,9 @@ public class Drive extends StateMachine<Drive.State> {
 
     setDefaultCommand(DriveCommands.smartDrive(
         this,
-        () -> -robotState.getControls().driver().getLeftY(),
-        () -> -robotState.getControls().driver().getLeftX(),
-        () -> -robotState.getControls().driver().getRightX(),
+        () -> robotState.getControls().forward(),
+        () -> robotState.getControls().left(),
+        () -> robotState.getControls().turn(),
         this::getAimRotationForHub,
         () -> {
           State currentState = getState();

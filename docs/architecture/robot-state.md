@@ -107,6 +107,30 @@ in a subclass. The driver only drives:
 
 ![Driver controller]({{ '/assets/controls/driver.png' | relative_url }})
 
+A third controller in port 2 (**solo**) lets one person run the whole
+robot when there aren't two drivers. It has the original one-controller
+layout. Its sticks drive too: the drive uses whichever controller's
+stick is pushed further, so the driver and solo controllers never fight.
+Drag it into slot 2 in the Driver Station's USB tab. With it plugged in,
+the Controllers check passes on its own.
+
+| Solo input | Action |
+| --- | --- |
+| Left stick / right stick X | Translate / rotate, same as the driver. |
+| Right bumper (hold) | Slow mode. |
+| D-pad left / right | Aim lock on / off (`TRAVERSING_AT_ANGLE` / `TRAVERSING`). |
+| D-pad up (hold) | Turn to the hub. |
+| D-pad down | Reset heading. Only bound when not in a match. |
+| Left trigger (hold) | Intake down and spinning; down and stopped on release. |
+| Left bumper | Intake up. |
+| A (hold) | Eject: intake and shooter run backward. |
+| B (hold) | Shake the intake. |
+| Right trigger (hold) | Lock the wheels and shoot or pass; back to tracking on release. |
+| X (hold) | Drive to the hub and shoot. |
+
+Solo has no turbo button, so it drives at the `Drive/Speed Limit`.
+It rumbles with the others and gets the driver's shot-ready buzz.
+
 The operator runs the mechanisms. Intake buttons are bound only if the
 robot has an intake, shooter buttons only if it has a shooter; both are
 listed on [Action Commands]({{ '/commands/action-commands/' | relative_url }}#where-these-get-bound).
@@ -114,7 +138,8 @@ listed on [Action Commands]({{ '/commands/action-commands/' | relative_url }}#wh
 Every binding is registered with `Cockpit.control(controller, inputs,
 label)`, logged as `Cockpit/Controls`. The dashboard's Teleop tab shows
 them as a cheat sheet and lights up whatever is pressed: yellow for the
-driver, cyan for the operator. The top bar has a Driver and an Operator
+driver, cyan for the operator, green for solo (only while it's plugged
+in). The top bar has a Driver and an Operator
 pill that light up while anything on that controller is pressed, so
 it's obvious which controller is which.
 
